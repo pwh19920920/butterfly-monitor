@@ -1,0 +1,25 @@
+db:
+  dsn: 'root:root@tcp(127.0.0.1:3306)/butterfly_admin?charset=utf8mb4&parseTime=True&loc=Local'
+
+server:
+  engineMode: 'release'
+  serverAddr: :8081
+
+auth:
+  ignorePath:
+    - POST - /api/login
+    - POST - /run
+    - POST - /kill
+    - POST - /log
+  ignorePrefixPath:
+  commonPath:
+    - POST - /api/logout
+    - POST - /api/refresh
+    - GET - /api/currentUser
+
+influx:
+  addr: http://127.0.0.1:8086
+  database: monitor
+
+xxl:
+  accessToken: xxl
