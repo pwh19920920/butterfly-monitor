@@ -22,4 +22,7 @@ type MonitorDatabaseRepository interface {
 
 	// Select 分页查询
 	Select(req *types.MonitorDatabaseQueryRequest) (int64, []entity.MonitorDatabase, error)
+
+	// SelectSimpleAll 简单查询
+	SelectSimpleAll() ([]entity.MonitorDatabase, error)
 }

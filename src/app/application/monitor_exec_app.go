@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var commandHandlerMap = make(map[entity.TaskType]handler.CommandHandler, 0)
+var commandHandlerMap = make(map[entity.MonitorTaskType]handler.CommandHandler, 0)
 var databaseHandlerMap = make(map[entity.DataSourceType]handler.DatabaseHandler, 0)
 
 var databaseLoadTime *common.LocalTime

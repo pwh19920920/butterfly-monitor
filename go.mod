@@ -5,10 +5,11 @@ go 1.17
 require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.7.4
+	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/kirinlabs/HttpRequest v1.1.1
-	github.com/pwh19920920/butterfly v0.0.15
-	github.com/pwh19920920/butterfly-admin v0.0.4
+	github.com/pwh19920920/butterfly v0.0.16
+	github.com/pwh19920920/butterfly-admin v0.0.6
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2

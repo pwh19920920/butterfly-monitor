@@ -30,7 +30,7 @@ func (dbHandler *CommandDataBaseHandler) ExecuteCommand(task entity.MonitorTask)
 	// 从map获取数据连接
 	dbConn, ok := dbHandler.DatabaseMap[params.DatabaseId]
 	if !ok {
-		return 0, errors.New(fmt.Sprintf("dbMap is not contain %v", task.DatabaseId))
+		return 0, errors.New(fmt.Sprintf("dbMap is not contain %v", params.DatabaseId))
 	}
 	return dbConn.(handler.DatabaseHandler).ExecuteQuery(task)
 }

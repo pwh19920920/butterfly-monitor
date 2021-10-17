@@ -8,6 +8,7 @@ import (
 type Application struct {
 	MonitorExec     MonitorExecApplication
 	MonitorDatabase MonitorDatabaseApplication
+	MonitorTask     MonitorTaskApplication
 }
 
 func NewApplication(
@@ -23,8 +24,14 @@ func NewApplication(
 			config.InfluxDbOption,
 		),
 
-		// 任务数据库
+		// 监控数据库
 		MonitorDatabase: MonitorDatabaseApplication{
+			sequence:   config.Sequence,
+			repository: repository,
+		},
+
+		// 监控任务
+		MonitorTask: MonitorTaskApplication{
 			sequence:   config.Sequence,
 			repository: repository,
 		},

@@ -49,3 +49,7 @@ func (application *MonitorDatabaseApplication) Modify(request *types.MonitorData
 	}
 	return err
 }
+
+func (application *MonitorDatabaseApplication) SelectAll() ([]entity.MonitorDatabase, error) {
+	return application.repository.MonitorDatabaseRepository.SelectSimpleAll()
+}
