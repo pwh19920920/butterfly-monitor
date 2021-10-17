@@ -9,7 +9,7 @@ const (
 	TaskTypeURL      TaskType = 1
 )
 
-type JobTask struct {
+type MonitorTask struct {
 	common.BaseEntity
 
 	PreExecuteTime common.LocalTime `json:"pre_execute_time" gorm:"column:pre_execute_time"` // 上一次执行时间
@@ -19,9 +19,10 @@ type JobTask struct {
 	Command        string           `json:"command" gorm:"column:command"`                   // 执行指令, 可以是url, 也可以是sql
 	TaskType       TaskType         `json:"task_type" gorm:"column:task_type"`               // 任务类型, db, url
 	DatabaseId     int64            `json:"database_id" gorm:"database_id"`                  // 如果是db, 执行db的id
+	ExecParams     string           `json:"exec_params"`                                     // 任务执行参数
 }
 
 // TableName 会将 User 的表名重写为 `profiles`
-func (JobTask) TableName() string {
-	return "t_job_task"
+func (MonitorTask) TableName() string {
+	return "t_monitor_task"
 }

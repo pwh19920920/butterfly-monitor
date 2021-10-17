@@ -8,7 +8,7 @@ const (
 	DataSourceTypeMysql DataSourceType = 0
 )
 
-type JobDatabase struct {
+type MonitorDatabase struct {
 	common.BaseEntity
 
 	Database string         `json:"database" gorm:"column:database"` // 数据库
@@ -20,6 +20,6 @@ type JobDatabase struct {
 }
 
 // TableName 会将 User 的表名重写为 `profiles`
-func (JobDatabase) TableName() string {
-	return "t_job_database"
+func (MonitorDatabase) TableName() string {
+	return "t_monitor_database"
 }

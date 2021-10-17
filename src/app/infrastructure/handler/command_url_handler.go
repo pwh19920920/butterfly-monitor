@@ -2,17 +2,31 @@ package handler
 
 import (
 	"butterfly-monitor/src/app/domain/entity"
-	"bytes"
-	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/kirinlabs/HttpRequest"
+	"github.com/thedevsaddam/gojsonq/v2"
 )
 
 type CommandUrlHandler struct {
 }
 
-func (urlHandler *CommandUrlHandler) ExecuteCommand(task entity.JobTask) (int64, error) {
+type CommandUrlParams struct {
+	ResultFieldPath string `json:"resultFieldPath"` // 支持对象.属性
+}
+
+func (urlHandler *CommandUrlHandler) ExecuteCommand(task entity.MonitorTask) (int64, error) {
+	if task.ExecParams == "" {
+		return 0, errors.New("执行参数有误")
+	}
+
+	var params CommandUrlParams
+	err := json.Unmarshal([]byte(task.ExecParams), &params)
+	if err != nil {
+		return 0, err
+	}
+
 	req := HttpRequest.NewRequest()
 	resp, err := req.Get(task.Command)
 	if err != nil || resp.StatusCode() != 200 {
@@ -24,8 +38,6 @@ func (urlHandler *CommandUrlHandler) ExecuteCommand(task entity.JobTask) (int64,
 		return 0, err
 	}
 
-	binBuf := bytes.NewBuffer(body)
-	var result int64
-	err = binary.Read(binBuf, binary.BigEndian, &result)
-	return result, err
+	result := gojsonq.New().FromString(string(body)).Find(params.ResultFieldPath)
+	return result.(int64), err
 }

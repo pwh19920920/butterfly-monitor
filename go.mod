@@ -8,9 +8,10 @@ require (
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/pwh19920920/butterfly v0.0.15
-	github.com/pwh19920920/butterfly-admin v0.0.3
+	github.com/pwh19920920/butterfly-admin v0.0.4
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
+	github.com/thedevsaddam/gojsonq/v2 v2.5.2
 	github.com/xxl-job/xxl-job-executor-go v1.0.1
 	gorm.io/driver/mysql v1.0.3
 	gorm.io/gorm v1.20.5

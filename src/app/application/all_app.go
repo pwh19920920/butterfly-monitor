@@ -6,8 +6,8 @@ import (
 )
 
 type Application struct {
-	JobExec     JobExecApplication
-	JobDatabase JobDatabaseApplication
+	MonitorExec     MonitorExecApplication
+	MonitorDatabase MonitorDatabaseApplication
 }
 
 func NewApplication(
@@ -16,7 +16,7 @@ func NewApplication(
 ) *Application {
 	return &Application{
 		// 定时执行器
-		JobExec: NewJobExecApplication(
+		MonitorExec: NewMonitorExecApplication(
 			config.Sequence,
 			repository,
 			config.XxlJobExec,
@@ -24,7 +24,7 @@ func NewApplication(
 		),
 
 		// 任务数据库
-		JobDatabase: JobDatabaseApplication{
+		MonitorDatabase: MonitorDatabaseApplication{
 			sequence:   config.Sequence,
 			repository: repository,
 		},
@@ -32,5 +32,5 @@ func NewApplication(
 }
 
 func (app *Application) RegisterJobExec() {
-	app.JobExec.RegisterExecJob()
+	app.MonitorExec.RegisterExecJob()
 }

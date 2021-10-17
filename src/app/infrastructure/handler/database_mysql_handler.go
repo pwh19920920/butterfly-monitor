@@ -20,7 +20,7 @@ type DatabaseMysqlHandler struct {
 }
 
 // NewInstance username:password@tcp(127.0.0.1:3306)/butterfly_admin?charset=utf8mb4&parseTime=True&loc=Local
-func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.JobDatabase) (interface{}, error) {
+func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDatabase) (interface{}, error) {
 	// 创建连接
 	dsn := fmt.Sprintf("%v:%v@tcp(%v)/%v?charset=utf8mb4&parseTime=True&loc=Local",
 		database.Username, database.Password,
@@ -59,7 +59,7 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.JobDatabase) 
 }
 
 // ExecuteQuery 执行查询
-func (dbHandler *DatabaseMysqlHandler) ExecuteQuery(task entity.JobTask) (int64, error) {
+func (dbHandler *DatabaseMysqlHandler) ExecuteQuery(task entity.MonitorTask) (int64, error) {
 	var result int64 = 0
 	err := dbHandler.db.Raw(task.Command).Scan(&result).Error
 	return result, err

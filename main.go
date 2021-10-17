@@ -19,7 +19,7 @@ func init() {
 	)
 
 	// 初始化路由
-	interfaces.InitJobDatabaseHandler(app)
+	interfaces.InitMonitorDatabaseHandler(app)
 
 	// 注册定时任务
 	app.RegisterJobExec()

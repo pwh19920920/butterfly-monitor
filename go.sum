@@ -350,8 +350,8 @@ github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084/go.mod h1:TjEm7z
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/pwh19920920/butterfly v0.0.15 h1:wDsoXgZ3OZcPTPzBZMffwqSwgmhv1Qxv79MJ+ZUHI1U=
 github.com/pwh19920920/butterfly v0.0.15/go.mod h1:KjcusVzdf+EaXxdJncdHka7uiM++EBq3nVwwUlE2WOo=
-github.com/pwh19920920/butterfly-admin v0.0.3 h1:szlNpz10OYDeEIPu+n5WdpFTnDtXThpeD4KrW7M9Rqs=
-github.com/pwh19920920/butterfly-admin v0.0.3/go.mod h1:MLdNEnjUTIXDKpXfFxQaaIK3EsSddD0sSO+TaaHLeSM=
+github.com/pwh19920920/butterfly-admin v0.0.4 h1:jVfdD35ir1GyY6TDjmK87uiJHTJYiksmKgkmoCNdcXA=
+github.com/pwh19920920/butterfly-admin v0.0.4/go.mod h1:MLdNEnjUTIXDKpXfFxQaaIK3EsSddD0sSO+TaaHLeSM=
 github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5 h1:mZHayPoR0lNmnHyvtYjDeq0zlVHn9K/ZXoy17ylucdo=
 github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5/go.mod h1:GEXHk5HgEKCvEIIrSpFI3ozzG5xOKA2DVlEX/gGnewM=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
@@ -399,6 +399,8 @@ github.com/subosito/gotenv v1.2.0 h1:Slr1R9HxAlEKefgq5jn9U+DnETlIUa6HfgEzj0g5d7s
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/tebeka/strftime v0.1.5 h1:1NQKN1NiQgkqd/2moD6ySP/5CoZQsKa1d3ZhJ44Jpmg=
 github.com/tebeka/strftime v0.1.5/go.mod h1:29/OidkoWHdEKZqzyDLUyC+LmgDgdHo4WAFCDT7D/Ig=
+github.com/thedevsaddam/gojsonq/v2 v2.5.2 h1:CoMVaYyKFsVj6TjU6APqAhAvC07hTI6IQen8PHzHYY0=
+github.com/thedevsaddam/gojsonq/v2 v2.5.2/go.mod h1:bv6Xa7kWy82uT0LnXPE2SzGqTj33TAEeR560MdJkiXs=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
 github.com/ugorji/go v1.2.6 h1:tGiWC9HENWE2tqYycIqFTNorMmFRVhNwCpDOpWqnk8E=
