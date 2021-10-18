@@ -8,5 +8,5 @@ type DatabaseHandler interface {
 	NewInstance(database entity.MonitorDatabase) (interface{}, error)
 
 	// ExecuteQuery 执行查询
-	ExecuteQuery(task entity.MonitorTask) (int64, error)
+	ExecuteQuery(task entity.MonitorTask) (interface{}, error)
 }

@@ -59,8 +59,8 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 }
 
 // ExecuteQuery 执行查询
-func (dbHandler *DatabaseMysqlHandler) ExecuteQuery(task entity.MonitorTask) (int64, error) {
-	var result int64 = 0
+func (dbHandler *DatabaseMysqlHandler) ExecuteQuery(task entity.MonitorTask) (interface{}, error) {
+	var result interface{} = 0
 	err := dbHandler.db.Raw(task.Command).Scan(&result).Error
 	return result, err
 }

@@ -3,6 +3,7 @@ package types
 import (
 	"butterfly-monitor/src/app/domain/entity"
 	"github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/pwh19920920/butterfly-admin/src/app/common"
 	"github.com/pwh19920920/butterfly/response"
 )
 
@@ -15,7 +16,8 @@ type MonitorTaskQueryRequest struct {
 }
 
 type MonitorTaskExecParams struct {
-	DatabaseId *int64 `json:"databaseId,string"`
+	DatabaseId      *int64 `json:"databaseId,string"`
+	ResultFieldPath string `json:"resultFieldPath"`
 }
 
 type MonitorTaskQueryResponse struct {
@@ -26,6 +28,11 @@ type MonitorTaskQueryResponse struct {
 type MonitorTaskCreateRequest struct {
 	entity.MonitorTask
 	TaskExecParams MonitorTaskExecParams `json:"taskExecParams"`
+}
+
+type MonitorTaskExecForRangeRequest struct {
+	BeginDate *common.LocalTime `json:"beginDate"` // 开始日期
+	EndDate   *common.LocalTime `json:"endDate"`   // 结束日期
 }
 
 func (req MonitorTaskCreateRequest) ValidateForCreate() error {

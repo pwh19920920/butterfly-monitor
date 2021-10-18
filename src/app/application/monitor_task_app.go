@@ -6,8 +6,10 @@ import (
 	"butterfly-monitor/src/app/types"
 	"encoding/json"
 	"github.com/bwmarrin/snowflake"
+	"github.com/pwh19920920/butterfly-admin/src/app/common"
 	"github.com/pwh19920920/butterfly-admin/src/app/config/sequence"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type MonitorTaskApplication struct {
@@ -37,7 +39,10 @@ func (application *MonitorTaskApplication) Query(request *types.MonitorTaskQuery
 // Create 创建数据源
 func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCreateRequest) error {
 	monitorTask := request.MonitorTask
+	execParams, _ := json.Marshal(request.TaskExecParams)
+	monitorTask.ExecParams = string(execParams)
 	monitorTask.Id = sequence.GetSequence().Generate().Int64()
+	monitorTask.PreExecuteTime = &common.LocalTime{Time: time.Now()}
 	err := application.repository.MonitorTaskRepository.Save(&monitorTask)
 
 	// 错误记录
@@ -53,7 +58,14 @@ func (application *MonitorTaskApplication) Modify(request *types.MonitorTaskCrea
 
 	monitorTask := request.MonitorTask
 	monitorTask.ExecParams = string(execParams)
-	err := application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &monitorTask)
+	err := application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &entity.MonitorTask{
+		TaskKey:    monitorTask.TaskKey,
+		TaskName:   monitorTask.TaskName,
+		TimeSpan:   monitorTask.TimeSpan,
+		ExecParams: monitorTask.ExecParams,
+		TaskType:   monitorTask.TaskType,
+		Command:    monitorTask.Command,
+	})
 
 	// 错误记录
 	if err != nil {

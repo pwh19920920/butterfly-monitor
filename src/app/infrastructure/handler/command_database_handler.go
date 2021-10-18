@@ -13,10 +13,10 @@ type CommandDataBaseHandler struct {
 }
 
 type CommandDataBaseParams struct {
-	DatabaseId int64 `json:"databaseId"`
+	DatabaseId int64 `json:"databaseId,string"`
 }
 
-func (dbHandler *CommandDataBaseHandler) ExecuteCommand(task entity.MonitorTask) (int64, error) {
+func (dbHandler *CommandDataBaseHandler) ExecuteCommand(task entity.MonitorTask) (interface{}, error) {
 	if task.ExecParams == "" {
 		return 0, errors.New("执行参数有误")
 	}

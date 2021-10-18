@@ -1,6 +1,8 @@
 package entity
 
-import "github.com/pwh19920920/butterfly-admin/src/app/common"
+import (
+	"github.com/pwh19920920/butterfly-admin/src/app/common"
+)
 
 type MonitorTaskType int32
 type MonitorTaskStatus int32
@@ -19,6 +21,7 @@ type MonitorTask struct {
 	common.BaseEntity
 
 	PreExecuteTime *common.LocalTime  `json:"preExecuteTime" gorm:"column:pre_execute_time"` // 上一次执行时间
+	ErrMsg         string             `json:"errMsg" gorm:"err_msg"`                         // 错误原因
 	TaskKey        string             `json:"taskKey" gorm:"column:task_key"`                // 任务标识
 	TaskName       string             `json:"taskName" gorm:"column:task_name"`              // 任务名称
 	TimeSpan       int32              `json:"timeSpan" gorm:"column:time_span"`              // 时间间隔

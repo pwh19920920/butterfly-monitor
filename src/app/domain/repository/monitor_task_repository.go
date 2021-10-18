@@ -27,4 +27,7 @@ type MonitorTaskRepository interface {
 
 	// UpdateTaskStatusById 更新任务状态
 	UpdateTaskStatusById(id int64, status entity.MonitorTaskStatus) error
+
+	// GetById 获取数据
+	GetById(id int64) (*entity.MonitorTask, error)
 }

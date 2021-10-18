@@ -23,7 +23,6 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(pageSize, lastId, shard
 			"and mod(id, ?) = ? "+
 			"and task_status = ? "+
 			"and date_add(now(), interval -time_span second) > pre_execute_time "+
-			"order by id desc "+
 			"limit 0, ?", lastId, shardTotal, shardIndex, entity.MonitorTaskStatusOpen, pageSize).
 		Find(&data).Error
 	return data, err
@@ -61,6 +60,13 @@ func (repo *MonitorTaskRepositoryImpl) Delete(id int64) error {
 		Where("id = ?", id).
 		Updates(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: 1}}).Error
 	return err
+}
+
+// GetById 获取对象
+func (repo *MonitorTaskRepositoryImpl) GetById(id int64) (*entity.MonitorTask, error) {
+	var data entity.MonitorTask
+	err := repo.db.Model(&entity.MonitorTask{}).Where("id = ?", id).Find(&data).Error
+	return &data, err
 }
 
 // Select 分页查询
