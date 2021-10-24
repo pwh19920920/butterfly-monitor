@@ -1,0 +1,21 @@
+package repository
+
+import (
+	"butterfly-monitor/src/app/domain/entity"
+	"butterfly-monitor/src/app/types"
+)
+
+type MonitorDashboardRepository interface {
+
+	// Save 保存
+	Save(monitorDashboard *entity.MonitorDashboard) error
+
+	// UpdateById 更新
+	UpdateById(id int64, monitorDashboard *entity.MonitorDashboard) error
+
+	// Select 分页查询
+	Select(req *types.MonitorDashboardQueryRequest) (int64, []entity.MonitorDashboard, error)
+
+	// SelectSimpleAll 简单查询
+	SelectSimpleAll() ([]entity.MonitorDashboard, error)
+}

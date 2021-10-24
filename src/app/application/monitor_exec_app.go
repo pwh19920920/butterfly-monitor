@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
+	"github.com/go-basic/uuid"
 	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pwh19920920/butterfly-admin/src/app/common"
 	"github.com/sirupsen/logrus"
@@ -168,6 +169,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	}
 
 	// 执行
+	logrus.Info(task.TaskKey, "：执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
 	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime)
 	if err != nil {
 		logrus.Error("commandHandler任务处理器模板引擎渲染失败", task, err.Error())
@@ -192,8 +194,29 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 		return points, beginTime, err
 	}
 
+	// 样本数据
+	samplePoints := make([]*client.Point, 0)
+	for i := 1; i <= 7; i++ {
+		// 创建记录
+		fields := map[string]interface{}{
+			"value": result,
+			"uuid":  uuid.New(),
+		}
+
+		tags := map[string]string{}
+		samplePoint, err := client.NewPoint(fmt.Sprintf("expire_7d.%v_sample", task.TaskKey), tags, fields, endTime.AddDate(0, 0, i))
+		if err != nil {
+			return points, beginTime, err
+		}
+
+		samplePoints = append(samplePoints, samplePoint)
+	}
+
 	// 添加结果
 	points = append(points, point)
+	for _, samplePoint := range samplePoints {
+		points = append(points, samplePoint)
+	}
 
 	// 继续发起下次执行
 	return job.recursiveExecuteCommand(commandHandler, task, points, endTime, maxTime)
@@ -203,12 +226,6 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
 	// 执行标记
 	defer wg.Done()
-
-	bp, err := job.influxDbOption.CreateBatchPoint()
-	if err != nil {
-		logrus.Error("exec fail, createBatchPoint is error", err)
-		return
-	}
 
 	commandHandler, ok := commandHandlerMap[task.TaskType]
 	if !ok {
@@ -220,43 +237,88 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	points := make([]*client.Point, 0)
 	points, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, beginTime, endTime)
 
+	if err != nil {
+		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"})
+		return
+	}
+
 	// 收集数据得结果为0条
 	if len(points) == 0 {
+		logrus.Error("收集数据为0条, taskId: ", task.Id)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"})
+		return
+	}
+
+	// 切割保存
+	pageCount := 20000
+	sliceLen := len(points) / pageCount
+	if len(points)%pageCount != 0 {
+		sliceLen += 1
+	}
+
+	successOps := make(chan bool, sliceLen)
+	var writeWg sync.WaitGroup
+	for i := 0; i < sliceLen; i++ {
+		length := pageCount
+		start := 0 * pageCount
+		if len(points)-start < pageCount {
+			length = len(points) - start
+		}
+		ps := points[start:length]
+		writeWg.Add(1)
+		go job.WritingForInfluxDb(task, ps, &writeWg, successOps)
+	}
+
+	// 等待全部执行完毕
+	writeWg.Wait()
+
+	// 判断是否全部保存完毕
+	for i := 0; i < sliceLen; i++ {
+		op := <-successOps
+		if !op {
+			return
+		}
+	}
+
+	// 更新时间
+	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
+		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
+	if err != nil {
+		logrus.Error("insert failure", err)
+		return
+	}
+}
+
+func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
+	defer wg.Done()
+
+	bp, err := job.influxDbOption.CreateBatchPoint()
+	if err != nil {
+		logrus.Error("exec fail, createBatchPoint is error", err)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "createBatchPoint失败"})
+		ops <- false
 		return
 	}
 
 	// 存数据, 更新task的时间
 	bp.AddPoints(points)
-	writeErr := job.influxDbOption.Client.Write(bp)
+	err = job.influxDbOption.Client.Write(bp)
 	if err != nil {
-		logrus.Error("exec fail", writeErr)
+		logrus.Error("exec fail", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"})
+		ops <- false
 		return
 	}
 
-	// 更新时间
-	errMsg := ""
-	if err != nil {
-		errMsg = err.Error()
-		if len(err.Error()) > 200 {
-			errMsg = errMsg[0:200]
-		}
-	}
-	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
-		ErrMsg:         errMsg,
-		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
-	if err != nil {
-		logrus.Error("insert failure", writeErr)
-		return
-	}
+	ops <- true
 }
 
 // RenderTaskCommandForRange 模板渲染
 func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime time.Time) (string, error) {
 	params := make(map[string]interface{}, 0)
-	params["endTime"] = endTime.Format("2020-01-01 10:10:10")
-	params["beginTime"] = beginTime.Format("2020-01-01 10:10:10")
+	params["endTime"] = endTime.Format("2006-01-02 15:04:05")
+	params["beginTime"] = beginTime.Format("2006-01-02 15:04:05")
 
 	// 创建模板对象, parse关联模板
 	tmpl, err := template.New(task.TaskKey).Parse(task.Command)

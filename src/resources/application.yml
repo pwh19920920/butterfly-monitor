@@ -12,6 +12,7 @@ auth:
     - POST - /kill
     - POST - /log
     - GET - /api/monitor/test
+    - POST - /api/notify
   ignorePrefixPath:
   commonPath:
 
@@ -21,3 +22,7 @@ influx:
 
 xxl:
   accessToken: xxl
+
+grafana:
+  addr: http://localhost:3000
+  apiKey: eyJrIjoiYk1Tc1NMazB6M3VyOEJqVkdzeDlpcmZhZ1dCZmg4R0UiLCJuIjoiYWRtaW4iLCJpZCI6MX0=

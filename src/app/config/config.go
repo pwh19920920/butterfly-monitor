@@ -1,6 +1,7 @@
 package config
 
 import (
+	"butterfly-monitor/src/app/config/grafana"
 	"butterfly-monitor/src/app/config/influxdb"
 	"butterfly-monitor/src/app/config/xxljob"
 	"github.com/bwmarrin/snowflake"
@@ -14,11 +15,13 @@ type Config struct {
 	InfluxDbOption  *influxdb.DbOption // influx数据操作
 	DatabaseForGorm *gorm.DB           // 数据库
 	Sequence        *snowflake.Node    // 数据库序列化工具
+	Grafana         *grafana.Config    // grafana配置
 }
 
 func InitAll(butterflyAdminConfig adminConfig.Config) Config {
 	xxlJobExec := xxljob.GetXxlJobExec()
 	dbOption := influxdb.NewInfluxDbOption()
+	grafanaConf := grafana.InitGrafanaConfig()
 	sequence := butterflyAdminConfig.Sequence
 	databaseForGorm := butterflyAdminConfig.DatabaseForGorm
 	return Config{
@@ -26,5 +29,6 @@ func InitAll(butterflyAdminConfig adminConfig.Config) Config {
 		dbOption,
 		databaseForGorm,
 		sequence,
+		grafanaConf,
 	}
 }

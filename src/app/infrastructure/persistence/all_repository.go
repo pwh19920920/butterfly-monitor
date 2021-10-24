@@ -6,13 +6,15 @@ import (
 )
 
 type Repository struct {
-	MonitorTaskRepository     repository.MonitorTaskRepository
-	MonitorDatabaseRepository repository.MonitorDatabaseRepository
+	MonitorTaskRepository      repository.MonitorTaskRepository
+	MonitorDatabaseRepository  repository.MonitorDatabaseRepository
+	MonitorDashboardRepository repository.MonitorDashboardRepository
 }
 
 func NewRepository(config config.Config) *Repository {
 	return &Repository{
-		MonitorTaskRepository:     NewMonitorTaskRepositoryImpl(config.DatabaseForGorm),
-		MonitorDatabaseRepository: NewMonitorDatabaseRepositoryImpl(config.DatabaseForGorm),
+		MonitorTaskRepository:      NewMonitorTaskRepositoryImpl(config.DatabaseForGorm),
+		MonitorDatabaseRepository:  NewMonitorDatabaseRepositoryImpl(config.DatabaseForGorm),
+		MonitorDashboardRepository: NewMonitorDashboardRepositoryImpl(config.DatabaseForGorm),
 	}
 }

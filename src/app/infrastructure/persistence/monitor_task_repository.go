@@ -22,7 +22,7 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(pageSize, lastId, shard
 		Where("id > ? "+
 			"and mod(id, ?) = ? "+
 			"and task_status = ? "+
-			"and date_add(now(), interval -time_span second) > pre_execute_time "+
+			"and date_add(now(), interval -time_span second) >= pre_execute_time "+
 			"limit 0, ?", lastId, shardTotal, shardIndex, entity.MonitorTaskStatusOpen, pageSize).
 		Find(&data).Error
 	return data, err

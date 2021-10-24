@@ -6,9 +6,10 @@ import (
 )
 
 type Application struct {
-	MonitorExec     MonitorExecApplication
-	MonitorDatabase MonitorDatabaseApplication
-	MonitorTask     MonitorTaskApplication
+	MonitorExec      MonitorExecApplication
+	MonitorDatabase  MonitorDatabaseApplication
+	MonitorDashboard MonitorDashboardApplication
+	MonitorTask      MonitorTaskApplication
 }
 
 func NewApplication(
@@ -32,6 +33,12 @@ func NewApplication(
 
 		// 监控任务
 		MonitorTask: MonitorTaskApplication{
+			sequence:   config.Sequence,
+			repository: repository,
+		},
+
+		// 主板配置
+		MonitorDashboard: MonitorDashboardApplication{
 			sequence:   config.Sequence,
 			repository: repository,
 		},
