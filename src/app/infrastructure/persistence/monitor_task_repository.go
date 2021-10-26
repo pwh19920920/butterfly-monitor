@@ -29,15 +29,32 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(pageSize, lastId, shard
 }
 
 // Save 保存
-func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask) error {
-	return repo.db.Model(&entity.MonitorTask{}).Create(&monitorTask).Error
+func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
+			return err
+		}
+		return repo.db.Model(&entity.MonitorTask{}).Create(&monitorTask).Error
+	})
 }
 
 // UpdateById 更新
-func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.MonitorTask) error {
-	return repo.db.Model(&entity.MonitorTask{}).
-		Where(&entity.MonitorTask{BaseEntity: common.BaseEntity{Id: id}}).
-		Updates(&monitorTask).Error
+func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		if dashboardTasks != nil {
+			// 删除dashboard_task
+			if err := tx.Where("task_id = ?", id).Delete(&entity.MonitorDashboardTask{}).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&entity.MonitorTask{}).
+			Where(&entity.MonitorTask{BaseEntity: common.BaseEntity{Id: id}}).
+			Updates(&monitorTask).Error
+	})
 }
 
 // UpdateAlertStatusById 更新
@@ -52,6 +69,13 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskStatusById(id int64, status ent
 	return repo.db.Model(&entity.MonitorTask{}).
 		Where("id = ?", id).
 		UpdateColumn("task_status", status).Error
+}
+
+// UpdateSampledById 更新
+func (repo *MonitorTaskRepositoryImpl) UpdateSampledById(id int64, status entity.MonitorSampledStatus) error {
+	return repo.db.Model(&entity.MonitorTask{}).
+		Where("id = ?", id).
+		UpdateColumn("sampled", status).Error
 }
 
 // Delete 删除
@@ -73,9 +97,11 @@ func (repo *MonitorTaskRepositoryImpl) GetById(id int64) (*entity.MonitorTask, e
 func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest) (int64, []entity.MonitorTask, error) {
 	var count int64 = 0
 	whereCase := &entity.MonitorTask{
-		TaskName: req.TaskName,
-		TaskType: req.TaskType,
-		TaskKey:  req.TaskKey,
+		TaskName:    req.TaskName,
+		TaskType:    req.TaskType,
+		TaskKey:     req.TaskKey,
+		TaskStatus:  req.TaskStatus,
+		AlertStatus: req.AlertStatus,
 	}
 	repo.db.Model(&entity.MonitorTask{}).Where(whereCase).Count(&count)
 

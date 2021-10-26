@@ -43,7 +43,7 @@ func (handler *monitorDashboardHandler) create(context *gin.Context) {
 	// option
 	err = handler.monitorDashboardApp.Create(&monitorDashboardCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "创建失败")
+		response.BuildResponseSysErr(context, "创建失败:"+err.Error())
 		return
 	}
 

@@ -34,6 +34,22 @@ func (repo *MonitorDashboardRepositoryImpl) UpdateById(id int64, monitorDashboar
 		Updates(&monitorDashboard).Error
 }
 
+func (repo *MonitorDashboardRepositoryImpl) GetById(id int64) (*entity.MonitorDashboard, error) {
+	var data entity.MonitorDashboard
+	err := repo.db.Model(&entity.MonitorDashboard{}).
+		Where(&entity.MonitorDashboard{BaseEntity: common.BaseEntity{Id: id}}).
+		Find(&data).Error
+	return &data, err
+}
+
+func (repo *MonitorDashboardRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorDashboard, error) {
+	var data []entity.MonitorDashboard
+	err := repo.db.Model(&entity.MonitorDashboard{}).
+		Where("id in ?", ids).
+		Find(&data).Error
+	return data, err
+}
+
 // Select 分页查询
 func (repo *MonitorDashboardRepositoryImpl) Select(req *types.MonitorDashboardQueryRequest) (int64, []entity.MonitorDashboard, error) {
 	var count int64 = 0

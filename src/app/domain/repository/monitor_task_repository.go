@@ -11,10 +11,10 @@ type MonitorTaskRepository interface {
 	FindJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error)
 
 	// Save 保存
-	Save(monitorTask *entity.MonitorTask) error
+	Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error
 
 	// UpdateById 更新
-	UpdateById(id int64, monitorTask *entity.MonitorTask) error
+	UpdateById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error
 
 	// Delete 删除
 	Delete(id int64) error
@@ -27,6 +27,9 @@ type MonitorTaskRepository interface {
 
 	// UpdateTaskStatusById 更新任务状态
 	UpdateTaskStatusById(id int64, status entity.MonitorTaskStatus) error
+
+	// UpdateSampledById 更新收集状态
+	UpdateSampledById(id int64, status entity.MonitorSampledStatus) error
 
 	// GetById 获取数据
 	GetById(id int64) (*entity.MonitorTask, error)

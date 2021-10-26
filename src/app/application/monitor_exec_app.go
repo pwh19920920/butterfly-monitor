@@ -1,6 +1,7 @@
 package application
 
 import (
+	"butterfly-monitor/src/app/config/grafana"
 	"butterfly-monitor/src/app/config/influxdb"
 	"butterfly-monitor/src/app/domain/entity"
 	"butterfly-monitor/src/app/domain/handler"
@@ -33,10 +34,10 @@ type MonitorExecApplication struct {
 	repository     *persistence.Repository
 	xxlExec        xxl.Executor
 	influxDbOption *influxdb.DbOption
+	grafana        *grafana.Config
 }
 
-func NewMonitorExecApplication(sequence *snowflake.Node, repository *persistence.Repository,
-	xxlExec xxl.Executor, influxDbOption *influxdb.DbOption) MonitorExecApplication {
+func NewMonitorExecApplication(sequence *snowflake.Node, repository *persistence.Repository, xxlExec xxl.Executor, influxDbOption *influxdb.DbOption, grafana *grafana.Config) MonitorExecApplication {
 	// 初始化数据库源
 	go initDatabaseConnect(repository)
 	return MonitorExecApplication{
@@ -44,6 +45,7 @@ func NewMonitorExecApplication(sequence *snowflake.Node, repository *persistence
 		repository:     repository,
 		xxlExec:        xxlExec,
 		influxDbOption: influxDbOption,
+		grafana:        grafana,
 	}
 }
 
@@ -196,7 +198,8 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 
 	// 样本数据
 	samplePoints := make([]*client.Point, 0)
-	for i := 1; i <= 7; i++ {
+	sampleMeasurementName := fmt.Sprintf("%s.%s_sample", job.grafana.SampleRpName, task.TaskKey)
+	for i := 1; i <= 7 && task.Sampled == entity.MonitorSampledStatusOpen; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
 			"value": result,
@@ -204,7 +207,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 		}
 
 		tags := map[string]string{}
-		samplePoint, err := client.NewPoint(fmt.Sprintf("expire_7d.%v_sample", task.TaskKey), tags, fields, endTime.AddDate(0, 0, i))
+		samplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
 		if err != nil {
 			return points, beginTime, err
 		}
@@ -239,14 +242,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"})
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
 	// 收集数据得结果为0条
 	if len(points) == 0 {
 		logrus.Error("收集数据为0条, taskId: ", task.Id)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"})
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
@@ -283,7 +286,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	// 更新时间
 	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
-		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
+		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}}, nil)
 	if err != nil {
 		logrus.Error("insert failure", err)
 		return
@@ -296,7 +299,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, p
 	bp, err := job.influxDbOption.CreateBatchPoint()
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "createBatchPoint失败"})
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "createBatchPoint失败"}, nil)
 		ops <- false
 		return
 	}
@@ -306,7 +309,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, p
 	err = job.influxDbOption.Client.Write(bp)
 	if err != nil {
 		logrus.Error("exec fail", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"})
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
 		ops <- false
 		return
 	}

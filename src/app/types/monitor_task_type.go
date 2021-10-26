@@ -5,14 +5,17 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pwh19920920/butterfly-admin/src/app/common"
 	"github.com/pwh19920920/butterfly/response"
+	"strconv"
 )
 
 type MonitorTaskQueryRequest struct {
 	response.RequestPaging
 
-	TaskName string                 `form:"taskName"`
-	TaskKey  string                 `form:"taskKey"`
-	TaskType entity.MonitorTaskType `form:"taskType"`
+	TaskName    string                    `form:"taskName"`
+	TaskKey     string                    `form:"taskKey"`
+	TaskType    entity.MonitorTaskType    `form:"taskType"`
+	TaskStatus  entity.MonitorTaskStatus  `form:"taskStatus" `  // 任务开关
+	AlertStatus entity.MonitorAlertStatus `form:"alertStatus" ` // 报警开关
 }
 
 type MonitorTaskExecParams struct {
@@ -23,11 +26,26 @@ type MonitorTaskExecParams struct {
 type MonitorTaskQueryResponse struct {
 	entity.MonitorTask
 	TaskExecParams MonitorTaskExecParams `json:"taskExecParams"`
+	Dashboards     []string              `json:"dashboards"`
 }
 
 type MonitorTaskCreateRequest struct {
 	entity.MonitorTask
 	TaskExecParams MonitorTaskExecParams `json:"taskExecParams"`
+	Dashboards     []string              `json:"dashboards"`
+}
+
+func (req MonitorTaskCreateRequest) GetDashboardIds() ([]int64, error) {
+	// 转换
+	dashboardIds := make([]int64, 0)
+	for _, dashboardIdStr := range req.Dashboards {
+		id, err := strconv.ParseInt(dashboardIdStr, 10, 64)
+		if err != nil {
+			return dashboardIds, err
+		}
+		dashboardIds = append(dashboardIds, id)
+	}
+	return dashboardIds, nil
 }
 
 type MonitorTaskExecForRangeRequest struct {
@@ -42,5 +60,6 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 		validation.Field(&req.TimeSpan, validation.Required, validation.Min(30)),
 		validation.Field(&req.Command, validation.Required, validation.Length(10, 1000)),
 		validation.Field(&req.TaskType, validation.Required),
+		validation.Field(&req.Dashboards, validation.Required),
 	)
 }

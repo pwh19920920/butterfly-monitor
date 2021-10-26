@@ -3,6 +3,7 @@ package application
 import (
 	"butterfly-monitor/src/app/config"
 	"butterfly-monitor/src/app/infrastructure/persistence"
+	"butterfly-monitor/src/app/infrastructure/support"
 )
 
 type Application struct {
@@ -23,6 +24,7 @@ func NewApplication(
 			repository,
 			config.XxlJobExec,
 			config.InfluxDbOption,
+			config.Grafana,
 		),
 
 		// 监控数据库
@@ -33,14 +35,16 @@ func NewApplication(
 
 		// 监控任务
 		MonitorTask: MonitorTaskApplication{
-			sequence:   config.Sequence,
-			repository: repository,
+			sequence:       config.Sequence,
+			repository:     repository,
+			grafanaHandler: support.NewGrafanaOptionHandler(config.Grafana),
 		},
 
 		// 主板配置
 		MonitorDashboard: MonitorDashboardApplication{
-			sequence:   config.Sequence,
-			repository: repository,
+			sequence:       config.Sequence,
+			repository:     repository,
+			grafanaHandler: support.NewGrafanaOptionHandler(config.Grafana),
 		},
 	}
 }

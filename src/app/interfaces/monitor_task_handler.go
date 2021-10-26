@@ -129,6 +129,32 @@ func (handler *monitorTaskHandler) modifyTaskStatus(context *gin.Context) {
 }
 
 // 修改
+func (handler *monitorTaskHandler) modifySampled(context *gin.Context) {
+	idStr := context.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		response.BuildResponseBadRequest(context, "请求参数有误")
+		return
+	}
+
+	taskStatusStr := context.Param("status")
+	taskStatus, err := strconv.ParseInt(taskStatusStr, 10, 32)
+	if err != nil {
+		response.BuildResponseBadRequest(context, "请求参数有误")
+		return
+	}
+
+	// option
+	err = handler.monitorTaskApp.ModifySampled(id, entity.MonitorSampledStatus(taskStatus))
+	if err != nil {
+		response.BuildResponseBadRequest(context, "修改收集状态失败")
+		return
+	}
+
+	response.BuildResponseSuccess(context, "ok")
+}
+
+// 修改
 func (handler *monitorTaskHandler) modifyAlertStatus(context *gin.Context) {
 	idStr := context.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -166,6 +192,7 @@ func InitMonitorTaskHandler(app *application.Application) {
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "", HandlerFunc: handler.modify})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "/alertStatus/:id/:status", HandlerFunc: handler.modifyAlertStatus})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "/taskStatus/:id/:status", HandlerFunc: handler.modifyTaskStatus})
+	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "/sampled/:id/:status", HandlerFunc: handler.modifySampled})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPost, Path: "/execForTimeRange/:id", HandlerFunc: handler.execForTimeRange})
 	server.RegisterRoute("/api/monitor/task", route)
 }

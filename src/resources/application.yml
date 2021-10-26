@@ -24,5 +24,6 @@ xxl:
   accessToken: xxl
 
 grafana:
+  sampleRpName: expire_7d
   addr: http://localhost:3000
-  apiKey: eyJrIjoiYk1Tc1NMazB6M3VyOEJqVkdzeDlpcmZhZ1dCZmg4R0UiLCJuIjoiYWRtaW4iLCJpZCI6MX0=
+  apiKey: eyJrIjoiN2ZTb0txTTQ3Q3BQZ3p5OVU3NXZNRGFkSGl5Qm1pZ0EiLCJuIjoic3VwZXJhZG1pbiIsImlkIjoxfQ==
