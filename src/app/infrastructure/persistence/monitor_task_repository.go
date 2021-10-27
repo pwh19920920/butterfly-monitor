@@ -119,19 +119,38 @@ func (repo *MonitorTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.Monito
 // Select 分页查询
 func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest) (int64, []entity.MonitorTask, error) {
 	var count int64 = 0
-	whereCase := &entity.MonitorTask{
-		TaskName:    req.TaskName,
-		TaskType:    req.TaskType,
-		TaskKey:     req.TaskKey,
-		TaskStatus:  req.TaskStatus,
-		AlertStatus: req.AlertStatus,
+	whereArg := make([]interface{}, 0)
+	whereSql := "1 = 1 "
+	if req.TaskName != "" {
+		whereSql += "and task_name like ?"
+		whereArg = append(whereArg, "%"+req.TaskName+"%")
 	}
-	repo.db.Model(&entity.MonitorTask{}).Where(whereCase).Count(&count)
+
+	if req.TaskKey != "" {
+		whereSql += "and task_key like ?"
+		whereArg = append(whereArg, "%"+req.TaskKey+"%")
+	}
+
+	if req.TaskType != nil {
+		whereSql += "and task_type = ?"
+		whereArg = append(whereArg, req.TaskType)
+	}
+
+	if req.TaskStatus != nil {
+		whereSql += "and task_status = ?"
+		whereArg = append(whereArg, req.TaskStatus)
+	}
+
+	if req.AlertStatus != nil {
+		whereSql += "and alert_status = ?"
+		whereArg = append(whereArg, req.AlertStatus)
+	}
+	repo.db.Model(&entity.MonitorTask{}).Where(whereSql, whereArg...).Count(&count)
 
 	var data []entity.MonitorTask
 	err := repo.db.
 		Model(&entity.MonitorTask{}).
-		Where(whereCase).
+		Where(whereSql, whereArg...).
 		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Order("id desc").
 		Limit(req.PageSize).Offset(req.Offset()).

@@ -11,11 +11,11 @@ import (
 type MonitorTaskQueryRequest struct {
 	response.RequestPaging
 
-	TaskName    string                    `form:"taskName"`
-	TaskKey     string                    `form:"taskKey"`
-	TaskType    entity.MonitorTaskType    `form:"taskType"`
-	TaskStatus  entity.MonitorTaskStatus  `form:"taskStatus" `  // 任务开关
-	AlertStatus entity.MonitorAlertStatus `form:"alertStatus" ` // 报警开关
+	TaskName    string                     `form:"taskName"`
+	TaskKey     string                     `form:"taskKey"`
+	TaskType    *entity.MonitorTaskType    `form:"taskType"`
+	TaskStatus  *entity.MonitorTaskStatus  `form:"taskStatus" `  // 任务开关
+	AlertStatus *entity.MonitorAlertStatus `form:"alertStatus" ` // 报警开关
 }
 
 type MonitorTaskExecParams struct {
