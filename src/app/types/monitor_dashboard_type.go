@@ -12,3 +12,13 @@ type MonitorDashboardQueryRequest struct {
 type MonitorDashboardCreateRequest struct {
 	entity.MonitorDashboard
 }
+
+type MonitorDashboardQueryTaskResponse struct {
+	entity.MonitorDashboardTask
+	TaskName string `json:"taskName"`
+	TaskKey  string `json:"taskKey"`
+}
+
+type MonitorDashboardTaskModifyRequest struct {
+	Data []entity.MonitorDashboardTask `json:"data"`
+}

@@ -22,6 +22,7 @@ func (application *MonitorDatabaseApplication) Query(request *types.MonitorDatab
 	if err != nil {
 		logrus.Error("MonitorDatabaseRepository.Select() happen error for", err)
 	}
+
 	return total, data, err
 }
 

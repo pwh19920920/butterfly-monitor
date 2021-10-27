@@ -44,6 +44,7 @@ func NewApplication(
 		MonitorDashboard: MonitorDashboardApplication{
 			sequence:       config.Sequence,
 			repository:     repository,
+			Grafana:        config.Grafana,
 			grafanaHandler: support.NewGrafanaOptionHandler(config.Grafana),
 		},
 	}

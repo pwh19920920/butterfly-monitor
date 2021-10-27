@@ -1,6 +1,7 @@
 package application
 
 import (
+	"butterfly-monitor/src/app/config/grafana"
 	"butterfly-monitor/src/app/domain/entity"
 	"butterfly-monitor/src/app/infrastructure/persistence"
 	"butterfly-monitor/src/app/infrastructure/support"
@@ -16,6 +17,7 @@ type MonitorDashboardApplication struct {
 	sequence       *snowflake.Node
 	repository     *persistence.Repository
 	grafanaHandler *support.GrafanaOptionHandler
+	Grafana        *grafana.Config
 }
 
 // Query 分页查询
@@ -25,6 +27,11 @@ func (application *MonitorDashboardApplication) Query(request *types.MonitorDash
 	// 错误记录
 	if err != nil {
 		logrus.Error("MonitorDashboardRepository.Select() happen error for", err)
+	}
+
+	for index, item := range data {
+		item.Url = application.Grafana.Addr + item.Url
+		data[index] = item
 	}
 	return total, data, err
 }
@@ -87,4 +94,69 @@ func (application *MonitorDashboardApplication) Modify(request *types.MonitorDas
 
 func (application *MonitorDashboardApplication) SelectAll() ([]entity.MonitorDashboard, error) {
 	return application.repository.MonitorDashboardRepository.SelectSimpleAll()
+}
+
+func (application *MonitorDashboardApplication) SelectByDashboardId(dashboardId int64) ([]types.MonitorDashboardQueryTaskResponse, error) {
+	monitorDashboardTasks, err := application.repository.MonitorDashboardTaskRepository.SelectByDashboardId(dashboardId)
+	if err != nil {
+		return nil, err
+	}
+
+	taskIds := make([]int64, 0)
+	for _, task := range monitorDashboardTasks {
+		taskIds = append(taskIds, task.TaskId)
+	}
+
+	taskMap, err := application.repository.MonitorTaskRepository.SelectByIdsWithMap(taskIds)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]types.MonitorDashboardQueryTaskResponse, 0)
+	for _, task := range monitorDashboardTasks {
+		result = append(result, types.MonitorDashboardQueryTaskResponse{
+			MonitorDashboardTask: task,
+			TaskKey:              taskMap[task.TaskId].TaskKey,
+			TaskName:             taskMap[task.TaskId].TaskName},
+		)
+	}
+	return result, nil
+}
+
+func (application *MonitorDashboardApplication) ModifyDashboardTaskSort(req *types.MonitorDashboardTaskModifyRequest) error {
+	ids := make([]int64, 0)
+	for _, item := range req.Data {
+		ids = append(ids, item.Id)
+	}
+
+	monitorDashboardTasks, err := application.repository.MonitorDashboardTaskRepository.SelectByIds(ids)
+	if err != nil {
+		return err
+	}
+
+	if len(monitorDashboardTasks) != len(ids) {
+		return errors.New("请求有误")
+	}
+
+	err = application.repository.MonitorDashboardTaskRepository.BatchModifySort(req.Data)
+	if err != nil {
+		return err
+	}
+
+	taskIds := make([]int64, 0)
+	for _, dashboardTask := range req.Data {
+		taskIds = append(taskIds, dashboardTask.TaskId)
+	}
+
+	monitorTaskMap, err := application.repository.MonitorTaskRepository.SelectByIdsWithMap(taskIds)
+	if err != nil {
+		return err
+	}
+
+	dashboard, err := application.repository.MonitorDashboardRepository.GetById(req.Data[0].DashboardId)
+	if err != nil || dashboard == nil {
+		return errors.New("获取面板信息失败")
+	}
+
+	return application.grafanaHandler.ReSortDashboard(dashboard.Uid, taskIds, monitorTaskMap)
 }

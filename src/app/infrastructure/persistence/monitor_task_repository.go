@@ -93,6 +93,29 @@ func (repo *MonitorTaskRepositoryImpl) GetById(id int64) (*entity.MonitorTask, e
 	return &data, err
 }
 
+// SelectByIdsWithMap 获取对象
+func (repo *MonitorTaskRepositoryImpl) SelectByIdsWithMap(ids []int64) (map[int64]entity.MonitorTask, error) {
+	data, err := repo.SelectByIds(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[int64]entity.MonitorTask, 0)
+	if data != nil {
+		for _, item := range data {
+			result[item.Id] = item
+		}
+	}
+	return result, err
+}
+
+// SelectByIds 获取对象
+func (repo *MonitorTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorTask, error) {
+	var data []entity.MonitorTask
+	err := repo.db.Model(&entity.MonitorTask{}).Where("id in ?", ids).Find(&data).Error
+	return data, err
+}
+
 // Select 分页查询
 func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest) (int64, []entity.MonitorTask, error) {
 	var count int64 = 0

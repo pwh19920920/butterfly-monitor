@@ -3,6 +3,7 @@ package persistence
 import (
 	"butterfly-monitor/src/app/domain/entity"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MonitorDashboardTaskRepositoryImpl struct {
@@ -16,6 +17,27 @@ func NewMonitorDashboardTaskRepositoryImpl(db *gorm.DB) *MonitorDashboardTaskRep
 func (repo *MonitorDashboardTaskRepositoryImpl) SelectByTaskIds(taskIds []int64) ([]entity.MonitorDashboardTask, error) {
 	var data []entity.MonitorDashboardTask
 	tx := repo.db.Model(&entity.MonitorDashboardTask{})
-	err := tx.Where("task_id in ?", taskIds).Find(&data).Error
+	err := tx.Where("task_id in ?", taskIds).Order("sort desc").Find(&data).Error
 	return data, err
+}
+
+func (repo *MonitorDashboardTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorDashboardTask, error) {
+	var data []entity.MonitorDashboardTask
+	tx := repo.db.Model(&entity.MonitorDashboardTask{})
+	err := tx.Where("id in ?", ids).Order("sort desc").Find(&data).Error
+	return data, err
+}
+
+func (repo *MonitorDashboardTaskRepositoryImpl) SelectByDashboardId(dashboardId int64) ([]entity.MonitorDashboardTask, error) {
+	var data []entity.MonitorDashboardTask
+	tx := repo.db.Model(&entity.MonitorDashboardTask{})
+	err := tx.Where("dashboard_id = ?", dashboardId).Order("sort desc").Find(&data).Error
+	return data, err
+}
+
+func (repo *MonitorDashboardTaskRepositoryImpl) BatchModifySort(data []entity.MonitorDashboardTask) error {
+	// insert into on duplicate key update
+	return repo.db.Model(&entity.MonitorDashboardTask{}).Clauses(clause.OnConflict{
+		DoUpdates: clause.AssignmentColumns([]string{"sort"}),
+	}).Create(data).Error
 }

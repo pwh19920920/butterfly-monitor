@@ -33,4 +33,8 @@ type MonitorTaskRepository interface {
 
 	// GetById 获取数据
 	GetById(id int64) (*entity.MonitorTask, error)
+
+	SelectByIdsWithMap(ids []int64) (map[int64]entity.MonitorTask, error)
+
+	SelectByIds(ids []int64) ([]entity.MonitorTask, error)
 }

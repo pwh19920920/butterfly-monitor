@@ -24,6 +24,37 @@ func (handler *GrafanaOptionHandler) CreateDashboard(name string) (*sdk.StatusMe
 	board.Time.From = "now-30m"
 	board.Time.To = "now"
 
+	autoCount := 30
+	var boolInt int64 = 2
+	board.Templating.List = []sdk.TemplateVar{{
+		Auto:      true,
+		AutoCount: &autoCount,
+		AutoMin:   "30s",
+		Current: sdk.Current{
+			Value: "$__auto_interval_my_interval",
+			Text:  &sdk.StringSliceString{Value: []string{"auto"}},
+		},
+		Hide:    2,
+		Refresh: sdk.BoolInt{Value: &boolInt},
+		Query:   "1m,5m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+		Type:    "interval",
+		Name:    "my_interval",
+		Options: []sdk.Option{
+			{Selected: true, Text: "auto", Value: "$__auto_interval_my_interval"},
+			{Selected: false, Text: "1m", Value: "1m"},
+			{Selected: false, Text: "5m", Value: "5m"},
+			{Selected: false, Text: "10m", Value: "10m"},
+			{Selected: false, Text: "30m", Value: "30m"},
+			{Selected: false, Text: "1h", Value: "1h"},
+			{Selected: false, Text: "6h", Value: "6h"},
+			{Selected: false, Text: "12h", Value: "12h"},
+			{Selected: false, Text: "1d", Value: "1d"},
+			{Selected: false, Text: "7d", Value: "7d"},
+			{Selected: false, Text: "14d", Value: "14d"},
+			{Selected: false, Text: "30d", Value: "30d"},
+		},
+	}}
+
 	client, err := handler.Grafana.GetGrafanaClient()
 	if err != nil {
 		return nil, err
@@ -157,7 +188,7 @@ func (handler *GrafanaOptionHandler) createTarget(refID, measurement, alias stri
 		GroupBy: []struct {
 			Type   string   `json:"type,omitempty"`
 			Params []string `json:"params,omitempty"`
-		}{{Type: "time", Params: []string{"1m"}}, {Type: "fill", Params: []string{"null"}}},
+		}{{Type: "time", Params: []string{"$my_interval"}}, {Type: "fill", Params: []string{"null"}}},
 	}
 }
 
@@ -280,4 +311,44 @@ func (handler *GrafanaOptionHandler) sortPanels(panels []*sdk.Panel) []*sdk.Pane
 		}
 	}
 	return panels
+}
+
+func (handler *GrafanaOptionHandler) ReSortDashboard(boardUID string, taskIds []int64, taskMap map[int64]entity.MonitorTask) error {
+	taskKeys := make([]string, 0)
+	for _, taskId := range taskIds {
+		taskKeys = append(taskKeys, taskMap[taskId].TaskKey)
+	}
+
+	client, err := handler.Grafana.GetGrafanaClient()
+	if err != nil {
+		return err
+	}
+
+	board, _, err := client.GetDashboardByUID(context.TODO(), boardUID)
+	if err != nil {
+		return err
+	}
+
+	panels := board.Panels
+	panelMap := make(map[string]*sdk.Panel, 0)
+	for _, panel := range panels {
+		panelMap[*panel.Description] = panel
+	}
+
+	newPanels := make([]*sdk.Panel, 0)
+	for _, taskKey := range taskKeys {
+		newPanels = append(newPanels, panelMap[taskKey])
+	}
+
+	board.Panels = handler.sortPanels(newPanels)
+
+	// http
+	resp, err := client.SetDashboard(context.TODO(), board, sdk.SetDashboardParams{
+		Overwrite: true,
+	})
+
+	if err != nil || *resp.Status != "success" {
+		return errors.New(*resp.Status)
+	}
+	return nil
 }
