@@ -46,7 +46,7 @@ func getDbConn() client.Client {
 
 	// 加载配置
 	dbConf = new(influxConf)
-	config.LoadConf(&dbConf, config.GetOptions().ConfigFilePath)
+	config.LoadConf(&dbConf)
 
 	// 创建client
 	cli, err := client.NewHTTPClient(client.HTTPConfig{

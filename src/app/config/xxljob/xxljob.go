@@ -42,7 +42,7 @@ func GetXxlJobExec() xxl.Executor {
 
 	// 加载配置
 	xxlConf = new(xxlJobConf)
-	config.LoadConf(&xxlConf, config.GetOptions().ConfigFilePath)
+	config.LoadConf(&xxlConf)
 
 	// 获取本地ip
 	ip, _ := GetLocalIP()

@@ -27,7 +27,7 @@ func InitGrafanaConfig() *Config {
 
 	// 加载配置
 	gfConf := new(grafanaConf)
-	config.LoadConf(&gfConf, config.GetOptions().ConfigFilePath)
+	config.LoadConf(&gfConf)
 
 	return &gfConf.Grafana
 }

@@ -9,8 +9,8 @@ require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/kirinlabs/HttpRequest v1.1.1
-	github.com/pwh19920920/butterfly v0.0.16
-	github.com/pwh19920920/butterfly-admin v0.0.9
+	github.com/pwh19920920/butterfly v1.0.1
+	github.com/pwh19920920/butterfly-admin v1.0.1
 	github.com/pwh19920920/grafanasdk v1.0.2
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
