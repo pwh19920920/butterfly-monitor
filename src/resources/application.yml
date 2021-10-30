@@ -1,6 +1,3 @@
-db:
-  dsn: 'root:root@tcp(127.0.0.1:3306)/butterfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
-
 server:
   serverName: 'butterfly-monitor'
   engineMode: 'release'
@@ -22,8 +19,9 @@ influx:
 
 xxl:
   accessToken: xxl
+  serverAddr: http://127.0.0.1:8080/xxl-job-admin
 
 grafana:
   sampleRpName: expire_7d
-  addr: http://localhost:3000
+  addr: http://127.0.0.1:3000
   apiKey: eyJrIjoiN2ZTb0txTTQ3Q3BQZ3p5OVU3NXZNRGFkSGl5Qm1pZ0EiLCJuIjoic3VwZXJhZG1pbiIsImlkIjoxfQ==
