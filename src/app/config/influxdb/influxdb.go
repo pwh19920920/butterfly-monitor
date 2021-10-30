@@ -7,7 +7,7 @@ import (
 )
 import client "github.com/influxdata/influxdb1-client/v2"
 
-const defaultPrecision = "s"
+const defaultPrecision = "ns"
 const defaultUsername = "admin"
 const defaultPassword = ""
 const defaultAddr = "http://127.0.0.1:8086"
@@ -20,39 +20,20 @@ type Config struct {
 	Precision string `yaml:"precision"` // 精度
 }
 
-var dbConf *influxConf
-
 type influxConf struct {
 	Influx Config `yaml:"influx"`
 }
 
 type DbOption struct {
-	Client client.Client // 操作客户端
+	DbConf *influxConf
 }
 
-func NewInfluxDbOption() *DbOption {
-	return &DbOption{
-		getDbConn(),
-	}
-}
-
-// getConn 获取连接
-func getDbConn() client.Client {
-	// 默认值
-	viper.SetDefault("influx.addr", defaultAddr)
-	viper.SetDefault("influx.precision", defaultPrecision)
-	viper.SetDefault("influx.username", defaultUsername)
-	viper.SetDefault("influx.password", defaultPassword)
-
-	// 加载配置
-	dbConf = new(influxConf)
-	config.LoadConf(&dbConf)
-
+func (op *DbOption) GetClient() client.Client {
 	// 创建client
 	cli, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr:     dbConf.Influx.Addr,
-		Username: dbConf.Influx.Username,
-		Password: dbConf.Influx.Password,
+		Addr:     op.DbConf.Influx.Addr,
+		Username: op.DbConf.Influx.Username,
+		Password: op.DbConf.Influx.Password,
 	})
 
 	// 判断错误
@@ -62,11 +43,32 @@ func getDbConn() client.Client {
 	return cli
 }
 
+func NewInfluxDbOption() *DbOption {
+	return &DbOption{
+		getDbConf(),
+	}
+}
+
+// getConn 获取连接
+func getDbConf() *influxConf {
+
+	// 默认值
+	viper.SetDefault("influx.addr", defaultAddr)
+	viper.SetDefault("influx.precision", defaultPrecision)
+	viper.SetDefault("influx.username", defaultUsername)
+	viper.SetDefault("influx.password", defaultPassword)
+
+	// 加载配置
+	dbConf := new(influxConf)
+	config.LoadConf(&dbConf)
+	return dbConf
+}
+
 // CreateBatchPoint 获取批量保存点
 func (op *DbOption) CreateBatchPoint() (client.BatchPoints, error) {
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  dbConf.Influx.Database,
-		Precision: dbConf.Influx.Precision, //精度，默认ns
+		Database:  op.DbConf.Influx.Database,
+		Precision: op.DbConf.Influx.Precision, //精度，默认ns
 	})
 
 	// 判断错误

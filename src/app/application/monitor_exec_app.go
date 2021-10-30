@@ -254,7 +254,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	}
 
 	// 切割保存
-	pageCount := 20000
+	pageCount := 200000
 	sliceLen := len(points) / pageCount
 	if len(points)%pageCount != 0 {
 		sliceLen += 1
@@ -271,6 +271,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 		ps := points[start:length]
 		writeWg.Add(1)
 		go job.WritingForInfluxDb(task, ps, &writeWg, successOps)
+		time.Sleep(time.Duration(2) * time.Second)
 	}
 
 	// 等待全部执行完毕
@@ -306,7 +307,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, p
 
 	// 存数据, 更新task的时间
 	bp.AddPoints(points)
-	err = job.influxDbOption.Client.Write(bp)
+	err = job.influxDbOption.GetClient().Write(bp)
 	if err != nil {
 		logrus.Error("exec fail", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
