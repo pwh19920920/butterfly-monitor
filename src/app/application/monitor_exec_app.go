@@ -254,7 +254,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	}
 
 	// 切割保存
-	pageCount := 200000
+	pageCount := 5000
 	sliceLen := len(points) / pageCount
 	if len(points)%pageCount != 0 {
 		sliceLen += 1
@@ -263,12 +263,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	successOps := make(chan bool, sliceLen)
 	var writeWg sync.WaitGroup
 	for i := 0; i < sliceLen; i++ {
-		length := pageCount
-		start := 0 * pageCount
-		if len(points)-start < pageCount {
-			length = len(points) - start
+		end := (i+1)*pageCount - 1
+		start := i * pageCount
+		if len(points) <= end {
+			end = len(points) - 1
 		}
-		ps := points[start:length]
+
+		fmt.Printf("%v - %v\n", start, end)
+		ps := points[start:end]
 		writeWg.Add(1)
 		go job.WritingForInfluxDb(task, ps, &writeWg, successOps)
 		time.Sleep(time.Duration(2) * time.Second)
@@ -307,14 +309,17 @@ func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, p
 
 	// 存数据, 更新task的时间
 	bp.AddPoints(points)
-	err = job.influxDbOption.GetClient().Write(bp)
+	cli := job.influxDbOption.GetClient()
+	err = cli.Write(bp)
 	if err != nil {
-		logrus.Error("exec fail", err)
+		_ = cli.Close()
+		logrus.Error("write to influxdb fail", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
 		ops <- false
 		return
 	}
 
+	_ = cli.Close()
 	ops <- true
 }
 

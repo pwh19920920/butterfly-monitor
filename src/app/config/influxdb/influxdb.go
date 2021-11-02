@@ -7,7 +7,7 @@ import (
 )
 import client "github.com/influxdata/influxdb1-client/v2"
 
-const defaultPrecision = "ns"
+const defaultPrecision = "s"
 const defaultUsername = "admin"
 const defaultPassword = ""
 const defaultAddr = "http://127.0.0.1:8086"
