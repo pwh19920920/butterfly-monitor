@@ -236,6 +236,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 		return
 	}
 
+	cli := job.influxDbOption.GetClient()
+	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
+	logrus.Error("influxdb ping返回 - ", pingTime, " - ", version)
+	if err != nil {
+		logrus.Error("influxdb ping 失败")
+		return
+	}
+
 	// 执行开始
 	points := make([]*client.Point, 0)
 	points, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, beginTime, endTime)
@@ -269,15 +277,15 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 			end = len(points) - 1
 		}
 
-		fmt.Printf("%v - %v\n", start, end)
 		ps := points[start:end]
 		writeWg.Add(1)
-		go job.WritingForInfluxDb(task, ps, &writeWg, successOps)
+		go job.WritingForInfluxDb(cli, task, ps, &writeWg, successOps)
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 
 	// 等待全部执行完毕
 	writeWg.Wait()
+	_ = cli.Close()
 
 	// 判断是否全部保存完毕
 	for i := 0; i < sliceLen; i++ {
@@ -289,6 +297,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	// 更新时间
 	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
+		ErrMsg:         " ",
 		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}}, nil)
 	if err != nil {
 		logrus.Error("insert failure", err)
@@ -296,7 +305,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	}
 }
 
-func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
+func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
 	defer wg.Done()
 
 	bp, err := job.influxDbOption.CreateBatchPoint()
@@ -309,17 +318,14 @@ func (job *MonitorExecApplication) WritingForInfluxDb(task entity.MonitorTask, p
 
 	// 存数据, 更新task的时间
 	bp.AddPoints(points)
-	cli := job.influxDbOption.GetClient()
 	err = cli.Write(bp)
 	if err != nil {
-		_ = cli.Close()
 		logrus.Error("write to influxdb fail", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
 		ops <- false
 		return
 	}
 
-	_ = cli.Close()
 	ops <- true
 }
 
