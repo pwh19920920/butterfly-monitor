@@ -17,7 +17,7 @@ RUN echo $TIME_ZONE > /etc/timezone
 
 WORKDIR /dist
 COPY --from=builder /app/spider .
-COPY --from=builder /app/src/resources ./src/resources
+COPY --from=builder /app/conf ./conf
 EXPOSE 8081
 
 ARG PARAMS
