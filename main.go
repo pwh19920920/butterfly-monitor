@@ -23,6 +23,7 @@ func init() {
 	interfaces.InitMonitorTaskHandler(app)
 	interfaces.InitMonitorTestHandler(app)
 	interfaces.InitMonitorDashboardHandler(app)
+	interfaces.InitMonitorHealthHandler(app)
 
 	// 注册定时任务
 	app.RegisterJobExec()

@@ -3,9 +3,9 @@ package application
 import (
 	"butterfly-monitor/config/grafana"
 	"butterfly-monitor/config/influxdb"
-	entity2 "butterfly-monitor/domain/entity"
-	handler3 "butterfly-monitor/domain/handler"
-	handler2 "butterfly-monitor/infrastructure/handler"
+	"butterfly-monitor/domain/entity"
+	handler "butterfly-monitor/domain/handler"
+	handlerImpl "butterfly-monitor/infrastructure/handler"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
 	"bytes"
@@ -23,8 +23,8 @@ import (
 	"time"
 )
 
-var commandHandlerMap = make(map[entity2.MonitorTaskType]handler3.CommandHandler, 0)
-var databaseHandlerMap = make(map[entity2.DataSourceType]handler3.DatabaseHandler, 0)
+var commandHandlerMap = make(map[entity.MonitorTaskType]handler.CommandHandler, 0)
+var databaseHandlerMap = make(map[entity.DataSourceType]handler.DatabaseHandler, 0)
 
 var databaseLoadTime *common.LocalTime
 var databaseMap = make(map[int64]interface{}, 0)
@@ -71,7 +71,7 @@ func initDatabaseConnect(repository *persistence.Repository) {
 	}
 
 	// 初始化执行类型
-	commandHandlerMap[entity2.TaskTypeDatabase] = &handler2.CommandDataBaseHandler{DatabaseMap: databaseMap}
+	commandHandlerMap[entity.TaskTypeDatabase] = &handlerImpl.CommandDataBaseHandler{DatabaseMap: databaseMap}
 
 	// 睡眠后继续执行
 	databaseLoadTime = &common.LocalTime{Time: time.Now()}
@@ -82,11 +82,11 @@ func initDatabaseConnect(repository *persistence.Repository) {
 // 默认参数
 func init() {
 	// 命令类型
-	commandHandlerMap[entity2.TaskTypeURL] = new(handler2.CommandUrlHandler)
-	commandHandlerMap[entity2.TaskTypeDatabase] = new(handler2.CommandDataBaseHandler)
+	commandHandlerMap[entity.TaskTypeURL] = new(handlerImpl.CommandUrlHandler)
+	commandHandlerMap[entity.TaskTypeDatabase] = new(handlerImpl.CommandDataBaseHandler)
 
 	// 数据库类型
-	databaseHandlerMap[entity2.DataSourceTypeMysql] = new(handler2.DatabaseMysqlHandler)
+	databaseHandlerMap[entity.DataSourceTypeMysql] = new(handlerImpl.DatabaseMysqlHandler)
 }
 
 // ExecDataCollectForTimeRange 执行特定时间范围内得数据收集
@@ -130,7 +130,7 @@ func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *x
 	return "execute complete"
 }
 
-func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler3.CommandHandler, task entity2.MonitorTask) (result interface{}, err error) {
+func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask) (result interface{}, err error) {
 	ctx := context.Background()
 	done := make(chan bool, 1)
 
@@ -159,7 +159,7 @@ func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler3.Comm
 }
 
 // recursiveExecuteCommand 递归执行
-func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handler3.CommandHandler, task entity2.MonitorTask,
+func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask,
 	points []*client.Point, beginTime, maxTime time.Time) ([]*client.Point, time.Time, error) {
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
@@ -199,7 +199,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	// 样本数据
 	samplePoints := make([]*client.Point, 0)
 	sampleMeasurementName := fmt.Sprintf("%s.%s_sample", job.grafana.SampleRpName, task.TaskKey)
-	for i := 1; i <= 7 && task.Sampled == entity2.MonitorSampledStatusOpen; i++ {
+	for i := 1; i <= 7 && task.Sampled == entity.MonitorSampledStatusOpen; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
 			"value": result,
@@ -226,7 +226,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 }
 
 // executeCommand 执行命令
-func (job *MonitorExecApplication) executeCommand(task entity2.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
+func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
 	// 执行标记
 	defer wg.Done()
 
@@ -250,14 +250,14 @@ func (job *MonitorExecApplication) executeCommand(task entity2.MonitorTask, wg *
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity2.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
 	// 收集数据得结果为0条
 	if len(points) == 0 {
 		logrus.Error("收集数据为0条, taskId: ", task.Id)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity2.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
@@ -296,7 +296,7 @@ func (job *MonitorExecApplication) executeCommand(task entity2.MonitorTask, wg *
 	}
 
 	// 更新时间
-	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity2.MonitorTask{
+	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
 		ErrMsg:         " ",
 		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}}, nil)
 	if err != nil {
@@ -305,13 +305,13 @@ func (job *MonitorExecApplication) executeCommand(task entity2.MonitorTask, wg *
 	}
 }
 
-func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task entity2.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
+func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
 	defer wg.Done()
 
 	bp, err := job.influxDbOption.CreateBatchPoint()
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity2.MonitorTask{ErrMsg: "createBatchPoint失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "createBatchPoint失败"}, nil)
 		ops <- false
 		return
 	}
@@ -321,7 +321,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 	err = cli.Write(bp)
 	if err != nil {
 		logrus.Error("write to influxdb fail", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity2.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
 		ops <- false
 		return
 	}
@@ -330,7 +330,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 }
 
 // RenderTaskCommandForRange 模板渲染
-func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity2.MonitorTask, beginTime, endTime time.Time) (string, error) {
+func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime time.Time) (string, error) {
 	params := make(map[string]interface{}, 0)
 	params["endTime"] = endTime.Format("2006-01-02 15:04:05")
 	params["beginTime"] = beginTime.Format("2006-01-02 15:04:05")

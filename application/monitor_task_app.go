@@ -1,7 +1,7 @@
 package application
 
 import (
-	entity2 "butterfly-monitor/domain/entity"
+	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/infrastructure/support"
 	"butterfly-monitor/types"
@@ -95,9 +95,9 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 		}
 	}
 
-	monitorDashboardTasks := make([]entity2.MonitorDashboardTask, 0)
+	monitorDashboardTasks := make([]entity.MonitorDashboardTask, 0)
 	for _, id := range dashboardIds {
-		monitorDashboardTasks = append(monitorDashboardTasks, entity2.MonitorDashboardTask{
+		monitorDashboardTasks = append(monitorDashboardTasks, entity.MonitorDashboardTask{
 			BaseEntity:  common.BaseEntity{Id: application.sequence.Generate().Int64()},
 			TaskId:      monitorTask.Id,
 			DashboardId: id,
@@ -191,16 +191,16 @@ func (application *MonitorTaskApplication) Modify(request *types.MonitorTaskCrea
 	execParams, _ := json.Marshal(request.TaskExecParams)
 	monitorTask.ExecParams = string(execParams)
 
-	monitorDashboardTasks := make([]entity2.MonitorDashboardTask, 0)
+	monitorDashboardTasks := make([]entity.MonitorDashboardTask, 0)
 	for _, id := range dashboardIds {
-		monitorDashboardTasks = append(monitorDashboardTasks, entity2.MonitorDashboardTask{
+		monitorDashboardTasks = append(monitorDashboardTasks, entity.MonitorDashboardTask{
 			BaseEntity:  common.BaseEntity{Id: application.sequence.Generate().Int64()},
 			TaskId:      monitorTask.Id,
 			DashboardId: id,
 		})
 	}
 
-	err = application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &entity2.MonitorTask{
+	err = application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &entity.MonitorTask{
 		TaskName:   monitorTask.TaskName,
 		TimeSpan:   monitorTask.TimeSpan,
 		ExecParams: monitorTask.ExecParams,
@@ -228,7 +228,7 @@ func (application *MonitorTaskApplication) getDashboardUIDs(ids []int64) ([]stri
 	return dashboardUIDs, nil
 }
 
-func (application *MonitorTaskApplication) ModifyTaskStatus(taskId int64, status entity2.MonitorTaskStatus) error {
+func (application *MonitorTaskApplication) ModifyTaskStatus(taskId int64, status entity.MonitorTaskStatus) error {
 	err := application.repository.MonitorTaskRepository.UpdateTaskStatusById(taskId, status)
 	// 错误记录
 	if err != nil {
@@ -237,7 +237,7 @@ func (application *MonitorTaskApplication) ModifyTaskStatus(taskId int64, status
 	return err
 }
 
-func (application *MonitorTaskApplication) ModifySampled(taskId int64, status entity2.MonitorSampledStatus) error {
+func (application *MonitorTaskApplication) ModifySampled(taskId int64, status entity.MonitorSampledStatus) error {
 	oldTask, err := application.repository.MonitorTaskRepository.GetById(taskId)
 	if err != nil || oldTask == nil {
 		return errors.New("获取任务失败")
@@ -272,7 +272,7 @@ func (application *MonitorTaskApplication) ModifySampled(taskId int64, status en
 	return err
 }
 
-func (application *MonitorTaskApplication) ModifyAlertStatus(taskId int64, status entity2.MonitorAlertStatus) error {
+func (application *MonitorTaskApplication) ModifyAlertStatus(taskId int64, status entity.MonitorAlertStatus) error {
 	err := application.repository.MonitorTaskRepository.UpdateAlertStatusById(taskId, status)
 	// 错误记录
 	if err != nil {
