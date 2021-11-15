@@ -1,13 +1,13 @@
 package main
 
 import (
-	"butterfly-monitor/src/app/application"
-	"butterfly-monitor/src/app/config"
-	"butterfly-monitor/src/app/infrastructure/persistence"
-	"butterfly-monitor/src/app/interfaces"
+	"butterfly-monitor/application"
+	"butterfly-monitor/config"
+	"butterfly-monitor/infrastructure/persistence"
+	"butterfly-monitor/interfaces"
 	"github.com/pwh19920920/butterfly"
 )
-import "github.com/pwh19920920/butterfly-admin/src/app/starter"
+import "github.com/pwh19920920/butterfly-admin/starter"
 
 func init() {
 	adminConfig := starter.InitButterflyAdmin()

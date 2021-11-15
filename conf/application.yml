@@ -1,0 +1,14 @@
+server:
+  serverName: 'butterfly-monitor'
+  engineMode: 'test'
+  serverAddr: :8085
+
+auth:
+  ignorePath:
+    - POST - /run
+    - POST - /kill
+    - POST - /log
+    - GET - /api/monitor/test
+    - POST - /api/notify
+  ignorePrefixPath:
+  commonPath:

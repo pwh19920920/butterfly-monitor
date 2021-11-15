@@ -1,0 +1,15 @@
+db:
+  dsn: 'root:root@tcp(localhost:3306)/butterfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
+
+influx:
+  addr: http://localhost:8086
+  database: monitor
+
+xxl:
+  accessToken: xxl
+  serverAddr: http://localhost:8080/xxl-job-admin
+
+grafana:
+  sampleRpName: expire_30d
+  addr: http://localhost:3000
+  apiKey: eyJrIjoiZVFPYlZNNG0xTEF0THhST1NQMGJzN1czM1huTFo2NDEiLCJuIjoiYWRtaW4iLCJpZCI6MX0=
