@@ -28,6 +28,19 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(pageSize, lastId, shard
 	return data, err
 }
 
+func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
+	var data []entity.MonitorTask
+	err := repo.db.
+		Model(&entity.MonitorTask{}).
+		Where("id > ? "+
+			"and mod(id, ?) = ? "+
+			"and task_status = ? "+
+			"and date_add(now(), interval -time_span second) >= pre_sample_time "+
+			"limit 0, ?", lastId, shardTotal, shardIndex, entity.MonitorTaskStatusOpen, pageSize).
+		Find(&data).Error
+	return data, err
+}
+
 // Save 保存
 func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {

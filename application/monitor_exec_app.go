@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
-	"github.com/go-basic/uuid"
 	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"github.com/sirupsen/logrus"
@@ -110,6 +109,11 @@ func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req
 // ExecDataCollect 通过xxl的index, 到数据库中取task, 然后批量执行塞入channel, 批量插入influxdb
 func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *xxl.RunReq) (msg string) {
 	var lastId int64 = 0
+	return job.ExecDataCollectForPage(lastId, cxt, param)
+}
+
+// ExecDataCollectForPage 递归执行
+func (job *MonitorExecApplication) ExecDataCollectForPage(lastId int64, cxt context.Context, param *xxl.RunReq) (msg string) {
 	const pageSize = 50
 
 	// 获取任务分片数据
@@ -127,7 +131,15 @@ func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *x
 	}
 
 	wg.Wait()
-	return "execute complete"
+
+	// 结束条件
+	if len(tasks) < pageSize {
+		return "execute complete"
+	}
+
+	// 继续递归
+	lastTask := tasks[pageSize-1]
+	return job.ExecDataCollectForPage(lastTask.Id, cxt, param)
 }
 
 func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask) (result interface{}, err error) {
@@ -199,14 +211,16 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	// 样本数据
 	samplePoints := make([]*client.Point, 0)
 	sampleMeasurementName := fmt.Sprintf("%s.%s_sample", job.grafana.SampleRpName, task.TaskKey)
-	for i := 1; i <= 7 && task.Sampled == entity.MonitorSampledStatusOpen; i++ {
+	for i := 1; i <= 7; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
 			"value": result,
-			"uuid":  uuid.New(),
 		}
 
-		tags := map[string]string{}
+		tags := map[string]string{
+			"day": fmt.Sprintf("%v", i),
+		}
+
 		samplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
 		if err != nil {
 			return points, beginTime, err
@@ -250,14 +264,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
 	// 收集数据得结果为0条
 	if len(points) == 0 {
 		logrus.Error("收集数据为0条, taskId: ", task.Id)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"}, nil)
 		return
 	}
 
@@ -297,7 +311,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	// 更新时间
 	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
-		ErrMsg:         " ",
+		CollectErrMsg:  " ",
 		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}}, nil)
 	if err != nil {
 		logrus.Error("insert failure", err)
@@ -311,7 +325,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 	bp, err := job.influxDbOption.CreateBatchPoint()
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "createBatchPoint失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "createBatchPoint失败"}, nil)
 		ops <- false
 		return
 	}
@@ -321,7 +335,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 	err = cli.Write(bp)
 	if err != nil {
 		logrus.Error("write to influxdb fail", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{ErrMsg: "插入influxdb失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "插入influxdb失败"}, nil)
 		ops <- false
 		return
 	}
@@ -353,4 +367,5 @@ func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity.Monitor
 // RegisterExecJob 注册执行
 func (job *MonitorExecApplication) RegisterExecJob() {
 	job.xxlExec.RegTask("dataCollect", job.ExecDataCollect)
+	job.xxlExec.RegTask("dataSampling", job.ExecRemoveDataSampling)
 }

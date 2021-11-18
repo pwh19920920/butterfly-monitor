@@ -24,7 +24,9 @@ type MonitorTask struct {
 	common.BaseEntity
 
 	PreExecuteTime *common.LocalTime    `json:"preExecuteTime" gorm:"column:pre_execute_time"` // 上一次执行时间
-	ErrMsg         string               `json:"errMsg" gorm:"err_msg"`                         // 错误原因
+	PreSampleTime  *common.LocalTime    `json:"preSampleTime" gorm:"column:pre_sample_time"`   // 上一次样本执行时间
+	SampleErrMsg   string               `json:"sampleErrMsg" gorm:"sample_err_msg"`            // 错误原因
+	CollectErrMsg  string               `json:"collectErrMsg" gorm:"collect_err_msg"`          // 错误原因
 	TaskKey        string               `json:"taskKey" gorm:"column:task_key"`                // 任务标识
 	TaskName       string               `json:"taskName" gorm:"column:task_name"`              // 任务名称
 	TimeSpan       int32                `json:"timeSpan" gorm:"column:time_span"`              // 时间间隔
