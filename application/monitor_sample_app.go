@@ -68,7 +68,7 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 
 	errMsg := " "
 	if err != nil {
-		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
+		logrus.Error("doRecursiveRemoveDataSampling exec fail, taskId: ", task.Id, err)
 		errMsg = err.Error()
 	}
 

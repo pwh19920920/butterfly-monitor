@@ -158,6 +158,11 @@ func (handler *GrafanaOptionHandler) buildPanel(task entity.MonitorTask) *sdk.Pa
 
 	graph.Type = "timeseries"
 	graph.Description = &task.TaskKey
+	graph.GraphPanel.FieldConfig = &sdk.FieldConfig{
+		Custom: struct {
+			FillOpacity int `json:"fillOpacity"`
+		}{FillOpacity: 5},
+	}
 
 	toolTip := struct {
 		Mode string `json:"mode,omitempty"`

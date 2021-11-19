@@ -5,13 +5,12 @@ go 1.17
 require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.7.4
-	github.com/go-basic/uuid v1.0.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/pwh19920920/butterfly v1.0.6
 	github.com/pwh19920920/butterfly-admin v1.0.5
-	github.com/pwh19920920/grafanasdk v1.0.2
+	github.com/pwh19920920/grafanasdk v1.0.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
@@ -25,6 +24,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-basic/ipv4 v1.0.0 // indirect
+	github.com/go-basic/uuid v1.0.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
