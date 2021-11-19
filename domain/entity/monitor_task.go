@@ -31,7 +31,7 @@ type MonitorTask struct {
 	TaskName       string               `json:"taskName" gorm:"column:task_name"`              // 任务名称
 	TimeSpan       int32                `json:"timeSpan" gorm:"column:time_span"`              // 时间间隔
 	Command        string               `json:"command" gorm:"column:command"`                 // 执行指令, 可以是url, 也可以是sql
-	TaskType       MonitorTaskType      `json:"taskType" gorm:"column:task_type"`              // 任务类型, db, url
+	TaskType       *MonitorTaskType     `json:"taskType" gorm:"column:task_type"`              // 任务类型, db, url
 	ExecParams     string               `json:"execParams" gorm:"exec_params"`                 // 任务执行参数
 	TaskStatus     MonitorTaskStatus    `json:"taskStatus" gorm:"task_status"`                 // 任务开关
 	AlertStatus    MonitorAlertStatus   `json:"alertStatus" gorm:"alert_status"`               // 报警开关
