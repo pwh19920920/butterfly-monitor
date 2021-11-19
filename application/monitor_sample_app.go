@@ -110,7 +110,7 @@ func (job *MonitorExecApplication) doRecursiveRemoveDataSampling(task entity.Mon
 	}
 
 	// 代表样本没有, 或者样本数据低于3天
-	if len(result[0].Series) == 0 || len(result[0].Series[0].Values) < 3 {
+	if len(result[0].Series) == 0 || len(result[0].Series[0].Values) <= 5 {
 		return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
 	}
 
