@@ -264,7 +264,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()}, nil)
 		return
 	}
 

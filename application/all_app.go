@@ -11,6 +11,7 @@ type Application struct {
 	MonitorDatabase  MonitorDatabaseApplication
 	MonitorDashboard MonitorDashboardApplication
 	MonitorTask      MonitorTaskApplication
+	AlertConf        AlertConfApplication
 }
 
 func NewApplication(
@@ -46,6 +47,11 @@ func NewApplication(
 			repository:     repository,
 			Grafana:        config.Grafana,
 			grafanaHandler: support.NewGrafanaOptionHandler(config.Grafana),
+		},
+
+		// 报警配置
+		AlertConf: AlertConfApplication{
+			repository: repository,
 		},
 	}
 }
