@@ -59,7 +59,6 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 		validation.Field(&req.TaskName, validation.Required, validation.Length(0, 255)),
 		validation.Field(&req.TimeSpan, validation.Required, validation.Min(30)),
 		validation.Field(&req.Command, validation.Required, validation.Length(10, 1000)),
-		validation.Field(&req.TaskType, validation.Required),
 		validation.Field(&req.Dashboards, validation.Required),
 	)
 }
