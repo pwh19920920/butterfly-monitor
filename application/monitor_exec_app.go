@@ -245,7 +245,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	// 执行标记
 	defer wg.Done()
 
-	commandHandler, ok := commandHandlerMap[task.TaskType]
+	commandHandler, ok := commandHandlerMap[*task.TaskType]
 	if !ok {
 		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误")
 		return
