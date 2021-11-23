@@ -60,7 +60,7 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 
 // ExecuteQuery 执行查询
 func (dbHandler *DatabaseMysqlHandler) ExecuteQuery(task entity.MonitorTask) (interface{}, error) {
-	var result interface{} = 0
+	var result float64 = 0
 	err := dbHandler.db.Raw(task.Command).Scan(&result).Error
 	return result, err
 }
