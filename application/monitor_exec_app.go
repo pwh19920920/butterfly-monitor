@@ -191,6 +191,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	}
 
 	task.Command = command
+	logrus.Info("执行指令：", command)
 	result, err := job.doExecuteCommand(commandHandler, task)
 	if err != nil {
 		logrus.Error("commandHandler执行失败", err.Error())
