@@ -75,6 +75,7 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 	monitorTask.ExecParams = string(execParams)
 	monitorTask.Id = sequence.GetSequence().Generate().Int64()
 	monitorTask.PreExecuteTime = &common.LocalTime{Time: time.Now()}
+	monitorTask.PreSampleTime = &common.LocalTime{Time: time.Now()}
 
 	// 转换
 	dashboardIds, err := request.GetDashboardIds()
