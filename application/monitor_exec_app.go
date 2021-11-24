@@ -96,8 +96,6 @@ func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req
 		return errors.New("任务获取失败")
 	}
 
-	// 设置task
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go job.executeCommand(*task, &wg, req.BeginDate.Time, req.EndDate.Time)

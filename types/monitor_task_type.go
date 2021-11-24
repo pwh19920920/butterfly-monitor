@@ -62,3 +62,10 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 		validation.Field(&req.Dashboards, validation.Required),
 	)
 }
+
+func (req MonitorTaskExecForRangeRequest) ValidateForExec() error {
+	return validation.ValidateStruct(&req,
+		validation.Field(&req.BeginDate, validation.Required),
+		validation.Field(&req.EndDate, validation.Required),
+	)
+}

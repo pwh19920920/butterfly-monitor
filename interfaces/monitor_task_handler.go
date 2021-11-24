@@ -74,6 +74,12 @@ func (handler *monitorTaskHandler) execForTimeRange(context *gin.Context) {
 		return
 	}
 
+	err = monitorTaskExecForRangeRequest.ValidateForExec()
+	if err != nil {
+		response.BuildResponseBadRequest(context, err.Error())
+		return
+	}
+
 	// option
 	err = handler.monitorExecApp.ExecDataCollectForTimeRange(id, &monitorTaskExecForRangeRequest)
 	if err != nil {
