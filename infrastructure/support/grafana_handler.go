@@ -34,7 +34,7 @@ func (handler *GrafanaOptionHandler) CreateDashboard(name string) (*sdk.StatusMe
 			Value: "$__auto_interval_my_interval",
 			Text:  &sdk.StringSliceString{Value: []string{"auto"}},
 		},
-		Hide:    2,
+		Hide:    1,
 		Refresh: sdk.BoolInt{Value: &boolInt},
 		Query:   "1m,5m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
 		Type:    "interval",
