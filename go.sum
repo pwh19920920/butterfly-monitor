@@ -358,8 +358,8 @@ github.com/pwh19920920/butterfly v1.0.6 h1:9m9dx/GSnqASxJquDpVreboWxQ0HqE5xFlLdc
 github.com/pwh19920920/butterfly v1.0.6/go.mod h1:KjcusVzdf+EaXxdJncdHka7uiM++EBq3nVwwUlE2WOo=
 github.com/pwh19920920/butterfly-admin v1.0.6 h1:hi/HyHRaEDy645Lltzc5+Gyihb91EOLZUHJsV19GdWA=
 github.com/pwh19920920/butterfly-admin v1.0.6/go.mod h1:YGfyc/R1l0sw+L3avN535T9/QyFawctU2q0V+fbI1Xk=
-github.com/pwh19920920/grafanasdk v1.0.3 h1:hrXh4TjynkgmE1crsCjaWvWQaBNQsd+JzqZl/Z0VK4c=
-github.com/pwh19920920/grafanasdk v1.0.3/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
+github.com/pwh19920920/grafanasdk v1.0.4 h1:OaWk5x7uXXZaeZtMtnNE1wn0/iubrq2Ev6bxxvSahuc=
+github.com/pwh19920920/grafanasdk v1.0.4/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
 github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be h1:ta7tUOvsPHVHGom5hKW5VXNc2xZIkfCKP8iaqOyYtUQ=
 github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be/go.mod h1:MIDFMn7db1kT65GmV94GzpX9Qdi7N/pQlwb+AN8wh+Q=
 github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5 h1:mZHayPoR0lNmnHyvtYjDeq0zlVHn9K/ZXoy17ylucdo=
