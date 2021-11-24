@@ -176,6 +176,13 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
+	// 如果不支持回溯，就只执行一次, 直接返回就可以了
+	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
+		duration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
+		beginTime = maxTime.Add(duration)
+		endTime = maxTime
+	}
+
 	// 执行结束
 	if endTime.UnixMilli() > maxTime.UnixMilli() {
 		logrus.Info("task执行结束, taskId: ", task.Id)
@@ -236,6 +243,11 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 		points = append(points, samplePoint)
 	}
 
+	// 如果不支持回溯，就只执行一次, 直接返回就可以了
+	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
+		return points, endTime, nil
+	}
+
 	// 继续发起下次执行
 	return job.recursiveExecuteCommand(commandHandler, task, points, endTime, maxTime)
 }
@@ -253,7 +265,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	cli := job.influxDbOption.GetClient()
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
-	logrus.Error("influxdb ping返回 - ", pingTime, " - ", version)
+	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
 		logrus.Error("influxdb ping 失败")
 		return

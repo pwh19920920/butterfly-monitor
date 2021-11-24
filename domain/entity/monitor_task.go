@@ -8,6 +8,7 @@ type MonitorTaskType int32
 type MonitorTaskStatus int32
 type MonitorAlertStatus int32
 type MonitorSampledStatus int32
+type MonitorRecallStatus int32
 
 const (
 	TaskTypeDatabase          MonitorTaskType      = 1
@@ -18,6 +19,9 @@ const (
 	MonitorAlertStatusClose   MonitorAlertStatus   = 0
 	MonitorSampledStatusOpen  MonitorSampledStatus = 1
 	MonitorSampledStatusClose MonitorSampledStatus = 0
+
+	MonitorRecallStatusSupport    MonitorRecallStatus = 1
+	MonitorRecallStatusNotSupport MonitorRecallStatus = 2
 )
 
 type MonitorTask struct {
@@ -32,10 +36,11 @@ type MonitorTask struct {
 	TimeSpan       int32                `json:"timeSpan" gorm:"column:time_span"`              // 时间间隔
 	Command        string               `json:"command" gorm:"column:command"`                 // 执行指令, 可以是url, 也可以是sql
 	TaskType       *MonitorTaskType     `json:"taskType" gorm:"column:task_type"`              // 任务类型, db, url
-	ExecParams     string               `json:"execParams" gorm:"exec_params"`                 // 任务执行参数
-	TaskStatus     MonitorTaskStatus    `json:"taskStatus" gorm:"task_status"`                 // 任务开关
-	AlertStatus    MonitorAlertStatus   `json:"alertStatus" gorm:"alert_status"`               // 报警开关
-	Sampled        MonitorSampledStatus `json:"sampled" gorm:"sampled"`                        // 是否生成样本
+	ExecParams     string               `json:"execParams" gorm:"column:exec_params"`          // 任务执行参数
+	TaskStatus     MonitorTaskStatus    `json:"taskStatus" gorm:"column:task_status"`          // 任务开关
+	AlertStatus    MonitorAlertStatus   `json:"alertStatus" gorm:"column:alert_status"`        // 报警开关
+	Sampled        MonitorSampledStatus `json:"sampled" gorm:"column:sampled"`                 // 是否生成样本
+	RecallStatus   *MonitorRecallStatus `json:"recallStatus" gorm:"column:recall_status"`      // 回溯状态
 }
 
 // TableName 会将 User 的表名重写为 `profiles`

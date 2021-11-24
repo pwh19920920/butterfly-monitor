@@ -57,7 +57,7 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 
 	cli := job.influxDbOption.GetClient()
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
-	logrus.Error("influxdb ping返回 - ", pingTime, " - ", version)
+	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
 		logrus.Error("influxdb ping 失败")
 		return

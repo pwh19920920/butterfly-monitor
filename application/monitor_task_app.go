@@ -202,11 +202,12 @@ func (application *MonitorTaskApplication) Modify(request *types.MonitorTaskCrea
 	}
 
 	err = application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &entity.MonitorTask{
-		TaskName:   monitorTask.TaskName,
-		TimeSpan:   monitorTask.TimeSpan,
-		ExecParams: monitorTask.ExecParams,
-		TaskType:   monitorTask.TaskType,
-		Command:    monitorTask.Command,
+		TaskName:     monitorTask.TaskName,
+		TimeSpan:     monitorTask.TimeSpan,
+		ExecParams:   monitorTask.ExecParams,
+		TaskType:     monitorTask.TaskType,
+		Command:      monitorTask.Command,
+		RecallStatus: monitorTask.RecallStatus,
 	}, monitorDashboardTasks)
 
 	// 错误记录
