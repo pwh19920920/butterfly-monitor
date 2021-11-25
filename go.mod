@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
-	github.com/xxl-job/xxl-job-executor-go v1.0.1
+	github.com/xxl-job/xxl-job-executor-go v1.0.2
 	gorm.io/driver/mysql v1.0.3
 	gorm.io/gorm v1.20.5
 )
