@@ -3,6 +3,7 @@ package interfaces
 import (
 	"butterfly-monitor/application"
 	"butterfly-monitor/types"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/response"
 	"github.com/pwh19920920/butterfly/server"
@@ -43,7 +44,7 @@ func (handler *monitorDatabaseHandler) create(context *gin.Context) {
 	// option
 	err = handler.monitorDatabaseApp.Create(&monitorDatabaseCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "创建数据源失败")
+		response.BuildResponseSysErr(context, fmt.Sprintf("创建数据源失败: %s", err.Error()))
 		return
 	}
 

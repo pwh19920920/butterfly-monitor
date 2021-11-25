@@ -4,6 +4,7 @@ import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
+	"errors"
 	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/config/sequence"
 	"github.com/sirupsen/logrus"
@@ -26,11 +27,30 @@ func (application *MonitorDatabaseApplication) Query(request *types.MonitorDatab
 	return total, data, err
 }
 
+// 数据源检测
+func (application *MonitorDatabaseApplication) checkDatabase(monitorDatabase entity.MonitorDatabase) error {
+	// 检测database是否能连接得上
+	databaseHandler, ok := databaseHandlerMap[monitorDatabase.Type]
+	if !ok {
+		return errors.New("不存在此数据源类型")
+	}
+
+	// 检测连接
+	return databaseHandler.TestConnect(monitorDatabase)
+}
+
 // Create 创建数据源
 func (application *MonitorDatabaseApplication) Create(request *types.MonitorDatabaseCreateRequest) error {
 	monitorDatabase := request.MonitorDatabase
+
+	// 检测database是否能连接得上
+	err := application.checkDatabase(monitorDatabase)
+	if err != nil {
+		return err
+	}
+
 	monitorDatabase.Id = sequence.GetSequence().Generate().Int64()
-	err := application.repository.MonitorDatabaseRepository.Save(&monitorDatabase)
+	err = application.repository.MonitorDatabaseRepository.Save(&monitorDatabase)
 
 	// 错误记录
 	if err != nil {
@@ -42,7 +62,14 @@ func (application *MonitorDatabaseApplication) Create(request *types.MonitorData
 // Modify 修改数据源
 func (application *MonitorDatabaseApplication) Modify(request *types.MonitorDatabaseCreateRequest) error {
 	monitorDatabase := request.MonitorDatabase
-	err := application.repository.MonitorDatabaseRepository.UpdateById(monitorDatabase.Id, &monitorDatabase)
+
+	// 检测database是否能连接得上
+	err := application.checkDatabase(monitorDatabase)
+	if err != nil {
+		return err
+	}
+
+	err = application.repository.MonitorDatabaseRepository.UpdateById(monitorDatabase.Id, &monitorDatabase)
 
 	// 错误记录
 	if err != nil {
