@@ -80,6 +80,12 @@ func (handler *GrafanaOptionHandler) ModifyDashboardName(uid, name string) (*sdk
 
 	// 发送http
 	board.Title = name
+
+	// 设置是否显示时间跨度
+	if len(board.Templating.List) > 0 {
+		board.Templating.List[0].Hide = 1
+	}
+
 	resp, err := client.SetDashboard(context.TODO(), board, sdk.SetDashboardParams{
 		Overwrite: true,
 	})
