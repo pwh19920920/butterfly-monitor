@@ -30,6 +30,7 @@ func (handler *GrafanaOptionHandler) CreateDashboard(name string) (*sdk.StatusMe
 		Auto:      true,
 		AutoCount: &autoCount,
 		AutoMin:   "30s",
+		Label:     "时间跨度",
 		Current: sdk.Current{
 			Value: "$__auto_interval_my_interval",
 			Text:  &sdk.StringSliceString{Value: []string{"auto"}},
@@ -84,6 +85,7 @@ func (handler *GrafanaOptionHandler) ModifyDashboardName(uid, name string) (*sdk
 	// 设置是否显示时间跨度
 	if len(board.Templating.List) > 0 {
 		board.Templating.List[0].Hide = 1
+		board.Templating.List[0].Label = "时间跨度"
 	}
 
 	resp, err := client.SetDashboard(context.TODO(), board, sdk.SetDashboardParams{
