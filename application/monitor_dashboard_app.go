@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
-	"github.com/pwh19920920/butterfly-admin/config/sequence"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,7 +38,7 @@ func (application *MonitorDashboardApplication) Query(request *types.MonitorDash
 // Create 创建
 func (application *MonitorDashboardApplication) Create(request *types.MonitorDashboardCreateRequest) error {
 	monitorDashboard := request.MonitorDashboard
-	monitorDashboard.Id = sequence.GetSequence().Generate().Int64()
+	monitorDashboard.Id = application.sequence.Generate().Int64()
 
 	resp, err := application.grafanaHandler.CreateDashboard(monitorDashboard.Name)
 	if err != nil || *resp.Status != "success" {

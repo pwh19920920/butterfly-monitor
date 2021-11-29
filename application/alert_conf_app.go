@@ -4,13 +4,14 @@ import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
-	"github.com/pwh19920920/butterfly-admin/config/sequence"
+	"github.com/bwmarrin/snowflake"
 	"github.com/sirupsen/logrus"
 	"strconv"
 )
 
 type AlertConfApplication struct {
 	repository *persistence.Repository
+	sequence   *snowflake.Node
 }
 
 type AlertConfObject struct {
@@ -66,7 +67,7 @@ func (application *AlertConfApplication) Query(request *types.AlertConfQueryRequ
 // Create 创建数据源
 func (application *AlertConfApplication) Create(request *types.AlertConfCreateRequest) error {
 	alertConf := request.AlertConf
-	alertConf.Id = sequence.GetSequence().Generate().Int64()
+	alertConf.Id = application.sequence.Generate().Int64()
 	err := application.repository.AlertConfRepository.Save(&alertConf)
 
 	// 错误记录

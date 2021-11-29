@@ -25,6 +25,7 @@ func init() {
 	interfaces.InitMonitorDashboardHandler(app)
 	interfaces.InitMonitorHealthHandler(app)
 	interfaces.InitAlertConfHandler(app)
+	interfaces.InitAlertGroupHandler(app)
 
 	// 注册定时任务
 	app.RegisterJobExec()

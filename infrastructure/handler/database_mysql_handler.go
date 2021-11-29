@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"butterfly-monitor/common"
 	"butterfly-monitor/domain/entity"
 	"database/sql"
 	"errors"
@@ -47,6 +48,7 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 		database.Url, database.Database)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		SkipDefaultTransaction: true,
+		Logger:                 common.NewGormLogger(),
 	})
 
 	if err != nil || db == nil {
@@ -55,7 +57,8 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 	}
 
 	// 关闭sql log
-	db.Logger = logger.Default.LogMode(logger.Silent)
+	//	db.Logger = common.NewGormLogger()
+	db.Logger.LogMode(logger.Silent)
 
 	// 打开连接
 	sqlDB, err := db.DB()

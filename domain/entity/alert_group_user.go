@@ -7,8 +7,8 @@ import (
 type AlertGroupUser struct {
 	common.BaseEntity
 
-	UserId  int64 `json:"userId" gorm:"column:user_id"`   // 用户
-	GroupId int64 `json:"groupId" gorm:"column:group_id"` // 分组
+	UserId  int64 `json:"userId,string" gorm:"column:user_id"`   // 用户
+	GroupId int64 `json:"groupId,string" gorm:"column:group_id"` // 分组
 }
 
 // TableName 会将 User 的表名重写为 `profiles`

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
-	"github.com/pwh19920920/butterfly-admin/config/sequence"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -73,7 +72,7 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 	monitorTask := request.MonitorTask
 	execParams, _ := json.Marshal(request.TaskExecParams)
 	monitorTask.ExecParams = string(execParams)
-	monitorTask.Id = sequence.GetSequence().Generate().Int64()
+	monitorTask.Id = application.sequence.Generate().Int64()
 	monitorTask.PreExecuteTime = &common.LocalTime{Time: time.Now()}
 	monitorTask.PreSampleTime = &common.LocalTime{Time: time.Now()}
 

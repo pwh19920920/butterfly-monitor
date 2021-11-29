@@ -6,7 +6,6 @@ import (
 	"butterfly-monitor/types"
 	"errors"
 	"github.com/bwmarrin/snowflake"
-	"github.com/pwh19920920/butterfly-admin/config/sequence"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,7 +48,7 @@ func (application *MonitorDatabaseApplication) Create(request *types.MonitorData
 		return err
 	}
 
-	monitorDatabase.Id = sequence.GetSequence().Generate().Int64()
+	monitorDatabase.Id = application.sequence.Generate().Int64()
 	err = application.repository.MonitorDatabaseRepository.Save(&monitorDatabase)
 
 	// 错误记录

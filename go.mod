@@ -6,10 +6,11 @@ require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/kirinlabs/HttpRequest v1.1.1
-	github.com/pwh19920920/butterfly v1.0.6
-	github.com/pwh19920920/butterfly-admin v1.0.6
+	github.com/pwh19920920/butterfly v1.0.7
+	github.com/pwh19920920/butterfly-admin v1.0.8
 	github.com/pwh19920920/grafanasdk v1.0.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
@@ -28,7 +29,6 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
-	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/gosimple/slug v1.1.1 // indirect
