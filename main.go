@@ -32,5 +32,27 @@ func init() {
 }
 
 func main() {
+
+	//xx := handler.ChannelEmailHandler{}
+	//channel := entity.AlertChannel{
+	//	Params: "{\"host\":\"smtp.exmail.qq.com\",\"port\":\"465\",\"username\":\"ibg-fund@we.cn\",\"password\":\"3dkrkpzPecq59kZL\",\"ssl\":true}",
+	//}
+	//
+	//groupUsers := make([]entity2.SysUser, 0)
+	//groupUsers = append(groupUsers, entity2.SysUser{
+	//	Email: "pengweihuang@we.cn",
+	//})
+	//err := xx.DispatchMessage(channel, groupUsers, "hello world")
+	//println(err)
+
+	//xx := handler.ChannelDingDingHandler{}
+	//channel := entity.AlertChannel{
+	//	Params: "{\"addr\":\"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=d1d5354d-be44-4539-b6b0-d7534bde1e33\"}",
+	//}
+	//
+	//groupUsers := make([]entity2.SysUser, 0)
+	//err := xx.DispatchMessage(channel, groupUsers, "hello world")
+	//fmt.Printf("%v", err)
+
 	butterfly.Run()
 }

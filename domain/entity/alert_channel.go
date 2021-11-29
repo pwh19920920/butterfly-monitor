@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"encoding/json"
 	"github.com/pwh19920920/butterfly-admin/common"
 )
 
@@ -22,7 +21,7 @@ type AlertChannel struct {
 
 	Name       string                `json:"name" gorm:"column:name"`              // 通道名称
 	Type       AlertChannelType      `json:"type" gorm:"column:type"`              // 通道类型
-	Params     json.RawMessage       `json:"params" gorm:"column:params"`          // 通道参数
+	Params     string                `json:"params" gorm:"column:params"`          // 通道参数
 	ChannelKey string                `json:"channelKey" gorm:"column:channel_key"` // 通道key
 	FailRoute  AlertChannelFailRoute `json:"failRoute" gorm:"column:fail_route"`   // 失败路由
 }
