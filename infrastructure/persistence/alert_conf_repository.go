@@ -31,13 +31,16 @@ func (repo *AlertConfRepositoryImpl) Select(req *types.AlertConfQueryRequest) (i
 	var data []entity.AlertConf
 	err := repo.db.Model(&entity.AlertConf{}).
 		Order("id desc").
+		Not(&entity.AlertConf{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
 	return count, data, err
 }
 
 // Delete 删除
 func (repo *AlertConfRepositoryImpl) Delete(id int64) error {
-	err := repo.db.Where("id = ?", id).Delete(&entity.AlertConf{}).Error
+	err := repo.db.Where("id = ?", id).Updates(&entity.AlertConf{
+		BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+	}).Error
 	return err
 }
 

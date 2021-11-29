@@ -19,6 +19,7 @@ func NewAlertGroupRepositoryImpl(db *gorm.DB) *AlertGroupRepositoryImpl {
 func (repo *AlertGroupRepositoryImpl) SelectAll() ([]entity.AlertGroup, error) {
 	var data []entity.AlertGroup
 	err := repo.db.Model(&entity.AlertGroup{}).
+		Not(&entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
 }
@@ -31,6 +32,7 @@ func (repo *AlertGroupRepositoryImpl) Select(req *types.AlertGroupQueryRequest) 
 	var data []entity.AlertGroup
 	err := repo.db.Model(&entity.AlertGroup{}).
 		Order("id desc").
+		Not(&entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
 	return count, data, err
 }
@@ -52,7 +54,9 @@ func (repo *AlertGroupRepositoryImpl) Save(alertGroup *entity.AlertGroup, alertG
 func (repo *AlertGroupRepositoryImpl) Modify(id int64, alertGroup *entity.AlertGroup, alertGroupUsers []entity.AlertGroupUser) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		// 删除旧的alertGroupUser
-		err := tx.Where("group_id = ?", alertGroup.Id).Delete(&entity.AlertGroupUser{}).Error
+		err := tx.Where("group_id = ?", alertGroup.Id).Updates(&entity.AlertGroupUser{
+			BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+		}).Error
 		if err != nil {
 			return err
 		}

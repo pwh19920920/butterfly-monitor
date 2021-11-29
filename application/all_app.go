@@ -13,6 +13,7 @@ type Application struct {
 	MonitorTask      MonitorTaskApplication
 	AlertConf        AlertConfApplication
 	AlertGroup       AlertGroupApplication
+	AlertChannel     AlertChannelApplication
 }
 
 func NewApplication(
@@ -58,6 +59,12 @@ func NewApplication(
 
 		// 分组
 		AlertGroup: AlertGroupApplication{
+			repository: repository,
+			sequence:   config.Sequence,
+		},
+
+		// 通道
+		AlertChannel: AlertChannelApplication{
 			repository: repository,
 			sequence:   config.Sequence,
 		},

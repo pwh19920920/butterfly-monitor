@@ -56,7 +56,9 @@ func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		if dashboardTasks != nil {
 			// 删除dashboard_task
-			if err := tx.Where("task_id = ?", id).Delete(&entity.MonitorDashboardTask{}).Error; err != nil {
+			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorDashboardTask{
+				BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+			}).Error; err != nil {
 				return err
 			}
 
@@ -125,7 +127,10 @@ func (repo *MonitorTaskRepositoryImpl) SelectByIdsWithMap(ids []int64) (map[int6
 // SelectByIds 获取对象
 func (repo *MonitorTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorTask, error) {
 	var data []entity.MonitorTask
-	err := repo.db.Model(&entity.MonitorTask{}).Where("id in ?", ids).Find(&data).Error
+	err := repo.db.Model(&entity.MonitorTask{}).
+		Where("id in ?", ids).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Find(&data).Error
 	return data, err
 }
 
@@ -158,7 +163,11 @@ func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest
 		whereSql += "and alert_status = ?"
 		whereArg = append(whereArg, req.AlertStatus)
 	}
-	repo.db.Model(&entity.MonitorTask{}).Where(whereSql, whereArg...).Count(&count)
+
+	repo.db.Model(&entity.MonitorTask{}).
+		Where(whereSql, whereArg...).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count)
 
 	var data []entity.MonitorTask
 	err := repo.db.
