@@ -19,11 +19,11 @@ const (
 type AlertChannel struct {
 	common.BaseEntity
 
-	Name       string                `json:"name" gorm:"column:name"`              // 通道名称
-	Type       AlertChannelType      `json:"type" gorm:"column:type"`              // 通道类型
-	Params     string                `json:"params" gorm:"column:params"`          // 通道参数
-	ChannelKey string                `json:"channelKey" gorm:"column:channel_key"` // 通道key
-	FailRoute  AlertChannelFailRoute `json:"failRoute" gorm:"column:fail_route"`   // 失败路由
+	Name      string                `json:"name" gorm:"column:name"`            // 通道名称
+	Type      AlertChannelType      `json:"type" gorm:"column:type"`            // 通道类型
+	Params    string                `json:"params" gorm:"column:params"`        // 通道参数
+	Handler   string                `json:"handler" gorm:"column:handler"`      // 通道key
+	FailRoute AlertChannelFailRoute `json:"failRoute" gorm:"column:fail_route"` // 失败路由
 }
 
 // TableName 会将 User 的表名重写为 `profiles`

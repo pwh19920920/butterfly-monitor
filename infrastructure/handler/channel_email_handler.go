@@ -2,6 +2,7 @@ package handler
 
 import (
 	"butterfly-monitor/domain/entity"
+	"butterfly-monitor/types"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -14,12 +15,26 @@ import (
 type ChannelEmailHandler struct {
 }
 
+type ChannelEmailHandlerParamsSSL int32
+
+const ChannelEmailHandlerParamsSSLOpen ChannelEmailHandlerParamsSSL = 1
+const ChannelEmailHandlerParamsSSLClose ChannelEmailHandlerParamsSSL = 2
+
 type ChannelEmailHandlerParams struct {
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	SSL      bool   `json:"ssl"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Host     string                       `json:"host"`
+	Port     int32                        `json:"port"`
+	SSL      ChannelEmailHandlerParamsSSL `json:"ssl"`
+	Username string                       `json:"username"`
+	Password string                       `json:"password"`
+}
+
+func (channelHandler ChannelEmailHandler) GetClassName() string {
+	return "ChannelEmailHandler"
+}
+
+func (channelHandler ChannelEmailHandler) TestDispatchMessage(channel entity.AlertChannel, params types.AlertChannelTestParams) error {
+	groupUsers := []sysEntity.SysUser{sysEntity.SysUser{Email: params.Email}}
+	return channelHandler.DispatchMessage(channel, groupUsers, params.Template)
 }
 
 // DispatchMessage 分发消息【特殊参数，分发对象】
@@ -47,15 +62,15 @@ func (channelHandler ChannelEmailHandler) DispatchMessage(channel entity.AlertCh
 	em.To = emails
 
 	// 设置主题
-	em.Subject = "spider-monitor监控系统报警提醒"
+	em.Subject = "报警提醒"
 
 	// 简单设置文件发送的内容，暂时设置成纯文本
 	em.Text = []byte(message)
 
 	//设置服务器相关的配置
-	addr := fmt.Sprintf("%s:%s", params.Host, params.Port)
+	addr := fmt.Sprintf("%s:%v", params.Host, params.Port)
 	auth := smtp.PlainAuth("", params.Username, params.Password, params.Host)
-	if !params.SSL {
+	if params.SSL != ChannelEmailHandlerParamsSSLOpen {
 		return em.Send(addr, auth)
 	}
 	return em.SendWithTLS(addr, auth, &tls.Config{ServerName: params.Host})

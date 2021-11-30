@@ -37,10 +37,12 @@ func (repo *AlertChannelRepositoryImpl) Delete(id int64) error {
 
 // Save 保存
 func (repo *AlertChannelRepositoryImpl) Save(alertChannel *entity.AlertChannel) error {
-	return repo.db.Model(&entity.AlertChannel{}).Save(alertChannel).Error
+	return repo.db.Model(&entity.AlertChannel{}).Create(alertChannel).Error
 }
 
 // Modify 更新
 func (repo *AlertChannelRepositoryImpl) Modify(id int64, alertChannel *entity.AlertChannel) error {
-	return repo.db.Model(&entity.AlertChannel{}).Where("id = ?", id).Updates(alertChannel).Error
+	return repo.db.
+		Where(&entity.AlertChannel{BaseEntity: common.BaseEntity{Id: id}}).
+		Updates(&alertChannel).Error
 }

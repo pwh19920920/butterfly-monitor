@@ -2,6 +2,7 @@ package handler
 
 import (
 	"butterfly-monitor/domain/entity"
+	"butterfly-monitor/types"
 	"encoding/json"
 	"github.com/kirinlabs/HttpRequest"
 	sysEntity "github.com/pwh19920920/butterfly-admin/domain/entity"
@@ -21,6 +22,15 @@ type ChannelWechatHandlerRequestBody struct {
 type ChannelWechatHandlerRequest struct {
 	MsgType string                          `json:"msgtype"`
 	Text    ChannelWechatHandlerRequestBody `json:"text"`
+}
+
+func (channelHandler ChannelWechatHandler) GetClassName() string {
+	return "ChannelWechatHandler"
+}
+
+func (channelHandler ChannelWechatHandler) TestDispatchMessage(channel entity.AlertChannel, params types.AlertChannelTestParams) error {
+	groupUsers := make([]sysEntity.SysUser, 0)
+	return channelHandler.DispatchMessage(channel, groupUsers, params.Template)
 }
 
 // DispatchMessage 分发消息【特殊参数，分发对象】
