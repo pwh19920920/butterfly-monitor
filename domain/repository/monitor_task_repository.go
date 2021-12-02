@@ -10,6 +10,9 @@ type MonitorTaskRepository interface {
 	// FindJobBySharding 取余分页查询
 	FindJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error)
 
+	// FindJobByShardingNoPaging 取余分页查询
+	FindJobByShardingNoPaging(shardIndex, shardTotal int64) ([]entity.MonitorTask, error)
+
 	// FindSamplingJobBySharding 取余分页查询
 	FindSamplingJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error)
 

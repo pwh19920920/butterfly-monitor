@@ -14,6 +14,7 @@ type Repository struct {
 	AlertGroupRepository           repository.AlertGroupRepository
 	AlertGroupUserRepository       repository.AlertGroupUserRepository
 	AlertChannelRepository         repository.AlertChannelRepository
+	MonitorTaskAlertRepository     repository.MonitorTaskAlertRepository
 }
 
 func NewRepository(config config.Config) *Repository {
@@ -26,5 +27,6 @@ func NewRepository(config config.Config) *Repository {
 		AlertGroupRepository:           NewAlertGroupRepositoryImpl(config.DatabaseForGorm),
 		AlertGroupUserRepository:       NewAlertGroupUserRepositoryImpl(config.DatabaseForGorm),
 		AlertChannelRepository:         NewAlertChannelRepositoryImpl(config.DatabaseForGorm),
+		MonitorTaskAlertRepository:     NewMonitorTaskAlertRepositoryImpl(config.DatabaseForGorm),
 	}
 }

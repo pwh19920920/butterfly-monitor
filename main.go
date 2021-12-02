@@ -5,7 +5,10 @@ import (
 	"butterfly-monitor/config"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/interfaces"
+	"fmt"
 	"github.com/pwh19920920/butterfly"
+	"strings"
+	"time"
 )
 import "github.com/pwh19920920/butterfly-admin/starter"
 
@@ -33,27 +36,27 @@ func init() {
 }
 
 func main() {
+	effectTime := "20:10:10-22:10:10"
+	idx := strings.LastIndex(effectTime, "-")
+	startTimeStr := effectTime[0:idx]
+	endTimeStr := effectTime[idx+1 : len(effectTime)]
 
-	//xx := handler.ChannelEmailHandler{}
-	//channel := entity.AlertChannel{
-	//	Params: "{\"host\":\"smtp.exmail.qq.com\",\"port\":\"465\",\"username\":\"ibg-fund@we.cn\",\"password\":\"3dkrkpzPecq59kZL\",\"ssl\":true}",
-	//}
-	//
-	//groupUsers := make([]entity2.SysUser, 0)
-	//groupUsers = append(groupUsers, entity2.SysUser{
-	//	Email: "pengweihuang@we.cn",
-	//})
-	//err := xx.DispatchMessage(channel, groupUsers, "hello world")
-	//println(err)
+	// 转换开始时间
+	currentTime := time.Now()
+	dateStr := currentTime.Format("2006-01-02")
+	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", fmt.Sprintf("%s %s", dateStr, startTimeStr), time.Local)
+	fmt.Println(err)
 
-	//xx := handler.ChannelDingDingHandler{}
-	//channel := entity.AlertChannel{
-	//	Params: "{\"addr\":\"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=d1d5354d-be44-4539-b6b0-d7534bde1e33\"}",
-	//}
-	//
-	//groupUsers := make([]entity2.SysUser, 0)
-	//err := xx.DispatchMessage(channel, groupUsers, "hello world")
-	//fmt.Printf("%v", err)
+	// 转换结束时间
+	endTime, err := time.ParseInLocation("2006-01-02 15:04:05", fmt.Sprintf("%s %s", dateStr, endTimeStr), time.Local)
+	fmt.Println(err)
 
+	if currentTime.Unix() < startTime.Unix() || currentTime.Unix() > endTime.Unix() {
+		fmt.Println("不在时间范围内")
+	}
+
+	println(startTime.Unix())
+	println(currentTime.Unix())
+	println(endTime.Unix())
 	butterfly.Run()
 }

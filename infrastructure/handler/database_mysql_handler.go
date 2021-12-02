@@ -57,7 +57,6 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 	}
 
 	// 关闭sql log
-	//	db.Logger = common.NewGormLogger()
 	db.Logger.LogMode(logger.Silent)
 
 	// 打开连接

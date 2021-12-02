@@ -14,6 +14,7 @@ type Application struct {
 	AlertConf        AlertConfApplication
 	AlertGroup       AlertGroupApplication
 	AlertChannel     AlertChannelApplication
+	MonitorAlert     MonitorAlertCheckApplication
 }
 
 func NewApplication(
@@ -68,9 +69,19 @@ func NewApplication(
 			repository: repository,
 			sequence:   config.Sequence,
 		},
+
+		// 监控报警
+		MonitorAlert: MonitorAlertCheckApplication{
+			sequence:   config.Sequence,
+			repository: repository,
+			influxdb:   config.InfluxDbOption,
+			xxlExec:    config.XxlJobExec,
+			grafana:    config.Grafana,
+		},
 	}
 }
 
 func (app *Application) RegisterJobExec() {
 	app.MonitorExec.RegisterExecJob()
+	app.MonitorAlert.RegisterExecJob()
 }

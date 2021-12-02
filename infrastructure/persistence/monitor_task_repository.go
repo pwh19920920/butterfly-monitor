@@ -15,6 +15,17 @@ func NewMonitorTaskRepositoryImpl(db *gorm.DB) *MonitorTaskRepositoryImpl {
 	return &MonitorTaskRepositoryImpl{db: db}
 }
 
+func (repo *MonitorTaskRepositoryImpl) FindJobByShardingNoPaging(shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
+	var data []entity.MonitorTask
+	err := repo.db.
+		Model(&entity.MonitorTask{}).
+		Where("mod(id, ?) = ? "+
+			"and task_status = ? "+
+			"and date_add(now(), interval -time_span second) >= pre_execute_time", shardTotal, shardIndex, entity.MonitorTaskStatusOpen).
+		Find(&data).Error
+	return data, err
+}
+
 func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
 	var data []entity.MonitorTask
 	err := repo.db.

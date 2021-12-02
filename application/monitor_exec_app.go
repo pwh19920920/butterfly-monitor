@@ -106,8 +106,22 @@ func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req
 
 // ExecDataCollect 通过xxl的index, 到数据库中取task, 然后批量执行塞入channel, 批量插入influxdb
 func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *xxl.RunReq) (msg string) {
-	var lastId int64 = 0
-	return job.ExecDataCollectForPage(lastId, cxt, param)
+	// 获取任务分片数据
+	tasks, err := job.repository.MonitorTaskRepository.FindJobByShardingNoPaging(param.BroadcastIndex, param.BroadcastTotal)
+	if err != nil {
+		logrus.Error("从数据库获取任务失败", err)
+		return fmt.Sprintf("exec failure, 从数据库获取任务失败")
+	}
+
+	// 循环执行command, 并行执行
+	var wg sync.WaitGroup
+	for _, task := range tasks {
+		wg.Add(1)
+		go job.executeCommand(task, &wg, task.PreExecuteTime.Time, time.Now())
+	}
+
+	wg.Wait()
+	return "execute complete"
 }
 
 // ExecDataCollectForPage 递归执行
