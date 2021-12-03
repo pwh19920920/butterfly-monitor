@@ -42,3 +42,9 @@ func (repo *MonitorTaskEventRepositoryImpl) ModifyByEvent(whereCase *entity.Moni
 		Where(whereCase).
 		Updates(&monitorTaskEvent).Error
 }
+
+func (repo *MonitorTaskEventRepositoryImpl) BatchModifyByEvents(eventIds []int64, monitorTaskEvent *entity.MonitorTaskEvent) error {
+	return repo.db.Model(&entity.MonitorTaskEvent{}).
+		Where("id in (?)", eventIds).
+		Updates(&monitorTaskEvent).Error
+}

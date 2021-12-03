@@ -120,7 +120,7 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	}
 
 	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则
-	checkResult, hitMsg := app.checkForParam(params, sampleVal, realVal)
+	checkResult, hitMsg := app.checkForParam(check, params, sampleVal, realVal)
 	logrus.Infof("|(%v - %v)|/%v = %v, %s", sampleVal, realVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
 	if !checkResult {
 		// 没命中, 则要更新event为误报, 更新check任务的FirstFlagTime,PreCheckTime=current, AlertStatus=Normal
@@ -155,11 +155,11 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 }
 
 // *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParam(params []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
+func (app *MonitorAlertCheckApplication) checkForParam(check entity.MonitorTaskAlert, params []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
 	hitMsgList := make([]string, 0)
 	result := false
 	for _, param := range params {
-		arrCheckResult, hitMsg := app.checkForParamArr(param.Params, sampleVal, realVal)
+		arrCheckResult, hitMsg := app.checkForParamArr(check, param.Params, sampleVal, realVal)
 		hitMsgList = append(hitMsgList, hitMsg...)
 
 		// 当表达式为or，其中一个为true, 就整个都是true
@@ -181,13 +181,14 @@ func (app *MonitorAlertCheckApplication) checkForParam(params []entity.MonitorAl
 }
 
 // *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParamArr(paramArr []entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) (bool, []string) {
+func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, paramArr []entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) (bool, []string) {
 	result := false
 	hitMsg := make([]string, 0)
 	for _, params := range paramArr {
 		itemResult := app.checkForParamItem(params, sampleVal, realVal)
 		if itemResult {
-			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本值%v%s", sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg()))
+			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本值%v%s, 持续发生超过%v秒",
+				sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg(), check.Duration))
 		}
 
 		// 当表达式为or，其中一个为true, 就整个都是true
@@ -239,22 +240,19 @@ func (app *MonitorAlertCheckApplication) reverse(compareType entity.MonitorAlert
 
 func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckParamsItem, diff int64) bool {
 	compareType := param.CompareType
-	if diff <= 0 {
-		diff = -diff
-		compareType = app.reverse(param.CompareType)
-	}
+	value := param.Value
 
 	switch compareType {
 	case entity.MonitorAlertCheckParamsCompareTypeGt:
-		return diff > param.Value
+		return diff > value
 	case entity.MonitorAlertCheckParamsCompareTypeLt:
-		return diff < param.Value
+		return diff < -value
 	case entity.MonitorAlertCheckParamsCompareTypeEq:
-		return diff == param.Value
+		return diff == value
 	case entity.MonitorAlertCheckParamsCompareTypeEgt:
-		return diff >= param.Value
+		return diff >= value
 	case entity.MonitorAlertCheckParamsCompareTypeElt:
-		return diff <= param.Value
+		return diff <= -value
 	}
 	return false
 }

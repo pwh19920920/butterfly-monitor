@@ -14,4 +14,7 @@ type MonitorTaskEventRepository interface {
 
 	// ModifyByEvent 批量更新
 	ModifyByEvent(whereCase *entity.MonitorTaskEvent, monitorTaskEvent *entity.MonitorTaskEvent) error
+
+	// BatchModifyByEvents 批量更新
+	BatchModifyByEvents(eventIds []int64, monitorTaskEvent *entity.MonitorTaskEvent) error
 }

@@ -9,6 +9,9 @@ type MonitorTaskAlertRepository interface {
 	// FindCheckJob 获取需要执行的job
 	FindCheckJob(shardIndex, shardTotal int64) ([]entity.MonitorTaskAlert, error)
 
+	// BatchGetByIds 批量获取
+	BatchGetByIds(ids []int64) ([]entity.MonitorTaskAlert, error)
+
 	// Modify 更新
 	Modify(id int64, monitorAlert *entity.MonitorTaskAlert) error
 

@@ -27,6 +27,18 @@ func (repo *MonitorTaskAlertRepositoryImpl) FindCheckJob(shardIndex, shardTotal 
 	return data, err
 }
 
+func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByIds(ids []int64) ([]entity.MonitorTaskAlert, error) {
+	if ids == nil || len(ids) == 0 {
+		return make([]entity.MonitorTaskAlert, 0), nil
+	}
+	var data []entity.MonitorTaskAlert
+	err := repo.db.
+		Model(&entity.MonitorTaskAlert{}).
+		Where("deal_status = ? and id in (?)", entity.MonitorTaskAlertDealStatusNormal, ids).
+		Find(&data).Error
+	return data, err
+}
+
 // Modify 更新
 func (repo *MonitorTaskAlertRepositoryImpl) Modify(id int64, monitorTaskAlert *entity.MonitorTaskAlert) error {
 	return repo.db.Model(&entity.MonitorTaskAlert{}).

@@ -23,6 +23,7 @@ func NewApplication(
 	repository *persistence.Repository,
 ) *Application {
 	alertConfApp := AlertConfApplication{repository: repository, sequence: config.Sequence}
+	alertChannelApp := AlertChannelApplication{repository: repository, sequence: config.Sequence}
 	return &Application{
 		// 定时执行器
 		MonitorExec: NewMonitorExecApplication(
@@ -64,10 +65,7 @@ func NewApplication(
 		},
 
 		// 通道
-		AlertChannel: AlertChannelApplication{
-			repository: repository,
-			sequence:   config.Sequence,
-		},
+		AlertChannel: alertChannelApp,
 
 		// 监控报警
 		MonitorAlert: MonitorAlertCheckApplication{
@@ -81,9 +79,11 @@ func NewApplication(
 
 		// 事件处理
 		MonitorEvent: MonitorEventCheckApplication{
-			sequence:   config.Sequence,
-			repository: repository,
-			xxlExec:    config.XxlJobExec,
+			sequence:     config.Sequence,
+			repository:   repository,
+			xxlExec:      config.XxlJobExec,
+			alertConf:    alertConfApp,
+			alertChannel: alertChannelApp,
 		},
 	}
 }
@@ -91,4 +91,5 @@ func NewApplication(
 func (app *Application) RegisterJobExec() {
 	app.MonitorExec.RegisterExecJob()
 	app.MonitorAlert.RegisterExecJob()
+	app.MonitorEvent.RegisterExecJob()
 }
