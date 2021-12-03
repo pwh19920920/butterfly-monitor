@@ -4,9 +4,10 @@ import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
+	"fmt"
 	"github.com/bwmarrin/snowflake"
 	"github.com/sirupsen/logrus"
-	"strconv"
+	"github.com/spf13/viper"
 )
 
 type AlertConfApplication struct {
@@ -14,42 +15,41 @@ type AlertConfApplication struct {
 	sequence   *snowflake.Node
 }
 
+const DefaultAlertSpan = 600 // 默认报警间隔 10分钟
+const DefaultFirstDelay = 60 // 默认首次延迟60s
+
 type AlertConfObject struct {
-	AlertSpan int64  // 报警间隔
-	Template  string // 报警模板
+	AlertSpan  int64  `json:"alertSpan"`  // 报警间隔
+	FirstDelay int64  `json:"firstDelay"` // 首次延迟
+	Template   string `json:"template"`   // 报警模板
+}
+
+type AlertConfObjectInstance struct {
+	Alert AlertConfObject `json:"alert"`
 }
 
 // Cover2AlertConf 转换配置
-func (application *AlertConfApplication) Cover2AlertConf(dataMap map[string]string) (*AlertConfObject, error) {
-	const defaultAlertSpan int64 = 120
-	alertSpan := defaultAlertSpan
-	alertSpanVal, ok := dataMap["alertSpan"]
-	if ok {
-		// 校验转换结果, 其次判断是否大于最小值
-		alertSpan, err := strconv.ParseInt(alertSpanVal, 10, 64)
-		if err != nil || alertSpan < defaultAlertSpan {
-			alertSpan = defaultAlertSpan
-		}
+func (application *AlertConfApplication) Cover2AlertConf(data []entity.AlertConf) (*AlertConfObjectInstance, error) {
+	conf := viper.New()
+	conf.SetDefault("alert.firstDelay", DefaultFirstDelay)
+	conf.SetDefault("alert.alertSpan", DefaultAlertSpan)
+
+	for _, item := range data {
+		conf.Set(fmt.Sprintf("alert.%s", item.ConfKey), item.ConfVal)
 	}
 
-	return &AlertConfObject{
-		AlertSpan: alertSpan,
-		Template:  dataMap["template"],
-	}, nil
+	confInstance := new(AlertConfObjectInstance)
+	err := conf.Unmarshal(&confInstance)
+	return confInstance, err
 }
 
 // SelectConf 分页查询
-func (application *AlertConfApplication) SelectConf() (*AlertConfObject, error) {
+func (application *AlertConfApplication) SelectConf() (*AlertConfObjectInstance, error) {
 	data, err := application.repository.AlertConfRepository.SelectAll()
 	if err != nil {
 		return nil, err
 	}
-
-	result := make(map[string]string, 0)
-	for _, item := range data {
-		result[item.ConfKey] = item.ConfVal
-	}
-	return application.Cover2AlertConf(result)
+	return application.Cover2AlertConf(data)
 }
 
 // Query 分页查询

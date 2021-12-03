@@ -15,12 +15,14 @@ type Application struct {
 	AlertGroup       AlertGroupApplication
 	AlertChannel     AlertChannelApplication
 	MonitorAlert     MonitorAlertCheckApplication
+	MonitorEvent     MonitorEventCheckApplication
 }
 
 func NewApplication(
 	config config.Config,
 	repository *persistence.Repository,
 ) *Application {
+	alertConfApp := AlertConfApplication{repository: repository, sequence: config.Sequence}
 	return &Application{
 		// 定时执行器
 		MonitorExec: NewMonitorExecApplication(
@@ -53,10 +55,7 @@ func NewApplication(
 		},
 
 		// 报警配置
-		AlertConf: AlertConfApplication{
-			repository: repository,
-			sequence:   config.Sequence,
-		},
+		AlertConf: alertConfApp,
 
 		// 分组
 		AlertGroup: AlertGroupApplication{
@@ -77,6 +76,14 @@ func NewApplication(
 			influxdb:   config.InfluxDbOption,
 			xxlExec:    config.XxlJobExec,
 			grafana:    config.Grafana,
+			alertConf:  alertConfApp,
+		},
+
+		// 事件处理
+		MonitorEvent: MonitorEventCheckApplication{
+			sequence:   config.Sequence,
+			repository: repository,
+			xxlExec:    config.XxlJobExec,
 		},
 	}
 }

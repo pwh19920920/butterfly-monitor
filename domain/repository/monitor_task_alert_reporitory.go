@@ -2,6 +2,7 @@ package repository
 
 import (
 	"butterfly-monitor/domain/entity"
+	"time"
 )
 
 type MonitorTaskAlertRepository interface {
@@ -10,4 +11,16 @@ type MonitorTaskAlertRepository interface {
 
 	// Modify 更新
 	Modify(id int64, monitorAlert *entity.MonitorTaskAlert) error
+
+	// ModifyByPending 等待报警
+	ModifyByPending(id int64, currentTime time.Time) error
+
+	// ModifyForNormal 恢复正常
+	ModifyForNormal(id int64, currentTime time.Time) error
+
+	// ModifyByFiring 开始报警
+	ModifyByFiring(id int64, currentTime time.Time, monitorTaskEvent *entity.MonitorTaskEvent) error
+
+	// ModifyByAlert 更新
+	ModifyByAlert(whereCase *entity.MonitorTaskAlert, monitorTaskAlert *entity.MonitorTaskAlert) error
 }

@@ -34,6 +34,57 @@ type MonitorTaskAlert struct {
 	FirstFlagTime *common.LocalTime          `json:"firstFlagTime" gorm:"column:first_flag_time"` // 首次标记时间, 如果未出现异常, 则此值持续更新, 如果出现异常, 则这个值不再更新
 }
 
+type MonitorAlertCheckParamsRelation int32
+type MonitorAlertCheckParamsCompareType int32
+type MonitorAlertCheckParamsValueType int32
+
+const (
+	MonitorAlertCheckParamsValueTypePercent MonitorAlertCheckParamsValueType   = 1 // %
+	MonitorAlertCheckParamsValueTypeValue   MonitorAlertCheckParamsValueType   = 2 // 实际差值
+	MonitorAlertCheckParamsRelationOr       MonitorAlertCheckParamsRelation    = 1 // or
+	MonitorAlertCheckParamsRelationAnd      MonitorAlertCheckParamsRelation    = 2 // and
+	MonitorAlertCheckParamsCompareTypeGt    MonitorAlertCheckParamsCompareType = 1 // >
+	MonitorAlertCheckParamsCompareTypeLt    MonitorAlertCheckParamsCompareType = 2 // <
+	MonitorAlertCheckParamsCompareTypeEq    MonitorAlertCheckParamsCompareType = 3 // =
+	MonitorAlertCheckParamsCompareTypeEgt   MonitorAlertCheckParamsCompareType = 4 // >=
+	MonitorAlertCheckParamsCompareTypeElt   MonitorAlertCheckParamsCompareType = 5 // <=
+)
+
+type MonitorAlertCheckParamsItem struct {
+	ValueType   MonitorAlertCheckParamsValueType   `json:"valueType"` //
+	Value       int64                              `json:"value"`
+	Relation    MonitorAlertCheckParamsRelation    `json:"relation"`    // or and
+	CompareType MonitorAlertCheckParamsCompareType `json:"compareType"` // > < = >= <=
+}
+
+func (compareType MonitorAlertCheckParamsCompareType) GetTransferMsg() string {
+	switch compareType {
+	case MonitorAlertCheckParamsCompareTypeGt:
+		return "超出"
+	case MonitorAlertCheckParamsCompareTypeLt:
+		return "低于"
+	case MonitorAlertCheckParamsCompareTypeEq:
+		return "等于"
+	case MonitorAlertCheckParamsCompareTypeElt:
+		return "低于或等于"
+	case MonitorAlertCheckParamsCompareTypeEgt:
+		return "超出或等于"
+	}
+	return ""
+}
+
+func (valueType MonitorAlertCheckParamsValueType) GetTransferMsg() string {
+	if valueType == MonitorAlertCheckParamsValueTypePercent {
+		return "%"
+	}
+	return ""
+}
+
+type MonitorAlertCheckParams struct {
+	Relation MonitorAlertCheckParamsRelation `json:"relation"` // or and
+	Params   []MonitorAlertCheckParamsItem   `json:"params"`
+}
+
 // TableName 会将 User 的表名重写为 `profiles`
 func (MonitorTaskAlert) TableName() string {
 	return "t_monitor_task_alert"

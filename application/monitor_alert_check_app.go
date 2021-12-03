@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/snowflake"
 	client "github.com/influxdata/influxdb1-client/v2"
+	"github.com/pwh19920920/butterfly-admin/common"
 	"github.com/sirupsen/logrus"
 	"github.com/xxl-job/xxl-job-executor-go"
 	"strings"
@@ -24,34 +25,7 @@ type MonitorAlertCheckApplication struct {
 	influxdb   *influxdb.DbOption
 	xxlExec    xxl.Executor
 	grafana    *grafana.Config
-}
-
-type MonitorAlertCheckParamsRelation int32
-type MonitorAlertCheckParamsCompareType int32
-type MonitorAlertCheckParamsValueType int32
-
-const (
-	MonitorAlertCheckParamsValueTypePercent MonitorAlertCheckParamsValueType   = 1 // %
-	MonitorAlertCheckParamsValueTypeValue   MonitorAlertCheckParamsValueType   = 2 // 实际差值
-	MonitorAlertCheckParamsRelationOr       MonitorAlertCheckParamsRelation    = 1 // or
-	MonitorAlertCheckParamsRelationAnd      MonitorAlertCheckParamsRelation    = 2 // and
-	MonitorAlertCheckParamsCompareTypeGt    MonitorAlertCheckParamsCompareType = 1 // >
-	MonitorAlertCheckParamsCompareTypeLt    MonitorAlertCheckParamsCompareType = 2 // <
-	MonitorAlertCheckParamsCompareTypeEq    MonitorAlertCheckParamsCompareType = 3 // =
-	MonitorAlertCheckParamsCompareTypeEgt   MonitorAlertCheckParamsCompareType = 4 // >=
-	MonitorAlertCheckParamsCompareTypeElt   MonitorAlertCheckParamsCompareType = 5 // <=
-)
-
-type MonitorAlertCheckParamsItem struct {
-	ValueType   MonitorAlertCheckParamsValueType   `json:"valueType"` //
-	Value       int64                              `json:"value"`
-	Relation    MonitorAlertCheckParamsRelation    `json:"relation"`    // or and
-	CompareType MonitorAlertCheckParamsCompareType `json:"compareType"` // > < = >= <=
-}
-
-type MonitorAlertCheckParams struct {
-	Relation MonitorAlertCheckParamsRelation `json:"relation"` // or and
-	Params   []MonitorAlertCheckParamsItem   `json:"params"`
+	alertConf  AlertConfApplication
 }
 
 func (app *MonitorAlertCheckApplication) alertCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
@@ -62,11 +36,17 @@ func (app *MonitorAlertCheckApplication) alertCheck(cxt context.Context, param *
 		return fmt.Sprintf("exec failure, 从数据库获取报警检查任务失败")
 	}
 
+	alertConfInstance, err := app.alertConf.SelectConf()
+	if err != nil {
+		logrus.Error("从数据库获取报警配置失败", err)
+		return fmt.Sprintf("exec failure, 从数据库获取报警配置失败")
+	}
+
 	// 循环执行command, 并行执行
 	var wg sync.WaitGroup
 	for _, check := range checks {
 		wg.Add(1)
-		go app.execCheck(check, &wg)
+		go app.execCheck(alertConfInstance.Alert, check, &wg)
 	}
 
 	wg.Wait()
@@ -74,7 +54,7 @@ func (app *MonitorAlertCheckApplication) alertCheck(cxt context.Context, param *
 }
 
 //
-func (app *MonitorAlertCheckApplication) execCheck(check entity.MonitorTaskAlert, wg *sync.WaitGroup) {
+func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check entity.MonitorTaskAlert, wg *sync.WaitGroup) {
 	// 执行标记
 	defer wg.Done()
 
@@ -96,8 +76,9 @@ func (app *MonitorAlertCheckApplication) execCheck(check entity.MonitorTaskAlert
 		return
 	}
 
-	var params []MonitorAlertCheckParams
+	var params []entity.MonitorAlertCheckParams
 	if err := json.Unmarshal([]byte(check.Params), &params); err != nil {
+		logrus.Infof("execCheck 任务[%v]规则反序列化失败", check.TaskId)
 		return
 	}
 
@@ -139,9 +120,11 @@ func (app *MonitorAlertCheckApplication) execCheck(check entity.MonitorTaskAlert
 	}
 
 	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则
-	checkResult := app.checkForParam(params, realVal, sampleVal)
+	checkResult, hitMsg := app.checkForParam(params, sampleVal, realVal)
+	logrus.Infof("|(%v - %v)|/%v = %v, %s", sampleVal, realVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
 	if !checkResult {
 		// 没命中, 则要更新event为误报, 更新check任务的FirstFlagTime,PreCheckTime=current, AlertStatus=Normal
+		_ = app.repository.MonitorTaskAlertRepository.ModifyForNormal(check.Id, currentTime)
 		return
 	}
 
@@ -150,95 +133,127 @@ func (app *MonitorAlertCheckApplication) execCheck(check entity.MonitorTaskAlert
 
 	// 超出5分钟得报警了
 	if beforeTime.Unix() > check.FirstFlagTime.Unix() {
+		duration, _ := time.ParseDuration(fmt.Sprintf("%vs", conf.FirstDelay))
+		nextAlertTime := currentTime.Add(duration)
+
 		// 更新AlertStatus状态为3达到报警条件, PreCheckTime=current
 		// 查询event表是否存在此纪录, 不存在则插入
+		_ = app.repository.MonitorTaskAlertRepository.ModifyByFiring(check.Id, currentTime, &entity.MonitorTaskEvent{
+			BaseEntity:    common.BaseEntity{Id: app.sequence.Generate().Int64()},
+			AlertId:       check.Id,
+			TaskId:        check.TaskId,
+			AlertMsg:      strings.Join(hitMsg, ";"),
+			DealStatus:    entity.MonitorTaskEventDealStatusPending,
+			NextAlertTime: &common.LocalTime{Time: nextAlertTime},
+		})
 		return
 	}
 
 	// 更新AlertStatus状态为2出现异常, PreCheckTime=current
+	_ = app.repository.MonitorTaskAlertRepository.ModifyByPending(check.Id, currentTime)
 
 }
 
-func (app *MonitorAlertCheckApplication) checkForParam(params []MonitorAlertCheckParams, sampleVal, realVal int64) bool {
+// *** 使用此算法的前提是每个组里只有or或者and ***
+func (app *MonitorAlertCheckApplication) checkForParam(params []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
+	hitMsgList := make([]string, 0)
+	result := false
 	for _, param := range params {
-		arrCheckResult := app.checkForParamArr(param.Params, sampleVal, realVal)
+		arrCheckResult, hitMsg := app.checkForParamArr(param.Params, sampleVal, realVal)
+		hitMsgList = append(hitMsgList, hitMsg...)
 
 		// 当表达式为or，其中一个为true, 就整个都是true
-		if MonitorAlertCheckParamsRelationOr == param.Relation && arrCheckResult {
-			return true
+		if entity.MonitorAlertCheckParamsRelationOr == param.Relation && arrCheckResult {
+			return true, hitMsg
 		}
 
 		// 当表达式为and, 其中一个为false，那整个都是false
-		if MonitorAlertCheckParamsRelationAnd == param.Relation && !arrCheckResult {
-			return false
+		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && !arrCheckResult {
+			return false, hitMsg
+		}
+
+		// 其他情况，为or，然后都是false，为and，都是true
+		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && arrCheckResult {
+			result = true
 		}
 	}
-	return false
+	return result, hitMsgList
 }
 
-func (app *MonitorAlertCheckApplication) checkForParamArr(paramArr []MonitorAlertCheckParamsItem, sampleVal, realVal int64) bool {
+// *** 使用此算法的前提是每个组里只有or或者and ***
+func (app *MonitorAlertCheckApplication) checkForParamArr(paramArr []entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) (bool, []string) {
+	result := false
+	hitMsg := make([]string, 0)
 	for _, params := range paramArr {
 		itemResult := app.checkForParamItem(params, sampleVal, realVal)
+		if itemResult {
+			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本值%v%s", sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg()))
+		}
 
 		// 当表达式为or，其中一个为true, 就整个都是true
-		if MonitorAlertCheckParamsRelationOr == params.Relation && itemResult {
-			return true
+		if entity.MonitorAlertCheckParamsRelationOr == params.Relation && itemResult {
+			return true, hitMsg
 		}
 
 		// 当表达式为and, 其中一个为false，那整个都是false
-		if MonitorAlertCheckParamsRelationAnd == params.Relation && !itemResult {
-			return false
+		if entity.MonitorAlertCheckParamsRelationAnd == params.Relation && !itemResult {
+			return false, hitMsg
+		}
+
+		// 为and，遇到true
+		if entity.MonitorAlertCheckParamsRelationAnd == params.Relation && itemResult {
+			result = true
 		}
 	}
-	return false
+	return result, hitMsg
 }
 
-func (app *MonitorAlertCheckApplication) checkForParamItem(param MonitorAlertCheckParamsItem, sampleVal, realVal int64) bool {
+func (app *MonitorAlertCheckApplication) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) bool {
 	// 绝对值处理
 	diff := realVal - sampleVal
 	diffPercent := diff * 100.0 / sampleVal
 
 	// 计算是否符合表达式, 符合即代表异常了
-	if param.ValueType == MonitorAlertCheckParamsValueTypePercent {
+	if param.ValueType == entity.MonitorAlertCheckParamsValueTypePercent {
 		return app.compare(param, diffPercent)
 	}
 	return app.compare(param, diff)
 }
 
-func (app *MonitorAlertCheckApplication) reverse(compareType MonitorAlertCheckParamsCompareType) MonitorAlertCheckParamsCompareType {
+func (app *MonitorAlertCheckApplication) reverse(compareType entity.MonitorAlertCheckParamsCompareType) entity.MonitorAlertCheckParamsCompareType {
 	switch compareType {
-	case MonitorAlertCheckParamsCompareTypeGt:
-		return MonitorAlertCheckParamsCompareTypeLt
-	case MonitorAlertCheckParamsCompareTypeLt:
-		return MonitorAlertCheckParamsCompareTypeGt
-	case MonitorAlertCheckParamsCompareTypeEq:
-		return MonitorAlertCheckParamsCompareTypeEq
-	case MonitorAlertCheckParamsCompareTypeEgt:
-		return MonitorAlertCheckParamsCompareTypeElt
-	case MonitorAlertCheckParamsCompareTypeElt:
-		return MonitorAlertCheckParamsCompareTypeEgt
+	case entity.MonitorAlertCheckParamsCompareTypeGt:
+		return entity.MonitorAlertCheckParamsCompareTypeLt
+	case entity.MonitorAlertCheckParamsCompareTypeLt:
+		return entity.MonitorAlertCheckParamsCompareTypeGt
+	case entity.MonitorAlertCheckParamsCompareTypeEq:
+		return entity.MonitorAlertCheckParamsCompareTypeEq
+	case entity.MonitorAlertCheckParamsCompareTypeEgt:
+		return entity.MonitorAlertCheckParamsCompareTypeElt
+	case entity.MonitorAlertCheckParamsCompareTypeElt:
+		return entity.MonitorAlertCheckParamsCompareTypeEgt
 	default:
-		return MonitorAlertCheckParamsCompareTypeEq
+		return entity.MonitorAlertCheckParamsCompareTypeEq
 	}
 }
 
-func (app *MonitorAlertCheckApplication) compare(param MonitorAlertCheckParamsItem, diff int64) bool {
+func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckParamsItem, diff int64) bool {
 	compareType := param.CompareType
-	if diff < 0 {
+	if diff <= 0 {
 		diff = -diff
 		compareType = app.reverse(param.CompareType)
 	}
 
 	switch compareType {
-	case MonitorAlertCheckParamsCompareTypeGt:
+	case entity.MonitorAlertCheckParamsCompareTypeGt:
 		return diff > param.Value
-	case MonitorAlertCheckParamsCompareTypeLt:
+	case entity.MonitorAlertCheckParamsCompareTypeLt:
 		return diff < param.Value
-	case MonitorAlertCheckParamsCompareTypeEq:
+	case entity.MonitorAlertCheckParamsCompareTypeEq:
 		return diff == param.Value
-	case MonitorAlertCheckParamsCompareTypeEgt:
+	case entity.MonitorAlertCheckParamsCompareTypeEgt:
 		return diff >= param.Value
-	case MonitorAlertCheckParamsCompareTypeElt:
+	case entity.MonitorAlertCheckParamsCompareTypeElt:
 		return diff <= param.Value
 	}
 	return false

@@ -5,10 +5,7 @@ import (
 	"butterfly-monitor/config"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/interfaces"
-	"fmt"
 	"github.com/pwh19920920/butterfly"
-	"strings"
-	"time"
 )
 import "github.com/pwh19920920/butterfly-admin/starter"
 
@@ -35,28 +32,17 @@ func init() {
 	app.RegisterJobExec()
 }
 
+type AlertConfObject struct {
+	ScanSpan   int64  `json:"scanSpan"`   // 扫描间隔
+	AlertSpan  int64  `json:"alertSpan"`  // 报警间隔
+	FirstDelay int64  `json:"firstDelay"` // 首次延迟
+	Template   string `json:"template"`   // 报警模板
+}
+
+type AlertConfObjectInstance struct {
+	Alert AlertConfObject `json:"alert"`
+}
+
 func main() {
-	effectTime := "20:10:10-22:10:10"
-	idx := strings.LastIndex(effectTime, "-")
-	startTimeStr := effectTime[0:idx]
-	endTimeStr := effectTime[idx+1 : len(effectTime)]
-
-	// 转换开始时间
-	currentTime := time.Now()
-	dateStr := currentTime.Format("2006-01-02")
-	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", fmt.Sprintf("%s %s", dateStr, startTimeStr), time.Local)
-	fmt.Println(err)
-
-	// 转换结束时间
-	endTime, err := time.ParseInLocation("2006-01-02 15:04:05", fmt.Sprintf("%s %s", dateStr, endTimeStr), time.Local)
-	fmt.Println(err)
-
-	if currentTime.Unix() < startTime.Unix() || currentTime.Unix() > endTime.Unix() {
-		fmt.Println("不在时间范围内")
-	}
-
-	println(startTime.Unix())
-	println(currentTime.Unix())
-	println(endTime.Unix())
 	butterfly.Run()
 }

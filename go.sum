@@ -358,8 +358,8 @@ github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084/go.mod h1:TjEm7z
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/pwh19920920/butterfly v1.0.7 h1:kOP3Et6/mBaYHHkNrR1NobLA+4OHJUxR89Ri5v6KqzQ=
 github.com/pwh19920920/butterfly v1.0.7/go.mod h1:VB2Gguq3Z9TwKO66W9bE6aZ1d22JHbWoo2qUtzi1qv4=
-github.com/pwh19920920/butterfly-admin v1.1.0 h1:6u8MYdKc660cNM+WCHHvAEa1SBTCxIJQXMdkDOqbr5M=
-github.com/pwh19920920/butterfly-admin v1.1.0/go.mod h1:EsaWswiN0zOTToRnNqK2uCPTEWFhhe6i6uGWAoe3mCM=
+github.com/pwh19920920/butterfly-admin v1.1.1 h1:wbWZLib53ZEesiLEl6kJDCRzqvfHgeX4bofyjurBOfQ=
+github.com/pwh19920920/butterfly-admin v1.1.1/go.mod h1:EsaWswiN0zOTToRnNqK2uCPTEWFhhe6i6uGWAoe3mCM=
 github.com/pwh19920920/grafanasdk v1.0.5 h1:hk/23g3eVWjCTcKnKutmploZFMwXAlHzTSw3WHFq0Qo=
 github.com/pwh19920920/grafanasdk v1.0.5/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
 github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be h1:ta7tUOvsPHVHGom5hKW5VXNc2xZIkfCKP8iaqOyYtUQ=
