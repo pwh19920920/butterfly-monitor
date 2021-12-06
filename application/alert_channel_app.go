@@ -49,10 +49,6 @@ func (application *AlertChannelApplication) Handlers() []types.AlertChannelHandl
 	return alertChannelHandlers
 }
 
-func (application *AlertChannelApplication) DispatchMessage(groupId int64, text string, channelId int64) {
-	println("发送发送。。。。。")
-}
-
 // Query 分页查询
 func (application *AlertChannelApplication) Query(request *types.AlertChannelQueryRequest) (int64, []entity.AlertChannel, error) {
 	total, data, err := application.repository.AlertChannelRepository.Select(request)

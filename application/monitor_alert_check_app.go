@@ -187,7 +187,7 @@ func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTa
 	for _, params := range paramArr {
 		itemResult := app.checkForParamItem(params, sampleVal, realVal)
 		if itemResult {
-			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本值%v%s, 持续发生超过%v秒",
+			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本阈值%v%s, 持续发生超过%v秒",
 				sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg(), check.Duration))
 		}
 

@@ -10,6 +10,9 @@ type AlertChannelRepository interface {
 	// Select 查询
 	Select(req *types.AlertChannelQueryRequest) (int64, []entity.AlertChannel, error)
 
+	// GetById 获取
+	GetById(id int64) (entity.AlertChannel, error)
+
 	// Delete 删除
 	Delete(id int64) error
 

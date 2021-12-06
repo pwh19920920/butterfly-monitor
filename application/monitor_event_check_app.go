@@ -5,6 +5,7 @@ import (
 	"butterfly-monitor/infrastructure/persistence"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
@@ -26,7 +27,7 @@ type MonitorEventCheckApplication struct {
 
 type MonitorEventTemplateParam struct {
 	TaskName   string            `json:"taskName"`   // 任务名
-	HitRule    string            `json:"hitMsg"`     // 命中规则
+	HitRule    string            `json:"hitRule"`    // 命中规则
 	HappenTime *common.LocalTime `json:"happenTime"` // 发生事件
 }
 
@@ -52,12 +53,10 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 	// 消息聚合, 将相同分组的消息聚合为一笔
 	alertIds := make([]int64, 0)
 	taskIds := make([]int64, 0)
-	eventIds := make([]int64, 0)
 	alertIdForEventMap := make(map[int64]entity.MonitorTaskEvent, 0)
 	for _, event := range events {
 		alertIds = append(alertIds, event.AlertId)
 		taskIds = append(taskIds, event.TaskId)
-		eventIds = append(eventIds, event.Id)
 		alertIdForEventMap[event.AlertId] = event
 	}
 
@@ -81,6 +80,44 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 	}
 
 	// 分组下的任务聚合, 筛选出每个分组下拥有的taskAlertIds
+	groupForChannelForParamsMap := app.BuildGroupForChannelForParamsMap(alerts, taskIdForTaskMap, alertIdForEventMap)
+
+	// 分组发送
+	successEventIds := make([]int64, 0)
+	for group, channelForParamsMap := range groupForChannelForParamsMap {
+		for channel, params := range channelForParamsMap {
+			groupId, _ := strconv.ParseInt(group, 10, 64)
+			channelId, _ := strconv.ParseInt(channel, 10, 64)
+			text, err := app.RenderTemplate(params, alertConfInstance.Alert.Template)
+			if err != nil {
+				logrus.Error("模板渲染失败")
+				continue
+			}
+
+			err = app.DispatchMessage(groupId, text, channelId)
+			if err == nil {
+				successEventIds = append(successEventIds, 0)
+			}
+		}
+	}
+
+	if len(successEventIds) == 0 {
+		return "execute complete, success count = 0"
+	}
+
+	currentTime := time.Now()
+	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", alertConfInstance.Alert.AlertSpan))
+	nextTime := currentTime.Add(duration)
+
+	// 批量更新下次日期, 本次报警发送日期
+	_ = app.repository.MonitorTaskEventRepository.BatchModifyByEvents(successEventIds, &entity.MonitorTaskEvent{
+		PreAlertTime:  &common.LocalTime{Time: currentTime},
+		NextAlertTime: &common.LocalTime{Time: nextTime},
+	})
+	return "execute complete"
+}
+
+func (app *MonitorEventCheckApplication) BuildGroupForChannelForParamsMap(alerts []entity.MonitorTaskAlert, taskIdForTaskMap map[int64]entity.MonitorTask, alertIdForEventMap map[int64]entity.MonitorTaskEvent) map[string]map[string][]MonitorEventTemplateParam {
 	groupForChannelForParamsMap := make(map[string]map[string][]MonitorEventTemplateParam, 0)
 	for _, alert := range alerts {
 		groups := strings.Split(alert.AlertGroups, ",")
@@ -111,33 +148,35 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 			}
 		}
 	}
+	return groupForChannelForParamsMap
+}
 
-	// 分组发送
-	for group, channelForParamsMap := range groupForChannelForParamsMap {
-		for channel, params := range channelForParamsMap {
-			groupId, _ := strconv.ParseInt(group, 10, 64)
-			channelId, _ := strconv.ParseInt(channel, 10, 64)
-			text, err := app.RenderTemplate(params, alertConfInstance.Alert.Template)
-			if err != nil {
-				logrus.Error("模板渲染失败")
-				continue
-			}
-			app.alertChannel.DispatchMessage(groupId, text, channelId)
-		}
+func (app *MonitorEventCheckApplication) DispatchMessage(groupId int64, text string, channelId int64) error {
+	channel, err := app.repository.AlertChannelRepository.GetById(channelId)
+	if err != nil {
+		return errors.New("数据库获取通道失败")
 	}
 
-	currentTime := time.Now()
-	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", alertConfInstance.Alert.AlertSpan))
-	nextTime := currentTime.Add(duration)
+	alertChannelHandler, ok := alertChannelHandlerNameMap[channel.Handler]
+	if !ok {
+		return errors.New("处理器不存在")
+	}
 
-	// 批量更新下次日期, 本次报警发送日期
-	app.repository.MonitorTaskEventRepository.BatchModifyByEvents(eventIds, &entity.MonitorTaskEvent{
-		PreAlertTime:  &common.LocalTime{Time: currentTime},
-		NextAlertTime: &common.LocalTime{Time: nextTime},
-	})
+	groupUserIds, err := app.repository.AlertGroupUserRepository.SelectByGroupId(groupId)
+	if err != nil {
+		return errors.New("数据库获取GroupUser失败")
+	}
 
-	// 对所有任务进行消息模板化
-	return "execute complete"
+	groupUsers, err := app.repository.AlertGroupUserRepository.SelectUsersByUserIds(groupUserIds)
+	if err != nil {
+		return errors.New("数据库获取用户信息失败")
+	}
+
+	if groupUsers == nil || len(groupUsers) == 0 {
+		logrus.Infof("分组下的可用用户为空, groupId: %v", groupId)
+		return nil
+	}
+	return alertChannelHandler.DispatchMessage(channel, groupUsers, text)
 }
 
 func (app *MonitorEventCheckApplication) RenderTemplate(paramsArr []MonitorEventTemplateParam, templateStr string) (string, error) {

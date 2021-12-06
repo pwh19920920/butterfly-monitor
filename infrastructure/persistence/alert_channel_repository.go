@@ -28,6 +28,14 @@ func (repo *AlertChannelRepositoryImpl) Select(req *types.AlertChannelQueryReque
 	return count, data, err
 }
 
+// GetById 查询
+func (repo *AlertChannelRepositoryImpl) GetById(id int64) (entity.AlertChannel, error) {
+	var data entity.AlertChannel
+	err := repo.db.Model(&entity.AlertChannel{}).
+		Where("id = ?").Find(&data).Error
+	return data, err
+}
+
 // Delete 删除
 func (repo *AlertChannelRepositoryImpl) Delete(id int64) error {
 	return repo.db.Where("id = ?", id).Updates(&entity.AlertChannel{
