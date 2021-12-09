@@ -10,6 +10,9 @@ type AlertChannelRepository interface {
 	// Select 查询
 	Select(req *types.AlertChannelQueryRequest) (int64, []entity.AlertChannel, error)
 
+	// SelectAll 查询全部
+	SelectAll() ([]entity.AlertChannel, error)
+
 	// GetById 获取
 	GetById(id int64) (entity.AlertChannel, error)
 

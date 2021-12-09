@@ -5,6 +5,7 @@ import (
 	"butterfly-monitor/types"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"gorm.io/gorm"
+	"time"
 )
 
 type MonitorTaskRepositoryImpl struct {
@@ -53,17 +54,33 @@ func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastI
 }
 
 // Save 保存
-func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error {
+func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, taskAlert entity.MonitorTaskAlert) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
 			return err
 		}
-		return repo.db.Model(&entity.MonitorTask{}).Create(&monitorTask).Error
+
+		// 监控任务
+		if err := tx.Model(&entity.MonitorTask{}).Create(&monitorTask).Error; err != nil {
+			return err
+		}
+
+		// 保存检测规则
+		return tx.Model(&entity.MonitorTaskAlert{}).Create(&taskAlert).Error
 	})
 }
 
 // UpdateById 更新
-func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error {
+func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.MonitorTask) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Model(&entity.MonitorTask{}).
+			Where(&entity.MonitorTask{BaseEntity: common.BaseEntity{Id: id}}).
+			Updates(&monitorTask).Error
+	})
+}
+
+// UpdateTaskAndDashboardTaskAndAlertById 更新
+func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, taskAlert *entity.MonitorTaskAlert) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		if dashboardTasks != nil {
 			// 删除dashboard_task
@@ -77,6 +94,16 @@ func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.
 				return err
 			}
 		}
+
+		// 更新taskAlert
+		if taskAlert != nil {
+			err := tx.Model(&entity.MonitorTaskAlert{}).Where("task_id = ?", taskAlert.TaskId).Updates(taskAlert).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		// 更新监控
 		return tx.Model(&entity.MonitorTask{}).
 			Where(&entity.MonitorTask{BaseEntity: common.BaseEntity{Id: id}}).
 			Updates(&monitorTask).Error
@@ -85,9 +112,36 @@ func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.
 
 // UpdateAlertStatusById 更新
 func (repo *MonitorTaskRepositoryImpl) UpdateAlertStatusById(id int64, status entity.MonitorAlertStatus) error {
-	return repo.db.Model(&entity.MonitorTask{}).
-		Where("id = ?", id).
-		UpdateColumn("alert_status", status).Error
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		if status == entity.MonitorAlertStatusClose {
+			// 更新task_alert
+			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskAlert{
+				AlertStatus: entity.MonitorTaskAlertStatusNormal,
+			}).Error; err != nil {
+				return err
+			}
+
+			// 更新所有task_event
+			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskEvent{
+				CompleteTime: &common.LocalTime{Time: time.Now()},
+				DealStatus:   entity.MonitorTaskEventDealStatusIgnore,
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		if status == entity.MonitorAlertStatusOpen {
+			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskAlert{
+				FirstFlagTime: &common.LocalTime{Time: time.Now()},
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Model(&entity.MonitorTask{}).
+			Where("id = ?", id).
+			UpdateColumn("alert_status", status).Error
+	})
 }
 
 // UpdateTaskStatusById 更新

@@ -289,14 +289,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()})
 		return
 	}
 
 	// 收集数据得结果为0条
 	if len(points) == 0 {
 		logrus.Error("收集数据为0条, taskId: ", task.Id)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"})
 		return
 	}
 
@@ -337,7 +337,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	// 更新时间
 	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
 		CollectErrMsg:  " ",
-		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}}, nil)
+		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
 	if err != nil {
 		logrus.Error("insert failure", err)
 		return
@@ -350,7 +350,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 	bp, err := job.influxDbOption.CreateBatchPoint()
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "createBatchPoint失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "createBatchPoint失败"})
 		ops <- false
 		return
 	}
@@ -360,7 +360,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 	err = cli.Write(bp)
 	if err != nil {
 		logrus.Error("write to influxdb fail", err)
-		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "插入influxdb失败"}, nil)
+		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "插入influxdb失败"})
 		ops <- false
 		return
 	}

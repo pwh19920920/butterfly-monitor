@@ -25,14 +25,24 @@ type MonitorTaskExecParams struct {
 
 type MonitorTaskQueryResponse struct {
 	entity.MonitorTask
-	TaskExecParams MonitorTaskExecParams `json:"taskExecParams"`
-	Dashboards     []string              `json:"dashboards"`
+	TaskExecParams MonitorTaskExecParams         `json:"taskExecParams"`
+	Dashboards     []string                      `json:"dashboards"`
+	TaskAlert      MonitorTaskAlertCreateRequest `json:"taskAlert"`
+}
+
+type MonitorTaskAlertCreateRequest struct {
+	entity.MonitorTaskAlert
+	EffectTimes   []string                         `json:"effectTimes"`
+	AlertChannels []string                         `json:"alertChannels"`
+	AlertGroups   []string                         `json:"alertGroups"`
+	CheckParams   []entity.MonitorAlertCheckParams `json:"checkParams"`
 }
 
 type MonitorTaskCreateRequest struct {
 	entity.MonitorTask
-	TaskExecParams MonitorTaskExecParams `json:"taskExecParams"`
-	Dashboards     []string              `json:"dashboards"`
+	TaskExecParams MonitorTaskExecParams         `json:"taskExecParams"`
+	Dashboards     []string                      `json:"dashboards"`
+	TaskAlert      MonitorTaskAlertCreateRequest `json:"taskAlert"`
 }
 
 func (req MonitorTaskCreateRequest) GetDashboardIds() ([]int64, error) {

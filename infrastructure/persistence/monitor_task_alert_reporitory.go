@@ -39,6 +39,19 @@ func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByIds(ids []int64) ([]entity
 	return data, err
 }
 
+// BatchGetByTaskIds 批量获取
+func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByTaskIds(taskIds []int64) ([]entity.MonitorTaskAlert, error) {
+	if taskIds == nil || len(taskIds) == 0 {
+		return make([]entity.MonitorTaskAlert, 0), nil
+	}
+	var data []entity.MonitorTaskAlert
+	err := repo.db.
+		Model(&entity.MonitorTaskAlert{}).
+		Where("task_id in (?)", taskIds).
+		Find(&data).Error
+	return data, err
+}
+
 // Modify 更新
 func (repo *MonitorTaskAlertRepositoryImpl) Modify(id int64, monitorTaskAlert *entity.MonitorTaskAlert) error {
 	return repo.db.Model(&entity.MonitorTaskAlert{}).

@@ -11,6 +11,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"github.com/sirupsen/logrus"
+	"strings"
 	"time"
 )
 
@@ -45,6 +46,17 @@ func (application *MonitorTaskApplication) Query(request *types.MonitorTaskQuery
 		return total, nil, errors.New("获取面板信息失败, 信息不匹配")
 	}
 
+	taskAlerts, err := application.repository.MonitorTaskAlertRepository.BatchGetByTaskIds(taskIds)
+	if err != nil {
+		return total, nil, errors.New("获取报警信息失败")
+	}
+
+	// 转map
+	taskIdForAlertMap := make(map[int64]entity.MonitorTaskAlert, 0)
+	for _, taskAlert := range taskAlerts {
+		taskIdForAlertMap[taskAlert.TaskId] = taskAlert
+	}
+
 	taskIdMap := make(map[int64][]string)
 	for _, item := range dashboardTasks {
 		list, ok := taskIdMap[item.TaskId]
@@ -59,10 +71,27 @@ func (application *MonitorTaskApplication) Query(request *types.MonitorTaskQuery
 	for _, item := range data {
 		var execParam types.MonitorTaskExecParams
 		_ = json.Unmarshal([]byte(item.ExecParams), &execParam)
-		result = append(result, types.MonitorTaskQueryResponse{
+		response := types.MonitorTaskQueryResponse{
 			MonitorTask:    item,
 			Dashboards:     taskIdMap[item.Id],
-			TaskExecParams: execParam})
+			TaskExecParams: execParam,
+			TaskAlert:      types.MonitorTaskAlertCreateRequest{},
+		}
+
+		// 存在说明设置过值
+		taskAlert, ok := taskIdForAlertMap[item.Id]
+		if ok {
+			response.TaskAlert.AlertGroups = strings.Split(taskAlert.AlertGroups, ",")
+			response.TaskAlert.AlertChannels = strings.Split(taskAlert.AlertChannels, ",")
+			response.TaskAlert.TimeSpan = taskAlert.TimeSpan
+			response.TaskAlert.Duration = taskAlert.Duration
+
+			// 序列化参数处理
+			var checkParams []entity.MonitorAlertCheckParams
+			_ = json.Unmarshal([]byte(taskAlert.Params), &checkParams)
+			response.TaskAlert.CheckParams = checkParams
+		}
+		result = append(result, response)
 	}
 	return total, result, err
 }
@@ -104,8 +133,24 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 		})
 	}
 
+	// 报警规则
+	checkRuleParams, _ := json.Marshal(request.TaskAlert.CheckParams)
+	taskAlert := entity.MonitorTaskAlert{
+		BaseEntity:    common.BaseEntity{Id: application.sequence.Generate().Int64()},
+		TaskId:        monitorTask.Id,
+		TimeSpan:      request.TaskAlert.TimeSpan,
+		Duration:      request.TaskAlert.Duration,
+		Params:        string(checkRuleParams),
+		AlertStatus:   entity.MonitorTaskAlertStatusNormal,
+		DealStatus:    entity.MonitorTaskAlertDealStatusNormal,
+		FirstFlagTime: &common.LocalTime{Time: time.Now()},
+		PreCheckTime:  &common.LocalTime{Time: time.Now()},
+		AlertGroups:   strings.Join(request.TaskAlert.AlertGroups, ","),
+		AlertChannels: strings.Join(request.TaskAlert.AlertChannels, ","),
+	}
+
 	// 错误记录
-	err = application.repository.MonitorTaskRepository.Save(&monitorTask, monitorDashboardTasks)
+	err = application.repository.MonitorTaskRepository.Save(&monitorTask, monitorDashboardTasks, taskAlert)
 	if err != nil {
 		logrus.Error("MonitorTaskRepository.Save() happen error", err)
 	}
@@ -200,18 +245,29 @@ func (application *MonitorTaskApplication) Modify(request *types.MonitorTaskCrea
 		})
 	}
 
-	err = application.repository.MonitorTaskRepository.UpdateById(monitorTask.Id, &entity.MonitorTask{
+	// 报警规则
+	checkRuleParams, _ := json.Marshal(request.TaskAlert.CheckParams)
+	taskAlert := entity.MonitorTaskAlert{
+		TaskId:        monitorTask.Id,
+		TimeSpan:      request.TaskAlert.TimeSpan,
+		Duration:      request.TaskAlert.Duration,
+		Params:        string(checkRuleParams),
+		AlertGroups:   strings.Join(request.TaskAlert.AlertGroups, ","),
+		AlertChannels: strings.Join(request.TaskAlert.AlertChannels, ","),
+	}
+
+	err = application.repository.MonitorTaskRepository.UpdateTaskAndDashboardTaskAndAlertById(monitorTask.Id, &entity.MonitorTask{
 		TaskName:     monitorTask.TaskName,
 		TimeSpan:     monitorTask.TimeSpan,
 		ExecParams:   monitorTask.ExecParams,
 		TaskType:     monitorTask.TaskType,
 		Command:      monitorTask.Command,
 		RecallStatus: monitorTask.RecallStatus,
-	}, monitorDashboardTasks)
+	}, monitorDashboardTasks, &taskAlert)
 
 	// 错误记录
 	if err != nil {
-		logrus.Error("MonitorTaskRepository.UpdateById() happen error", err)
+		logrus.Error("MonitorTaskRepository.UpdateTaskAndDashboardTaskAndAlertById() happen error", err)
 	}
 	return err
 }
@@ -277,7 +333,7 @@ func (application *MonitorTaskApplication) ModifyAlertStatus(taskId int64, statu
 	err := application.repository.MonitorTaskRepository.UpdateAlertStatusById(taskId, status)
 	// 错误记录
 	if err != nil {
-		logrus.Error("MonitorTaskRepository.UpdateById() happen error", err)
+		logrus.Error("MonitorTaskRepository.UpdateAlertStatusById() happen error", err)
 	}
 	return err
 }

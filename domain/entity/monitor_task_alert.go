@@ -24,7 +24,6 @@ type MonitorTaskAlert struct {
 	TaskId        int64                      `json:"taskId" gorm:"column:task_id"`                // 任务id
 	AlertChannels string                     `json:"alertChannels" gorm:"column:alert_channels"`  // 报警渠道列表
 	AlertGroups   string                     `json:"alertGroups" gorm:"column:alert_groups"`      // 报警组列表
-	EffectTime    *string                    `json:"effectTime" gorm:"column:effect_time"`        // 生效时间
 	TimeSpan      int64                      `json:"timeSpan" gorm:"column:time_span"`            // 检查隔间
 	Duration      int64                      `json:"duration" gorm:"column:duration"`             // 持续时间, s为单位
 	Params        string                     `json:"params" gorm:"column:params"`                 // 规则参数：[{比较方式，值，关系，比较值类型}]
@@ -53,7 +52,6 @@ const (
 type MonitorAlertCheckParamsItem struct {
 	ValueType   MonitorAlertCheckParamsValueType   `json:"valueType"` //
 	Value       int64                              `json:"value"`
-	Relation    MonitorAlertCheckParamsRelation    `json:"relation"`    // or and
 	CompareType MonitorAlertCheckParamsCompareType `json:"compareType"` // > < = >= <=
 }
 
@@ -81,8 +79,9 @@ func (valueType MonitorAlertCheckParamsValueType) GetTransferMsg() string {
 }
 
 type MonitorAlertCheckParams struct {
-	Relation MonitorAlertCheckParamsRelation `json:"relation"` // or and
-	Params   []MonitorAlertCheckParamsItem   `json:"params"`
+	Relation    MonitorAlertCheckParamsRelation `json:"relation"`    // or and
+	EffectTimes []string                        `json:"effectTimes"` // 生效时间
+	Rules       []MonitorAlertCheckParamsItem   `json:"rules"`
 }
 
 // TableName 会将 User 的表名重写为 `profiles`

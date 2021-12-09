@@ -17,10 +17,13 @@ type MonitorTaskRepository interface {
 	FindSamplingJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error)
 
 	// Save 保存
-	Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error
+	Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, alert entity.MonitorTaskAlert) error
 
 	// UpdateById 更新
-	UpdateById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask) error
+	UpdateById(id int64, monitorTask *entity.MonitorTask) error
+
+	// UpdateTaskAndDashboardTaskAndAlertById 更新任务以及报警信息
+	UpdateTaskAndDashboardTaskAndAlertById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, taskAlert *entity.MonitorTaskAlert) error
 
 	// Delete 删除
 	Delete(id int64) error

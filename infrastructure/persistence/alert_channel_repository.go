@@ -28,6 +28,16 @@ func (repo *AlertChannelRepositoryImpl) Select(req *types.AlertChannelQueryReque
 	return count, data, err
 }
 
+// SelectAll 查询
+func (repo *AlertChannelRepositoryImpl) SelectAll() ([]entity.AlertChannel, error) {
+	var data []entity.AlertChannel
+	err := repo.db.Model(&entity.AlertChannel{}).
+		Order("id desc").
+		Not(&entity.AlertChannel{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Find(&data).Error
+	return data, err
+}
+
 // GetById 查询
 func (repo *AlertChannelRepositoryImpl) GetById(id int64) (entity.AlertChannel, error) {
 	var data entity.AlertChannel

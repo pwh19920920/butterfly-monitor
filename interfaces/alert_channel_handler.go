@@ -37,6 +37,18 @@ func (handler *alertChannelHandler) query(context *gin.Context) {
 	response.BuildPageResponseSuccess(context, alertChannelQueryRequest.RequestPaging, total, data)
 }
 
+// 查询
+func (handler *alertChannelHandler) queryAll(context *gin.Context) {
+	data, err := handler.alertChannelApp.QueryAll()
+	if err != nil {
+		response.BuildResponseSysErr(context, "请求查询错误")
+		return
+	}
+
+	// 输出
+	response.BuildResponseSuccess(context, data)
+}
+
 // 创建
 func (handler *alertChannelHandler) create(context *gin.Context) {
 	var alertChannelCreateRequest types.AlertChannelCreateRequest
@@ -96,5 +108,6 @@ func InitAlertChannelHandler(app *application.Application) {
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "", HandlerFunc: handler.modify})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPost, Path: "", HandlerFunc: handler.create})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpGet, Path: "/handlers", HandlerFunc: handler.handlers})
+	route = append(route, server.RouteInfo{HttpMethod: server.HttpGet, Path: "/all", HandlerFunc: handler.queryAll})
 	server.RegisterRoute("/api/alert/channel", route)
 }

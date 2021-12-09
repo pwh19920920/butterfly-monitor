@@ -82,14 +82,8 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 		return
 	}
 
-	// 检查时间
-	currentTime := time.Now()
-	if check.EffectTime != nil && app.checkTimeRange(*check.EffectTime, currentTime) {
-		logrus.Infof("execCheck 任务[%v]不在检测时间内, 自动忽略", check.TaskId)
-		return
-	}
-
 	// 时间倒退
+	currentTime := time.Now()
 	duration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
 	startTime := currentTime.Add(duration)
 
@@ -120,8 +114,8 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	}
 
 	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则
-	checkResult, hitMsg := app.checkForParam(check, params, sampleVal, realVal)
-	logrus.Infof("|(%v - %v)|/%v = %v, %s", sampleVal, realVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
+	checkResult, hitMsg := app.checkForParam(currentTime, check, params, sampleVal, realVal)
+	logrus.Infof("|(%v - %v)|/%v = %v, %s", realVal, sampleVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
 	if !checkResult {
 		// 没命中, 则要更新event为误报, 更新check任务的FirstFlagTime,PreCheckTime=current, AlertStatus=Normal
 		_ = app.repository.MonitorTaskAlertRepository.ModifyForNormal(check.Id, currentTime)
@@ -154,57 +148,50 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 
 }
 
-// *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParam(check entity.MonitorTaskAlert, params []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
-	hitMsgList := make([]string, 0)
-	result := false
-	for _, param := range params {
-		arrCheckResult, hitMsg := app.checkForParamArr(check, param.Params, sampleVal, realVal)
-		hitMsgList = append(hitMsgList, hitMsg...)
-
-		// 当表达式为or，其中一个为true, 就整个都是true
-		if entity.MonitorAlertCheckParamsRelationOr == param.Relation && arrCheckResult {
-			return true, hitMsg
+// *** 组于组之间为or ***
+func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
+	for _, param := range paramGroups {
+		// 不在时间段里，直接跳过
+		if param.EffectTimes != nil && app.checkTimeRange(param.EffectTimes, currentTime) {
+			continue
 		}
 
-		// 当表达式为and, 其中一个为false，那整个都是false
-		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && !arrCheckResult {
-			return false, hitMsg
-		}
-
-		// 其他情况，为or，然后都是false，为and，都是true
-		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && arrCheckResult {
-			result = true
+		// 一个成功即命中
+		arrCheckResult, hitMsg := app.checkForParamArr(check, param, sampleVal, realVal)
+		if arrCheckResult {
+			return arrCheckResult, hitMsg
 		}
 	}
-	return result, hitMsgList
+	return false, make([]string, 0)
 }
 
 // *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, paramArr []entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) (bool, []string) {
+func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, param entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
 	result := false
 	hitMsg := make([]string, 0)
-	for _, params := range paramArr {
+	for _, params := range param.Rules {
 		itemResult := app.checkForParamItem(params, sampleVal, realVal)
 		if itemResult {
 			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本阈值%v%s, 持续发生超过%v秒",
 				sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg(), check.Duration))
 		}
 
-		// 当表达式为or，其中一个为true, 就整个都是true
-		if entity.MonitorAlertCheckParamsRelationOr == params.Relation && itemResult {
+		// 1. 当表达式为or，其中一个为true, 就整个都是true
+		if entity.MonitorAlertCheckParamsRelationOr == param.Relation && itemResult {
 			return true, hitMsg
 		}
 
-		// 当表达式为and, 其中一个为false，那整个都是false
-		if entity.MonitorAlertCheckParamsRelationAnd == params.Relation && !itemResult {
+		// 2. 当表达式为and, 其中一个为false，那整个都是false
+		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && !itemResult {
 			return false, hitMsg
 		}
 
-		// 为and，遇到true
-		if entity.MonitorAlertCheckParamsRelationAnd == params.Relation && itemResult {
+		// 3. 为and，遇到true, 直接修改标记为true, 如果遇到false直接走表达式2
+		if entity.MonitorAlertCheckParamsRelationAnd == param.Relation && itemResult {
 			result = true
 		}
+
+		// 4. 为or，遇到false, 啥也不处理, 本身标记为就是false
 	}
 	return result, hitMsg
 }
@@ -294,10 +281,9 @@ func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, m
 	return meanVal, nil
 }
 
-func (app *MonitorAlertCheckApplication) checkTimeRange(effectTime string, currentTime time.Time) bool {
-	idx := strings.LastIndex(effectTime, "-")
-	startTimeStr := effectTime[0:idx]
-	endTimeStr := effectTime[idx+1 : len(effectTime)-1]
+func (app *MonitorAlertCheckApplication) checkTimeRange(effectTimes []string, currentTime time.Time) bool {
+	startTimeStr := effectTimes[0]
+	endTimeStr := effectTimes[1]
 
 	// 转换开始时间
 	dateStr := currentTime.Format("2006-01-02")

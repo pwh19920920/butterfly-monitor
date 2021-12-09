@@ -12,6 +12,9 @@ type MonitorTaskAlertRepository interface {
 	// BatchGetByIds 批量获取
 	BatchGetByIds(ids []int64) ([]entity.MonitorTaskAlert, error)
 
+	// BatchGetByTaskIds 批量获取
+	BatchGetByTaskIds(taskIds []int64) ([]entity.MonitorTaskAlert, error)
+
 	// Modify 更新
 	Modify(id int64, monitorAlert *entity.MonitorTaskAlert) error
 

@@ -75,7 +75,7 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 	_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
 		SampleErrMsg:  errMsg,
 		PreSampleTime: &common.LocalTime{Time: preSampleTime},
-	}, nil)
+	})
 }
 
 // doExecDataSampling

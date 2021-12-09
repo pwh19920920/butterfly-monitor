@@ -61,6 +61,17 @@ func (application *AlertChannelApplication) Query(request *types.AlertChannelQue
 	return total, data, err
 }
 
+// QueryAll 分页查询
+func (application *AlertChannelApplication) QueryAll() ([]entity.AlertChannel, error) {
+	data, err := application.repository.AlertChannelRepository.SelectAll()
+
+	// 错误记录
+	if err != nil {
+		logrus.Error("AlertChannelRepository.SelectAll() happen error for", err)
+	}
+	return data, err
+}
+
 // Create 创建
 func (application *AlertChannelApplication) Create(request *types.AlertChannelCreateRequest) error {
 	alertChannel := request.AlertChannel
