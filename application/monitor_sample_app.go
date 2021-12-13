@@ -55,6 +55,14 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 	// 执行标记
 	defer wg.Done()
 
+	// 延迟调用匿名函数 (匿名函数在主函数结束之前最后调用，可以捕获主函数中的异常)
+	defer func() {
+		if errInfo := recover(); errInfo != nil {
+			logrus.Errorf("sample剔除样本发送异常, %v", errInfo)
+			return
+		}
+	}()
+
 	cli := job.influxDbOption.GetClient()
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)

@@ -58,6 +58,14 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	// 执行标记
 	defer wg.Done()
 
+	// 延迟调用匿名函数 (匿名函数在主函数结束之前最后调用，可以捕获主函数中的异常)
+	defer func() {
+		if errInfo := recover(); errInfo != nil {
+			logrus.Errorf("execCheck发送异常, %v", errInfo)
+			return
+		}
+	}()
+
 	// 判断任务状态
 	task, err := app.repository.MonitorTaskRepository.GetById(check.TaskId)
 	if err != nil || task == nil {

@@ -240,6 +240,14 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	// 执行标记
 	defer wg.Done()
 
+	// 延迟调用匿名函数 (匿名函数在主函数结束之前最后调用，可以捕获主函数中的异常)
+	defer func() {
+		if errInfo := recover(); errInfo != nil {
+			logrus.Errorf("execCollect发送异常, %v", errInfo)
+			return
+		}
+	}()
+
 	commandHandler, ok := commandHandlerMap[*task.TaskType]
 	if !ok {
 		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误")
