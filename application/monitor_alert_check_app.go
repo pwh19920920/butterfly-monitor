@@ -96,6 +96,23 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	startTime := currentTime.Add(startDuration)
 	endTime := currentTime.Add(endDuration)
 
+	// 是否包含可允许时间
+	containCanRunTime := false
+	for _, param := range params {
+		// 不在时间段里，直接跳过
+		if param.EffectTimes != nil && app.checkTimeRange(param.EffectTimes, currentTime) {
+			continue
+		}
+
+		containCanRunTime = true
+		break
+	}
+
+	// 不包含可允许时间, 不在允许时间范围内
+	if !containCanRunTime {
+		return
+	}
+
 	// 检查influxdb是否正常
 	cli := app.influxdb.GetClient()
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
