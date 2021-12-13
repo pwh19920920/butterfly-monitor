@@ -106,13 +106,13 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", app.grafana.SampleRpName, task.TaskKey)
 	sampleVal, err := app.getInfluxdbMeanVal(cli, sampleMeasurementName, startTime, endTime)
 	if err != nil || sampleVal == 0 {
-		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略", task.Id)
+		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return
 	}
 
 	realVal, err := app.getInfluxdbMeanVal(cli, task.TaskKey, startTime, endTime)
 	if err != nil {
-		logrus.Infof("[%v]任务实时数据没有数据点, 将被忽略", task.Id)
+		logrus.Infof("[%v]任务实时数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return
 	}
 

@@ -101,7 +101,7 @@ func (handler *monitorTaskHandler) modify(context *gin.Context) {
 	// option
 	err = handler.monitorTaskApp.Modify(&monitorTaskCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "修改任务失败")
+		response.BuildResponseSysErr(context, "修改任务失败: " + err.Error())
 		return
 	}
 
