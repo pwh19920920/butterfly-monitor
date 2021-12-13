@@ -261,7 +261,7 @@ func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, m
 
 	result := response.Results
 	if result == nil || len(result) == 0 {
-		errMsg := fmt.Sprintf("执行查询%s失败, reason: %s", measurementName, "返回得result数据为0")
+		errMsg := fmt.Sprintf("执行查询%s失败, reason: %s", measurementName, "返回result数据为nil")
 		logrus.Errorf(errMsg)
 		return 0, errors.New(errMsg)
 	}
