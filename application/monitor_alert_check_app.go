@@ -66,7 +66,6 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	}
 
 	if task.AlertStatus == entity.MonitorAlertStatusClose || task.TaskStatus == entity.MonitorTaskStatusClose {
-		logrus.Infof("execCheck 任务[%v]未开启或者报警未开启", check.TaskId)
 		return
 	}
 
@@ -84,8 +83,10 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 
 	// 时间倒退
 	currentTime := time.Now()
-	duration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
-	startTime := currentTime.Add(duration)
+	startDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", 2*task.TimeSpan))
+	endDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
+	startTime := currentTime.Add(startDuration)
+	endTime := currentTime.Add(endDuration)
 
 	// 检查influxdb是否正常
 	cli := app.influxdb.GetClient()
@@ -103,19 +104,20 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 
 	// 查询样本平均, 以及实时数据, 只要有一个不存在, 则忽略, 无法判定为错误
 	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", app.grafana.SampleRpName, task.TaskKey)
-	sampleVal, err := app.getInfluxdbMeanVal(cli, sampleMeasurementName, startTime, currentTime)
+	sampleVal, err := app.getInfluxdbMeanVal(cli, sampleMeasurementName, startTime, endTime)
 	if err != nil || sampleVal == 0 {
+		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略", task.Id)
 		return
 	}
 
-	realVal, err := app.getInfluxdbMeanVal(cli, task.TaskKey, startTime, currentTime)
+	realVal, err := app.getInfluxdbMeanVal(cli, task.TaskKey, startTime, endTime)
 	if err != nil {
+		logrus.Infof("[%v]任务实时数据没有数据点, 将被忽略", task.Id)
 		return
 	}
 
 	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则
 	checkResult, hitMsg := app.checkForParam(currentTime, check, params, sampleVal, realVal)
-	logrus.Infof("|(%v - %v)|/%v = %v, %s", realVal, sampleVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
 	if !checkResult {
 		// 没命中, 则要更新event为误报, 更新check任务的FirstFlagTime,PreCheckTime=current, AlertStatus=Normal
 		_ = app.repository.MonitorTaskAlertRepository.ModifyForNormal(check.Id, currentTime)
@@ -127,6 +129,8 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 
 	// 超出5分钟得报警了
 	if beforeTime.Unix() > check.FirstFlagTime.Unix() {
+		logrus.Infof("alertCheck【%v】 - |(%v - %v)|/%v = %v, %s", task.Id, realVal, sampleVal, sampleVal, checkResult, strings.Join(hitMsg, ";"))
+
 		duration, _ := time.ParseDuration(fmt.Sprintf("%vs", conf.FirstDelay))
 		nextAlertTime := currentTime.Add(duration)
 
@@ -144,12 +148,12 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	}
 
 	// 更新AlertStatus状态为2出现异常, PreCheckTime=current
+	logrus.Infof("execCheck 【%v】出现异常, 样本：%v, 实时: %v", task.Id, sampleVal, realVal)
 	_ = app.repository.MonitorTaskAlertRepository.ModifyByPending(check.Id, currentTime)
-
 }
 
 // *** 组于组之间为or ***
-func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
+func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
 	for _, param := range paramGroups {
 		// 不在时间段里，直接跳过
 		if param.EffectTimes != nil && app.checkTimeRange(param.EffectTimes, currentTime) {
@@ -166,7 +170,7 @@ func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, ch
 }
 
 // *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, param entity.MonitorAlertCheckParams, sampleVal, realVal int64) (bool, []string) {
+func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, param entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
 	result := false
 	hitMsg := make([]string, 0)
 	for _, params := range param.Rules {
@@ -196,7 +200,7 @@ func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTa
 	return result, hitMsg
 }
 
-func (app *MonitorAlertCheckApplication) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal int64) bool {
+func (app *MonitorAlertCheckApplication) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal float64) bool {
 	// 绝对值处理
 	diff := realVal - sampleVal
 	diffPercent := diff * 100.0 / sampleVal
@@ -225,7 +229,7 @@ func (app *MonitorAlertCheckApplication) reverse(compareType entity.MonitorAlert
 	}
 }
 
-func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckParamsItem, diff int64) bool {
+func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckParamsItem, diff float64) bool {
 	compareType := param.CompareType
 	value := param.Value
 
@@ -244,7 +248,7 @@ func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckP
 	return false
 }
 
-func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, measurementName string, startTime, endTime time.Time) (int64, error) {
+func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, measurementName string, startTime, endTime time.Time) (float64, error) {
 	querySql := fmt.Sprintf("select mean(value) from %s where time >= %v and time < %v", measurementName, startTime.UnixNano(), endTime.UnixNano())
 	query := client.NewQuery(querySql, app.influxdb.DbConf.Influx.Database, "s")
 
@@ -277,7 +281,7 @@ func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, m
 	// 解析返回
 	meanIndex, _ := columns["mean"]
 	row := result[0].Series[0].Values[0]
-	meanVal, _ := row[meanIndex].(json.Number).Int64()
+	meanVal, _ := row[meanIndex].(json.Number).Float64()
 	return meanVal, nil
 }
 

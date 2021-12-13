@@ -42,7 +42,7 @@ func (repo *AlertChannelRepositoryImpl) SelectAll() ([]entity.AlertChannel, erro
 func (repo *AlertChannelRepositoryImpl) GetById(id int64) (entity.AlertChannel, error) {
 	var data entity.AlertChannel
 	err := repo.db.Model(&entity.AlertChannel{}).
-		Where("id = ?").Find(&data).Error
+		Where("id = ?", id).Find(&data).Error
 	return data, err
 }
 

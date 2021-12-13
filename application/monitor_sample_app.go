@@ -122,11 +122,11 @@ func (job *MonitorExecApplication) doRecursiveRemoveDataSampling(task entity.Mon
 	dayIndex, _ := columns["day"]
 	valueIndex, _ := columns["value"]
 
-	valueDayMap := make(map[int64]string, 0)
+	valueDayMap := make(map[float64]string, 0)
 	values := make(MyList, 0)
 	for _, item := range result[0].Series[0].Values {
 		day := item[dayIndex].(string)
-		value, _ := item[valueIndex].(json.Number).Int64()
+		value, _ := item[valueIndex].(json.Number).Float64()
 
 		valueDayMap[value] = day
 		values = append(values, value)
@@ -158,7 +158,7 @@ func (job *MonitorExecApplication) doRecursiveRemoveDataSampling(task entity.Mon
 	return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
 }
 
-type MyList []int64
+type MyList []float64
 
 func (m MyList) Len() int {
 	return len(m)

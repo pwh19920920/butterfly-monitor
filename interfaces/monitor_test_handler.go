@@ -10,7 +10,7 @@ import (
 
 // 修改
 func (handler *monitorTaskHandler) test(context *gin.Context) {
-	response.BuildResponseSuccess(context, rand.Intn(100))
+	response.BuildResponseSuccess(context, rand.Float64())
 }
 
 // InitMonitorTestHandler 加载路由

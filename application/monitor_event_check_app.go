@@ -29,6 +29,7 @@ type MonitorEventTemplateParam struct {
 	TaskName   string            `json:"taskName"`   // 任务名
 	HitRule    string            `json:"hitRule"`    // 命中规则
 	HappenTime *common.LocalTime `json:"happenTime"` // 发生事件
+	EventId    int64             `json:"eventId"`    // 时间id
 }
 
 func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
@@ -96,7 +97,9 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 
 			err = app.DispatchMessage(groupId, text, channelId)
 			if err == nil {
-				successEventIds = append(successEventIds, 0)
+				for _, param := range params {
+					successEventIds = append(successEventIds, param.EventId)
+				}
 			}
 		}
 	}
@@ -110,10 +113,14 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 	nextTime := currentTime.Add(duration)
 
 	// 批量更新下次日期, 本次报警发送日期
-	_ = app.repository.MonitorTaskEventRepository.BatchModifyByEvents(successEventIds, &entity.MonitorTaskEvent{
+	err = app.repository.MonitorTaskEventRepository.BatchModifyByEvents(successEventIds, &entity.MonitorTaskEvent{
 		PreAlertTime:  &common.LocalTime{Time: currentTime},
 		NextAlertTime: &common.LocalTime{Time: nextTime},
 	})
+
+	if err != nil {
+		println(err.Error())
+	}
 	return "execute complete"
 }
 
@@ -142,6 +149,7 @@ func (app *MonitorEventCheckApplication) BuildGroupForChannelForParamsMap(alerts
 					TaskName:   taskIdForTaskMap[alert.TaskId].TaskName,
 					HitRule:    alertIdForEventMap[alert.Id].AlertMsg,
 					HappenTime: alertIdForEventMap[alert.Id].CreatedAt,
+					EventId:    alertIdForEventMap[alert.Id].Id,
 				})
 
 				groupForChannelForParamsMap[group][channel] = params

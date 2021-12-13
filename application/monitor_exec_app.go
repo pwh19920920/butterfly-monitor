@@ -98,7 +98,7 @@ func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go job.executeCommand(*task, &wg, req.BeginDate.Time, req.EndDate.Time)
+	go job.executeCommand(*task, &wg, req.BeginDate.Time, req.EndDate.Time, false)
 
 	wg.Wait()
 	return nil
@@ -117,41 +117,11 @@ func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *x
 	var wg sync.WaitGroup
 	for _, task := range tasks {
 		wg.Add(1)
-		go job.executeCommand(task, &wg, task.PreExecuteTime.Time, time.Now())
+		go job.executeCommand(task, &wg, task.PreExecuteTime.Time, time.Now(), true)
 	}
 
 	wg.Wait()
 	return "execute complete"
-}
-
-// ExecDataCollectForPage 递归执行
-func (job *MonitorExecApplication) ExecDataCollectForPage(lastId int64, cxt context.Context, param *xxl.RunReq) (msg string) {
-	const pageSize = 50
-
-	// 获取任务分片数据
-	tasks, err := job.repository.MonitorTaskRepository.FindJobBySharding(pageSize, lastId, param.BroadcastIndex, param.BroadcastTotal)
-	if err != nil {
-		logrus.Error("从数据库获取任务失败", err)
-		return fmt.Sprintf("exec failure, 从数据库获取任务失败")
-	}
-
-	// 循环执行command, 并行执行
-	var wg sync.WaitGroup
-	for _, task := range tasks {
-		wg.Add(1)
-		go job.executeCommand(task, &wg, task.PreExecuteTime.Time, time.Now())
-	}
-
-	wg.Wait()
-
-	// 结束条件
-	if len(tasks) < pageSize {
-		return "execute complete"
-	}
-
-	// 继续递归
-	lastTask := tasks[pageSize-1]
-	return job.ExecDataCollectForPage(lastTask.Id, cxt, param)
 }
 
 func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask) (result interface{}, err error) {
@@ -250,6 +220,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 	}
 
 	// 添加结果
+	logrus.Infof("生成记录数：%v - %v", sampleMeasurementName, len(samplePoints))
 	points = append(points, point)
 	for _, samplePoint := range samplePoints {
 		points = append(points, samplePoint)
@@ -265,7 +236,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 }
 
 // executeCommand 执行命令
-func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
+func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time, needUpdateCollectTime bool) {
 	// 执行标记
 	defer wg.Done()
 
@@ -332,6 +303,11 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 		if !op {
 			return
 		}
+	}
+
+	// 不需要更新, 直接返回了
+	if !needUpdateCollectTime {
+		return
 	}
 
 	// 更新时间

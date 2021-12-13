@@ -51,7 +51,7 @@ const (
 
 type MonitorAlertCheckParamsItem struct {
 	ValueType   MonitorAlertCheckParamsValueType   `json:"valueType"` //
-	Value       int64                              `json:"value"`
+	Value       float64                            `json:"value"`
 	CompareType MonitorAlertCheckParamsCompareType `json:"compareType"` // > < = >= <=
 }
 
