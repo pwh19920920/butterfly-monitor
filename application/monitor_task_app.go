@@ -81,10 +81,9 @@ func (application *MonitorTaskApplication) Query(request *types.MonitorTaskQuery
 		// 存在说明设置过值
 		taskAlert, ok := taskIdForAlertMap[item.Id]
 		if ok {
+			response.TaskAlert.MonitorTaskAlert = taskAlert
 			response.TaskAlert.AlertGroups = strings.Split(taskAlert.AlertGroups, ",")
 			response.TaskAlert.AlertChannels = strings.Split(taskAlert.AlertChannels, ",")
-			response.TaskAlert.TimeSpan = taskAlert.TimeSpan
-			response.TaskAlert.Duration = taskAlert.Duration
 
 			// 序列化参数处理
 			var checkParams []entity.MonitorAlertCheckParams
