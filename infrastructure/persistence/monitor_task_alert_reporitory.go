@@ -126,10 +126,12 @@ func (repo *MonitorTaskAlertRepositoryImpl) ModifyByFiring(id int64, currentTime
 		tx.Model(&entity.MonitorTaskEvent{}).Where("alert_id = ? "+
 			"and deal_status in (?, ?)", id, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).Count(&count)
 
+		// 如果存在，则更新为最新的消息
 		if count != 0 {
-			return nil
+			return tx.Model(&entity.MonitorTaskEvent{}).
+				Where("alert_id = ? and deal_status in (?, ?)", id, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).
+				Updates(&entity.MonitorTaskEvent{AlertMsg: monitorTaskEvent.AlertMsg}).Error
 		}
-
 		return tx.Create(&monitorTaskEvent).Error
 	})
 }
