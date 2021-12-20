@@ -1,6 +1,7 @@
-package application
+package job
 
 import (
+	"butterfly-monitor/application"
 	"butterfly-monitor/config/grafana"
 	"butterfly-monitor/config/influxdb"
 	"butterfly-monitor/domain/entity"
@@ -19,16 +20,16 @@ import (
 	"time"
 )
 
-type MonitorAlertCheckApplication struct {
+type MonitorAlertCheckJob struct {
 	sequence   *snowflake.Node
 	repository *persistence.Repository
 	influxdb   *influxdb.DbOption
 	xxlExec    xxl.Executor
 	grafana    *grafana.Config
-	alertConf  AlertConfApplication
+	alertConf  application.AlertConfApplication
 }
 
-func (app *MonitorAlertCheckApplication) alertCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
+func (app *MonitorAlertCheckJob) alertCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
 	// 获取任务分片数据
 	checks, err := app.repository.MonitorTaskAlertRepository.FindCheckJob(param.BroadcastIndex, param.BroadcastTotal)
 	if err != nil {
@@ -54,7 +55,7 @@ func (app *MonitorAlertCheckApplication) alertCheck(cxt context.Context, param *
 }
 
 //
-func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check entity.MonitorTaskAlert, wg *sync.WaitGroup) {
+func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, check entity.MonitorTaskAlert, wg *sync.WaitGroup) {
 	// 执行标记
 	defer wg.Done()
 
@@ -96,29 +97,12 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	startTime := currentTime.Add(startDuration)
 	endTime := currentTime.Add(endDuration)
 
-	// 是否包含可允许时间
-	containCanRunTime := false
-	for _, param := range params {
-		// 不在时间段里，直接跳过
-		if param.EffectTimes != nil && app.checkTimeRange(param.EffectTimes, currentTime) {
-			continue
-		}
-
-		containCanRunTime = true
-		break
-	}
-
-	// 不包含可允许时间, 不在允许时间范围内
-	if !containCanRunTime {
-		return
-	}
-
 	// 检查influxdb是否正常
 	cli := app.influxdb.GetClient()
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
-		logrus.Error("influxdb ping 失败")
+		logrus.Errorf("influxdb ping 失败, reason： %v", err.Error())
 		return
 	}
 
@@ -130,7 +114,7 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 	// 查询样本平均, 以及实时数据, 只要有一个不存在, 则忽略, 无法判定为错误
 	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", app.grafana.SampleRpName, task.TaskKey)
 	sampleVal, err := app.getInfluxdbMeanVal(cli, sampleMeasurementName, startTime, endTime)
-	if err != nil || sampleVal == 0 {
+	if err != nil || sampleVal == -1 {
 		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return
 	}
@@ -141,7 +125,7 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 		return
 	}
 
-	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则
+	// 规则校验 [[rule, rule], [], []], 是否被检查出来命中了检测规则, 如果没数据，直接认为是异常
 	checkResult, hitMsg := app.checkForParam(currentTime, check, params, sampleVal, realVal)
 	if !checkResult {
 		// 没命中, 则要更新event为误报, 更新check任务的FirstFlagTime,PreCheckTime=current, AlertStatus=Normal
@@ -178,7 +162,12 @@ func (app *MonitorAlertCheckApplication) execCheck(conf AlertConfObject, check e
 }
 
 // *** 组于组之间为or ***
-func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
+func (app *MonitorAlertCheckJob) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
+	// 如果实时不存在，直接认为是异常
+	if realVal == -1 {
+		return true, []string{fmt.Sprintf("样本值: %v, 当前值为空, 续发生超过%v秒", sampleVal, check.Duration)}
+	}
+
 	for _, param := range paramGroups {
 		// 不在时间段里，直接跳过
 		if param.EffectTimes != nil && app.checkTimeRange(param.EffectTimes, currentTime) {
@@ -195,7 +184,7 @@ func (app *MonitorAlertCheckApplication) checkForParam(currentTime time.Time, ch
 }
 
 // *** 使用此算法的前提是每个组里只有or或者and ***
-func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTaskAlert, param entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
+func (app *MonitorAlertCheckJob) checkForParamArr(check entity.MonitorTaskAlert, param entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
 	result := false
 	hitMsg := make([]string, 0)
 	for _, params := range param.Rules {
@@ -225,7 +214,7 @@ func (app *MonitorAlertCheckApplication) checkForParamArr(check entity.MonitorTa
 	return result, hitMsg
 }
 
-func (app *MonitorAlertCheckApplication) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal float64) bool {
+func (app *MonitorAlertCheckJob) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal float64) bool {
 	// 绝对值处理
 	diff := realVal - sampleVal
 	diffPercent := diff * 100.0 / sampleVal
@@ -237,7 +226,7 @@ func (app *MonitorAlertCheckApplication) checkForParamItem(param entity.MonitorA
 	return app.compare(param, diff)
 }
 
-func (app *MonitorAlertCheckApplication) reverse(compareType entity.MonitorAlertCheckParamsCompareType) entity.MonitorAlertCheckParamsCompareType {
+func (app *MonitorAlertCheckJob) reverse(compareType entity.MonitorAlertCheckParamsCompareType) entity.MonitorAlertCheckParamsCompareType {
 	switch compareType {
 	case entity.MonitorAlertCheckParamsCompareTypeGt:
 		return entity.MonitorAlertCheckParamsCompareTypeLt
@@ -254,7 +243,7 @@ func (app *MonitorAlertCheckApplication) reverse(compareType entity.MonitorAlert
 	}
 }
 
-func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckParamsItem, diff float64) bool {
+func (app *MonitorAlertCheckJob) compare(param entity.MonitorAlertCheckParamsItem, diff float64) bool {
 	compareType := param.CompareType
 	value := param.Value
 
@@ -273,7 +262,8 @@ func (app *MonitorAlertCheckApplication) compare(param entity.MonitorAlertCheckP
 	return false
 }
 
-func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, measurementName string, startTime, endTime time.Time) (float64, error) {
+// 从influxdb获取不到数据，不代表是异常，也有可能本身就没数据
+func (app *MonitorAlertCheckJob) getInfluxdbMeanVal(cli client.Client, measurementName string, startTime, endTime time.Time) (float64, error) {
 	querySql := fmt.Sprintf("select mean(value) from %s where time >= %v and time < %v", measurementName, startTime.UnixNano(), endTime.UnixNano())
 	query := client.NewQuery(querySql, app.influxdb.DbConf.Influx.Database, "s")
 
@@ -281,27 +271,27 @@ func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, m
 	if err != nil {
 		errMsg := fmt.Sprintf("执行查询%s失败, reason: %s", measurementName, err.Error())
 		logrus.Errorf(errMsg)
-		return 0, errors.New(errMsg)
+		return -1, errors.New(errMsg)
 	}
 
 	result := response.Results
 	if result == nil || len(result) == 0 {
 		errMsg := fmt.Sprintf("执行查询%s失败, reason: %s", measurementName, "返回result数据为nil")
 		logrus.Errorf(errMsg)
-		return 0, errors.New(errMsg)
+		return -1, nil
 	}
 
+	// 内层错误校验
 	if result[0].Err != "" {
 		errMsg := fmt.Sprintf("执行查询%s失败, reason: %s", measurementName, result[0].Err)
 		logrus.Errorf(errMsg)
-		return 0, errors.New(errMsg)
+		return -1, errors.New(errMsg)
 	}
 
-	// 代表样本没有
 	if len(result[0].Series) == 0 || len(result[0].Series[0].Values) == 0 {
 		errMsg := fmt.Sprintf("执行查询%s成功, 但是没有数据点", measurementName)
 		logrus.Errorf(errMsg)
-		return 0, errors.New(errMsg)
+		return -1, nil
 	}
 
 	columns := make(map[string]int)
@@ -316,7 +306,7 @@ func (app *MonitorAlertCheckApplication) getInfluxdbMeanVal(cli client.Client, m
 	return meanVal, nil
 }
 
-func (app *MonitorAlertCheckApplication) checkTimeRange(effectTimes []string, currentTime time.Time) bool {
+func (app *MonitorAlertCheckJob) checkTimeRange(effectTimes []string, currentTime time.Time) bool {
 	startTimeStr := effectTimes[0]
 	endTimeStr := effectTimes[1]
 
@@ -336,6 +326,6 @@ func (app *MonitorAlertCheckApplication) checkTimeRange(effectTimes []string, cu
 }
 
 // RegisterExecJob 注册执行
-func (app *MonitorAlertCheckApplication) RegisterExecJob() {
+func (app *MonitorAlertCheckJob) RegisterExecJob() {
 	app.xxlExec.RegTask("alertCheck", app.alertCheck)
 }

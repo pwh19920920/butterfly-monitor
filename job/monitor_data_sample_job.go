@@ -1,4 +1,4 @@
-package application
+package job
 
 import (
 	"butterfly-monitor/domain/entity"
@@ -15,13 +15,13 @@ import (
 )
 
 // ExecRemoveDataSampling 定时删除最大最小
-func (job *MonitorExecApplication) ExecRemoveDataSampling(cxt context.Context, param *xxl.RunReq) (msg string) {
+func (job *MonitorDataCollectJob) ExecRemoveDataSampling(cxt context.Context, param *xxl.RunReq) (msg string) {
 	var lastId int64 = 0
 	return job.ExecRemoveDataSamplingForPage(lastId, cxt, param)
 }
 
 // ExecRemoveDataSamplingForPage 递归执行
-func (job *MonitorExecApplication) ExecRemoveDataSamplingForPage(lastId int64, cxt context.Context, param *xxl.RunReq) (msg string) {
+func (job *MonitorDataCollectJob) ExecRemoveDataSamplingForPage(lastId int64, cxt context.Context, param *xxl.RunReq) (msg string) {
 	const pageSize = 50
 
 	// 获取任务分片数据
@@ -51,7 +51,7 @@ func (job *MonitorExecApplication) ExecRemoveDataSamplingForPage(lastId int64, c
 }
 
 // doExecDataSampling
-func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
+func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time) {
 	// 执行标记
 	defer wg.Done()
 
@@ -67,7 +67,7 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
-		logrus.Error("influxdb ping 失败")
+		logrus.Errorf("influxdb ping 失败, reason： %v", err.Error())
 		return
 	}
 
@@ -87,7 +87,7 @@ func (job *MonitorExecApplication) doRemoveDataSampling(task entity.MonitorTask,
 }
 
 // doExecDataSampling
-func (job *MonitorExecApplication) doRecursiveRemoveDataSampling(task entity.MonitorTask, beginTime, maxTime time.Time) (time.Time, error) {
+func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.MonitorTask, beginTime, maxTime time.Time) (time.Time, error) {
 	// measurement
 	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", job.grafana.SampleRpName, task.TaskKey)
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))

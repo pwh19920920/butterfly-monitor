@@ -109,7 +109,7 @@ func (handler *alertGroupHandler) modify(context *gin.Context) {
 // InitAlertGroupHandler 加载路由
 func InitAlertGroupHandler(app *application.Application) {
 	// 组件初始化
-	handler := alertGroupHandler{app.AlertGroup}
+	handler := alertGroupHandler{app.AlertGroupApp}
 
 	// 路由初始化
 	var route []server.RouteInfo

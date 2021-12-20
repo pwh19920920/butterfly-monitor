@@ -4,51 +4,50 @@ import (
 	"butterfly-monitor/config"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/infrastructure/support"
+	adminApp "github.com/pwh19920920/butterfly-admin/application"
 )
 
 type Application struct {
-	MonitorExec      MonitorExecApplication
-	MonitorDatabase  MonitorDatabaseApplication
-	MonitorDashboard MonitorDashboardApplication
-	MonitorTask      MonitorTaskApplication
-	AlertConf        AlertConfApplication
-	AlertGroup       AlertGroupApplication
-	AlertChannel     AlertChannelApplication
-	MonitorAlert     MonitorAlertCheckApplication
-	MonitorEvent     MonitorEventCheckApplication
+	MonitorDatabaseApp  MonitorDatabaseApplication
+	MonitorDashboardApp MonitorDashboardApplication
+	MonitorTaskApp      MonitorTaskApplication
+	AlertGroupApp       AlertGroupApplication
+	AlertConfApp        AlertConfApplication
+	AlertChannelApp     AlertChannelApplication
+	MonitorTaskEventApp MonitorTaskEventApplication
+	CommonMapApp        CommonMapApplication
+	AllConfig           config.Config
+	AdminApp            *adminApp.Application
 }
 
-func NewApplication(
-	config config.Config,
-	repository *persistence.Repository,
-) *Application {
-	alertConfApp := AlertConfApplication{repository: repository, sequence: config.Sequence}
-	alertChannelApp := AlertChannelApplication{repository: repository, sequence: config.Sequence}
+func NewApplication(app *adminApp.Application, config config.Config, repository *persistence.Repository) *Application {
+	commonMapApp := NewCommonMapApplication(repository)
 	return &Application{
-		// 定时执行器
-		MonitorExec: NewMonitorExecApplication(
-			config.Sequence,
-			repository,
-			config.XxlJobExec,
-			config.InfluxDbOption,
-			config.Grafana,
-		),
+		// adminApp
+		AdminApp: app,
+
+		// 配置表
+		CommonMapApp: commonMapApp,
+
+		// 全局配置
+		AllConfig: config,
 
 		// 监控数据库
-		MonitorDatabase: MonitorDatabaseApplication{
+		MonitorDatabaseApp: MonitorDatabaseApplication{
 			sequence:   config.Sequence,
 			repository: repository,
+			commonMap:  commonMapApp,
 		},
 
 		// 监控任务
-		MonitorTask: MonitorTaskApplication{
+		MonitorTaskApp: MonitorTaskApplication{
 			sequence:       config.Sequence,
 			repository:     repository,
 			grafanaHandler: support.NewGrafanaOptionHandler(config.Grafana),
 		},
 
 		// 主板配置
-		MonitorDashboard: MonitorDashboardApplication{
+		MonitorDashboardApp: MonitorDashboardApplication{
 			sequence:       config.Sequence,
 			repository:     repository,
 			Grafana:        config.Grafana,
@@ -56,40 +55,22 @@ func NewApplication(
 		},
 
 		// 报警配置
-		AlertConf: alertConfApp,
+		AlertConfApp: AlertConfApplication{
+			repository: repository,
+			sequence:   config.Sequence,
+		},
 
 		// 分组
-		AlertGroup: AlertGroupApplication{
+		AlertGroupApp: AlertGroupApplication{
 			repository: repository,
 			sequence:   config.Sequence,
 		},
 
 		// 通道
-		AlertChannel: alertChannelApp,
-
-		// 监控报警
-		MonitorAlert: MonitorAlertCheckApplication{
-			sequence:   config.Sequence,
+		AlertChannelApp: AlertChannelApplication{
 			repository: repository,
-			influxdb:   config.InfluxDbOption,
-			xxlExec:    config.XxlJobExec,
-			grafana:    config.Grafana,
-			alertConf:  alertConfApp,
-		},
-
-		// 事件处理
-		MonitorEvent: MonitorEventCheckApplication{
-			sequence:     config.Sequence,
-			repository:   repository,
-			xxlExec:      config.XxlJobExec,
-			alertConf:    alertConfApp,
-			alertChannel: alertChannelApp,
+			sequence:   config.Sequence,
+			commonMap:  commonMapApp,
 		},
 	}
-}
-
-func (app *Application) RegisterJobExec() {
-	app.MonitorExec.RegisterExecJob()
-	app.MonitorAlert.RegisterExecJob()
-	app.MonitorEvent.RegisterExecJob()
 }

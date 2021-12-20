@@ -63,7 +63,7 @@ func (handler *monitorDatabaseHandler) modify(context *gin.Context) {
 	// option
 	err = handler.monitorDatabaseApp.Modify(&monitorDatabaseCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "修改数据源失败")
+		response.BuildResponseSysErr(context, "修改数据源失败:"+err.Error())
 		return
 	}
 
@@ -85,7 +85,7 @@ func (handler *monitorDatabaseHandler) selectAll(context *gin.Context) {
 // InitMonitorDatabaseHandler 加载路由
 func InitMonitorDatabaseHandler(app *application.Application) {
 	// 组件初始化
-	handler := monitorDatabaseHandler{app.MonitorDatabase}
+	handler := monitorDatabaseHandler{app.MonitorDatabaseApp}
 
 	// 路由初始化
 	var route []server.RouteInfo

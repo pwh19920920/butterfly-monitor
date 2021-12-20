@@ -71,7 +71,7 @@ func (handler *alertConfHandler) modify(context *gin.Context) {
 // InitAlertConfHandler 加载路由
 func InitAlertConfHandler(app *application.Application) {
 	// 组件初始化
-	handler := alertConfHandler{app.AlertConf}
+	handler := alertConfHandler{app.AlertConfApp}
 
 	// 路由初始化
 	var route []server.RouteInfo

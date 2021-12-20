@@ -12,6 +12,7 @@ import (
 type MonitorDatabaseApplication struct {
 	sequence   *snowflake.Node
 	repository *persistence.Repository
+	commonMap  CommonMapApplication
 }
 
 // Query 分页查询
@@ -29,7 +30,7 @@ func (application *MonitorDatabaseApplication) Query(request *types.MonitorDatab
 // 数据源检测
 func (application *MonitorDatabaseApplication) checkDatabase(monitorDatabase entity.MonitorDatabase) error {
 	// 检测database是否能连接得上
-	databaseHandler, ok := databaseHandlerMap[monitorDatabase.Type]
+	databaseHandler, ok := application.commonMap.GetDatabaseHandlerMap()[monitorDatabase.Type]
 	if !ok {
 		return errors.New("不存在此数据源类型")
 	}

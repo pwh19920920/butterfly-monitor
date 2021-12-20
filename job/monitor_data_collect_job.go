@@ -1,11 +1,11 @@
-package application
+package job
 
 import (
+	"butterfly-monitor/application"
 	"butterfly-monitor/config/grafana"
 	"butterfly-monitor/config/influxdb"
 	"butterfly-monitor/domain/entity"
 	handler "butterfly-monitor/domain/handler"
-	handlerImpl "butterfly-monitor/infrastructure/handler"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
 	"bytes"
@@ -22,74 +22,17 @@ import (
 	"time"
 )
 
-var commandHandlerMap = make(map[entity.MonitorTaskType]handler.CommandHandler, 0)
-var databaseHandlerMap = make(map[entity.DataSourceType]handler.DatabaseHandler, 0)
-
-var databaseLoadTime *common.LocalTime
-var databaseMap = make(map[int64]interface{}, 0)
-
-type MonitorExecApplication struct {
+type MonitorDataCollectJob struct {
 	sequence       *snowflake.Node
 	repository     *persistence.Repository
 	xxlExec        xxl.Executor
 	influxDbOption *influxdb.DbOption
 	grafana        *grafana.Config
-}
-
-func NewMonitorExecApplication(sequence *snowflake.Node, repository *persistence.Repository, xxlExec xxl.Executor, influxDbOption *influxdb.DbOption, grafana *grafana.Config) MonitorExecApplication {
-	// 初始化数据库源
-	go initDatabaseConnect(repository)
-	return MonitorExecApplication{
-		sequence:       sequence,
-		repository:     repository,
-		xxlExec:        xxlExec,
-		influxDbOption: influxDbOption,
-		grafana:        grafana,
-	}
-}
-
-func initDatabaseConnect(repository *persistence.Repository) {
-	databaseList, err := repository.MonitorDatabaseRepository.SelectAll(databaseLoadTime)
-	if err != nil {
-		return
-	}
-
-	for _, database := range databaseList {
-		databaseHandler, ok := databaseHandlerMap[database.Type]
-		if !ok {
-			continue
-		}
-
-		dbHandler, err := databaseHandler.NewInstance(database)
-		if err != nil {
-			// 失败得情况下需要更新一下，以便下一次定时扫新连接得时候重新再连接
-			_ = repository.MonitorDatabaseRepository.UpdateById(database.Id, &database)
-			continue
-		}
-		databaseMap[database.Id] = dbHandler
-	}
-
-	// 初始化执行类型
-	commandHandlerMap[entity.TaskTypeDatabase] = &handlerImpl.CommandDataBaseHandler{DatabaseMap: databaseMap}
-
-	// 睡眠后继续执行
-	databaseLoadTime = &common.LocalTime{Time: time.Now()}
-	time.Sleep(time.Duration(1) * time.Minute)
-	go initDatabaseConnect(repository)
-}
-
-// 默认参数
-func init() {
-	// 命令类型
-	commandHandlerMap[entity.TaskTypeURL] = new(handlerImpl.CommandUrlHandler)
-	commandHandlerMap[entity.TaskTypeDatabase] = new(handlerImpl.CommandDataBaseHandler)
-
-	// 数据库类型
-	databaseHandlerMap[entity.DataSourceTypeMysql] = new(handlerImpl.DatabaseMysqlHandler)
+	commonMap      application.CommonMapApplication
 }
 
 // ExecDataCollectForTimeRange 执行特定时间范围内得数据收集
-func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req *types.MonitorTaskExecForRangeRequest) error {
+func (job *MonitorDataCollectJob) ExecDataCollectForTimeRange(taskId int64, req *types.MonitorTaskExecForRangeRequest) error {
 	task, err := job.repository.MonitorTaskRepository.GetById(taskId)
 	if err != nil || task == nil {
 		logrus.Error("ExecDataCollectForTimeRange下任务获取失败", err)
@@ -105,7 +48,7 @@ func (job *MonitorExecApplication) ExecDataCollectForTimeRange(taskId int64, req
 }
 
 // ExecDataCollect 通过xxl的index, 到数据库中取task, 然后批量执行塞入channel, 批量插入influxdb
-func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *xxl.RunReq) (msg string) {
+func (job *MonitorDataCollectJob) ExecDataCollect(cxt context.Context, param *xxl.RunReq) (msg string) {
 	// 获取任务分片数据
 	tasks, err := job.repository.MonitorTaskRepository.FindJobByShardingNoPaging(param.BroadcastIndex, param.BroadcastTotal)
 	if err != nil {
@@ -124,7 +67,7 @@ func (job *MonitorExecApplication) ExecDataCollect(cxt context.Context, param *x
 	return "execute complete"
 }
 
-func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask) (result interface{}, err error) {
+func (job *MonitorDataCollectJob) doExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask) (result interface{}, err error) {
 	ctx := context.Background()
 	done := make(chan bool, 1)
 
@@ -153,7 +96,7 @@ func (job *MonitorExecApplication) doExecuteCommand(commandHandler handler.Comma
 }
 
 // recursiveExecuteCommand 递归执行
-func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask,
+func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask,
 	points []*client.Point, beginTime, maxTime time.Time) ([]*client.Point, time.Time, error) {
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
@@ -236,7 +179,7 @@ func (job *MonitorExecApplication) recursiveExecuteCommand(commandHandler handle
 }
 
 // executeCommand 执行命令
-func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time, needUpdateCollectTime bool) {
+func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time, needUpdateCollectTime bool) {
 	// 执行标记
 	defer wg.Done()
 
@@ -248,7 +191,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 		}
 	}()
 
-	commandHandler, ok := commandHandlerMap[*task.TaskType]
+	commandHandler, ok := job.commonMap.GetCommandHandlerMap()[*task.TaskType]
 	if !ok {
 		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误")
 		return
@@ -258,7 +201,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
-		logrus.Error("influxdb ping 失败")
+		logrus.Errorf("influxdb ping 失败, reason： %v", err.Error())
 		return
 	}
 
@@ -328,7 +271,7 @@ func (job *MonitorExecApplication) executeCommand(task entity.MonitorTask, wg *s
 	}
 }
 
-func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
+func (job *MonitorDataCollectJob) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
 	defer wg.Done()
 
 	bp, err := job.influxDbOption.CreateBatchPoint()
@@ -353,7 +296,7 @@ func (job *MonitorExecApplication) WritingForInfluxDb(cli client.Client, task en
 }
 
 // RenderTaskCommandForRange 模板渲染
-func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime time.Time) (string, error) {
+func (job *MonitorDataCollectJob) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime time.Time) (string, error) {
 	params := make(map[string]interface{}, 0)
 	params["endTime"] = endTime.Format("2006-01-02 15:04:05")
 	params["beginTime"] = beginTime.Format("2006-01-02 15:04:05")
@@ -374,7 +317,7 @@ func (job *MonitorExecApplication) RenderTaskCommandForRange(task entity.Monitor
 }
 
 // RegisterExecJob 注册执行
-func (job *MonitorExecApplication) RegisterExecJob() {
+func (job *MonitorDataCollectJob) RegisterExecJob() {
 	job.xxlExec.RegTask("dataCollect", job.ExecDataCollect)
 	job.xxlExec.RegTask("dataSampling", job.ExecRemoveDataSampling)
 }

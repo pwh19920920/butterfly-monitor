@@ -11,12 +11,12 @@ require (
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/pwh19920920/butterfly v1.0.7
-	github.com/pwh19920920/butterfly-admin v1.1.2
+	github.com/pwh19920920/butterfly-admin v1.1.3
 	github.com/pwh19920920/grafanasdk v1.0.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2
-	github.com/xxl-job/xxl-job-executor-go v1.0.2
+	github.com/xxl-job/xxl-job-executor-go v1.0.3
 	gorm.io/driver/mysql v1.0.3
 	gorm.io/gorm v1.20.5
 )

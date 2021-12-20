@@ -358,8 +358,8 @@ github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084/go.mod h1:TjEm7z
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/pwh19920920/butterfly v1.0.7 h1:kOP3Et6/mBaYHHkNrR1NobLA+4OHJUxR89Ri5v6KqzQ=
 github.com/pwh19920920/butterfly v1.0.7/go.mod h1:VB2Gguq3Z9TwKO66W9bE6aZ1d22JHbWoo2qUtzi1qv4=
-github.com/pwh19920920/butterfly-admin v1.1.2 h1:abbXL9+7u73FEloyRTYseWlgQJrAQvT8ZYwcjW/QAUA=
-github.com/pwh19920920/butterfly-admin v1.1.2/go.mod h1:KA3VG1h0PSROf0IYoSQ8aMFuvfDpP24PbwJ0ByOBy3A=
+github.com/pwh19920920/butterfly-admin v1.1.3 h1:CfDRA5/aydrur4/OSjvINLsDEdRL4+t4yg4ebweQjMc=
+github.com/pwh19920920/butterfly-admin v1.1.3/go.mod h1:KA3VG1h0PSROf0IYoSQ8aMFuvfDpP24PbwJ0ByOBy3A=
 github.com/pwh19920920/grafanasdk v1.0.5 h1:hk/23g3eVWjCTcKnKutmploZFMwXAlHzTSw3WHFq0Qo=
 github.com/pwh19920920/grafanasdk v1.0.5/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
 github.com/pwh19920920/snowflake v0.3.1/go.mod h1:D45ymZO2ff5NbkFzKNJqy/7YhShMXw2OTcNGGX13rDM=
@@ -422,8 +422,8 @@ github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLY
 github.com/ugorji/go/codec v1.2.6 h1:7kbGefxLoDBuYXOms4yD7223OpNMMPNPZxXk5TvFcyQ=
 github.com/ugorji/go/codec v1.2.6/go.mod h1:V6TCNZ4PHqoHGFZuSG1W8nrCzzdgA2DozYxWFFpvxTw=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
-github.com/xxl-job/xxl-job-executor-go v1.0.2 h1:uGccWadsbaNZL0pPq+AmsdvV8nPme4gmWo2rL/3uG9w=
-github.com/xxl-job/xxl-job-executor-go v1.0.2/go.mod h1:bUFhz/5Irp9zkdYk5MxhQcDDT6LlZrI8+rv5mHtQ1mo=
+github.com/xxl-job/xxl-job-executor-go v1.0.3 h1:14NlGpsr4D+SMC4EUgU8iCq+i6VL9LkomhL4gJDqk84=
+github.com/xxl-job/xxl-job-executor-go v1.0.3/go.mod h1:bUFhz/5Irp9zkdYk5MxhQcDDT6LlZrI8+rv5mHtQ1mo=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

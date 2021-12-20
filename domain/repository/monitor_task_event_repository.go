@@ -1,6 +1,9 @@
 package repository
 
-import "butterfly-monitor/domain/entity"
+import (
+	"butterfly-monitor/domain/entity"
+	"butterfly-monitor/types"
+)
 
 type MonitorTaskEventRepository interface {
 	// FindEventJob 获取需要执行的job
@@ -17,4 +20,16 @@ type MonitorTaskEventRepository interface {
 
 	// BatchModifyByEvents 批量更新
 	BatchModifyByEvents(eventIds []int64, monitorTaskEvent *entity.MonitorTaskEvent) error
+
+	// SelectByTaskId 查询
+	SelectByTaskId(taskId int64) ([]entity.MonitorTaskEvent, error)
+
+	// Select 查询
+	Select(req *types.MonitorTaskEventQueryRequest) (int64, []entity.MonitorTaskEvent, error)
+
+	// DealEvent 事件处理中
+	DealEvent(eventId int64, req *types.MonitorTaskEventProcessRequest) error
+
+	// CompleteEvent 事件完成
+	CompleteEvent(eventId int64, req *types.MonitorTaskEventProcessRequest) error
 }

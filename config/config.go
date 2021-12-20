@@ -16,6 +16,7 @@ type Config struct {
 	DatabaseForGorm *gorm.DB           // 数据库
 	Sequence        *snowflake.Node    // 数据库序列化工具
 	Grafana         *grafana.Config    // grafana配置
+	AdminConfig     adminConfig.Config
 }
 
 func InitAll(butterflyAdminConfig adminConfig.Config) Config {
@@ -30,5 +31,6 @@ func InitAll(butterflyAdminConfig adminConfig.Config) Config {
 		databaseForGorm,
 		sequence,
 		grafanaConf,
+		butterflyAdminConfig,
 	}
 }

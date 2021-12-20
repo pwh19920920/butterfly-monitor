@@ -127,7 +127,7 @@ func (handler *monitorDashboardHandler) modifyDashboardTaskSort(context *gin.Con
 // InitMonitorDashboardHandler 加载路由
 func InitMonitorDashboardHandler(app *application.Application) {
 	// 组件初始化
-	handler := monitorDashboardHandler{app.MonitorDashboard}
+	handler := monitorDashboardHandler{app.MonitorDashboardApp}
 
 	// 路由初始化
 	var route []server.RouteInfo

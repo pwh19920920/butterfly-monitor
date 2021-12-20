@@ -10,8 +10,8 @@ const (
 	MonitorTaskAlertStatusPending MonitorTaskAlertStatus = 2
 	MonitorTaskAlertStatusFiring  MonitorTaskAlertStatus = 3
 
-	MonitorTaskAlertDealStatusNormal MonitorTaskAlertDealStatus = 1
-	MonitorTaskAlertDealStatusHandle MonitorTaskAlertDealStatus = 2
+	MonitorTaskAlertDealStatusNormal     MonitorTaskAlertDealStatus = 1
+	MonitorTaskAlertDealStatusProcessing MonitorTaskAlertDealStatus = 2
 )
 
 // MonitorTaskAlert 逻辑注意点：
@@ -21,7 +21,7 @@ const (
 type MonitorTaskAlert struct {
 	common.BaseEntity
 
-	TaskId        int64                      `json:"taskId" gorm:"column:task_id"`                // 任务id
+	TaskId        int64                      `json:"taskId,string" gorm:"column:task_id"`         // 任务id
 	AlertChannels string                     `json:"alertChannels" gorm:"column:alert_channels"`  // 报警渠道列表
 	AlertGroups   string                     `json:"alertGroups" gorm:"column:alert_groups"`      // 报警组列表
 	TimeSpan      int64                      `json:"timeSpan" gorm:"column:time_span"`            // 检查隔间

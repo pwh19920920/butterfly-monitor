@@ -1,6 +1,7 @@
-package application
+package job
 
 import (
+	"butterfly-monitor/application"
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/infrastructure/persistence"
 	"bytes"
@@ -17,12 +18,13 @@ import (
 	"time"
 )
 
-type MonitorEventCheckApplication struct {
+type MonitorEventCheckJob struct {
 	sequence     *snowflake.Node
 	repository   *persistence.Repository
 	xxlExec      xxl.Executor
-	alertConf    AlertConfApplication
-	alertChannel AlertChannelApplication
+	alertConf    application.AlertConfApplication
+	alertChannel application.AlertChannelApplication
+	commonMap    application.CommonMapApplication
 }
 
 type MonitorEventTemplateParam struct {
@@ -32,7 +34,7 @@ type MonitorEventTemplateParam struct {
 	EventId    int64             `json:"eventId"`    // 时间id
 }
 
-func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
+func (app *MonitorEventCheckJob) eventCheck(cxt context.Context, param *xxl.RunReq) (msg string) {
 	// 获取任务分片数据
 	events, err := app.repository.MonitorTaskEventRepository.FindEventJob()
 	if err != nil {
@@ -124,7 +126,7 @@ func (app *MonitorEventCheckApplication) eventCheck(cxt context.Context, param *
 	return "execute complete"
 }
 
-func (app *MonitorEventCheckApplication) BuildGroupForChannelForParamsMap(alerts []entity.MonitorTaskAlert, taskIdForTaskMap map[int64]entity.MonitorTask, alertIdForEventMap map[int64]entity.MonitorTaskEvent) map[string]map[string][]MonitorEventTemplateParam {
+func (app *MonitorEventCheckJob) BuildGroupForChannelForParamsMap(alerts []entity.MonitorTaskAlert, taskIdForTaskMap map[int64]entity.MonitorTask, alertIdForEventMap map[int64]entity.MonitorTaskEvent) map[string]map[string][]MonitorEventTemplateParam {
 	groupForChannelForParamsMap := make(map[string]map[string][]MonitorEventTemplateParam, 0)
 	for _, alert := range alerts {
 		groups := strings.Split(alert.AlertGroups, ",")
@@ -159,13 +161,13 @@ func (app *MonitorEventCheckApplication) BuildGroupForChannelForParamsMap(alerts
 	return groupForChannelForParamsMap
 }
 
-func (app *MonitorEventCheckApplication) DispatchMessage(groupId int64, text string, channelId int64) error {
+func (app *MonitorEventCheckJob) DispatchMessage(groupId int64, text string, channelId int64) error {
 	channel, err := app.repository.AlertChannelRepository.GetById(channelId)
 	if err != nil {
 		return errors.New("数据库获取通道失败")
 	}
 
-	alertChannelHandler, ok := alertChannelHandlerNameMap[channel.Handler]
+	alertChannelHandler, ok := app.commonMap.GetAlertChannelHandlerNameMap()[channel.Handler]
 	if !ok {
 		return errors.New("处理器不存在")
 	}
@@ -187,7 +189,7 @@ func (app *MonitorEventCheckApplication) DispatchMessage(groupId int64, text str
 	return alertChannelHandler.DispatchMessage(channel, groupUsers, text)
 }
 
-func (app *MonitorEventCheckApplication) RenderTemplate(paramsArr []MonitorEventTemplateParam, templateStr string) (string, error) {
+func (app *MonitorEventCheckJob) RenderTemplate(paramsArr []MonitorEventTemplateParam, templateStr string) (string, error) {
 	params := make(map[string]interface{}, 0)
 	params["items"] = paramsArr
 
@@ -207,6 +209,6 @@ func (app *MonitorEventCheckApplication) RenderTemplate(paramsArr []MonitorEvent
 }
 
 // RegisterExecJob 注册执行
-func (app *MonitorEventCheckApplication) RegisterExecJob() {
+func (app *MonitorEventCheckJob) RegisterExecJob() {
 	app.xxlExec.RegTask("eventCheck", app.eventCheck)
 }

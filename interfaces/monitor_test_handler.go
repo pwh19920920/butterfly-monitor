@@ -16,7 +16,7 @@ func (handler *monitorTaskHandler) test(context *gin.Context) {
 // InitMonitorTestHandler 加载路由
 func InitMonitorTestHandler(app *application.Application) {
 	// 组件初始化
-	handler := monitorTaskHandler{monitorTaskApp: app.MonitorTask, monitorExecApp: app.MonitorExec}
+	handler := monitorTaskHandler{}
 
 	// 路由初始化
 	var route []server.RouteInfo

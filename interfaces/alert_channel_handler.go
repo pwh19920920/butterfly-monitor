@@ -100,7 +100,7 @@ func (handler *alertChannelHandler) modify(context *gin.Context) {
 // InitAlertChannelHandler 加载路由
 func InitAlertChannelHandler(app *application.Application) {
 	// 组件初始化
-	handler := alertChannelHandler{app.AlertChannel}
+	handler := alertChannelHandler{app.AlertChannelApp}
 
 	// 路由初始化
 	var route []server.RouteInfo

@@ -14,8 +14,8 @@ const (
 type MonitorTaskEvent struct {
 	common.BaseEntity
 
-	AlertId       int64                      `json:"alertId" gorm:"column:alert_id"`              // 报警id
-	TaskId        int64                      `json:"taskId" gorm:"column:task_id"`                // 任务id
+	AlertId       int64                      `json:"alertId,string" gorm:"column:alert_id"`       // 报警id
+	TaskId        int64                      `json:"taskId,string" gorm:"column:task_id"`         // 任务id
 	AlertMsg      string                     `json:"alertMsg" gorm:"column:alert_msg"`            // 报警信息
 	DealTime      *common.LocalTime          `json:"dealTime" gorm:"column:deal_time"`            // 处理时间
 	CompleteTime  *common.LocalTime          `json:"completeTime" gorm:"column:complete_time"`    // 完成时间

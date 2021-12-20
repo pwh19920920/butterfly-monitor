@@ -5,22 +5,21 @@ import (
 	"butterfly-monitor/config"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/interfaces"
+	"butterfly-monitor/job"
 	"github.com/pwh19920920/butterfly"
 )
 import "github.com/pwh19920920/butterfly-admin/starter"
 
 func init() {
-	adminConfig := starter.InitButterflyAdmin()
+	adminConfig, adminApp := starter.InitButterflyAdmin()
 	allConfig := config.InitAll(adminConfig)
 	repository := persistence.NewRepository(allConfig)
-	app := application.NewApplication(
-		allConfig,
-		repository,
-	)
+	app := application.NewApplication(adminApp, allConfig, repository)
+	timerJob := job.NewJob(allConfig, repository, app)
 
 	// 初始化路由
+	interfaces.InitMonitorTaskHandler(app, timerJob)
 	interfaces.InitMonitorDatabaseHandler(app)
-	interfaces.InitMonitorTaskHandler(app)
 	interfaces.InitMonitorTestHandler(app)
 	interfaces.InitMonitorDashboardHandler(app)
 	interfaces.InitMonitorHealthHandler(app)
@@ -29,7 +28,7 @@ func init() {
 	interfaces.InitAlertChannelHandler(app)
 
 	// 注册定时任务
-	app.RegisterJobExec()
+	timerJob.RegisterJobExec()
 }
 
 type AlertConfObject struct {

@@ -3,6 +3,7 @@ package interfaces
 import (
 	"butterfly-monitor/application"
 	"butterfly-monitor/domain/entity"
+	"butterfly-monitor/job"
 	"butterfly-monitor/types"
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/response"
@@ -12,7 +13,7 @@ import (
 
 type monitorTaskHandler struct {
 	monitorTaskApp application.MonitorTaskApplication
-	monitorExecApp application.MonitorExecApplication
+	monitorExecApp job.MonitorDataCollectJob
 }
 
 // 查询
@@ -101,7 +102,7 @@ func (handler *monitorTaskHandler) modify(context *gin.Context) {
 	// option
 	err = handler.monitorTaskApp.Modify(&monitorTaskCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "修改任务失败: " + err.Error())
+		response.BuildResponseSysErr(context, "修改任务失败: "+err.Error())
 		return
 	}
 
@@ -187,9 +188,9 @@ func (handler *monitorTaskHandler) modifyAlertStatus(context *gin.Context) {
 }
 
 // InitMonitorTaskHandler 加载路由
-func InitMonitorTaskHandler(app *application.Application) {
+func InitMonitorTaskHandler(app *application.Application, timer *job.Job) {
 	// 组件初始化
-	handler := monitorTaskHandler{monitorTaskApp: app.MonitorTask, monitorExecApp: app.MonitorExec}
+	handler := monitorTaskHandler{monitorTaskApp: app.MonitorTaskApp, monitorExecApp: timer.MonitorDataCollectJob}
 
 	// 路由初始化
 	var route []server.RouteInfo
