@@ -215,32 +215,39 @@ func (app *MonitorAlertCheckJob) checkForParamArr(check entity.MonitorTaskAlert,
 }
 
 func (app *MonitorAlertCheckJob) checkForParamItem(param entity.MonitorAlertCheckParamsItem, sampleVal, realVal float64) bool {
-	// 绝对值处理
-	diff := realVal - sampleVal
-	diffPercent := diff * 100.0 / sampleVal
-
-	// 计算是否符合表达式, 符合即代表异常了
+	// 计算是否符合表达式, 符合即代表异常了, 百分比和样本值有关，实际值和样本无关
 	if param.ValueType == entity.MonitorAlertCheckParamsValueTypePercent {
+		// 绝对值处理
+		diff := realVal - sampleVal
+		if sampleVal == 0 {
+			// 如果样本为0，就得伪装成1，防止报错
+			return app.compare(param, diff*100.0)
+		}
+		diffPercent := diff * 100.0 / sampleVal
 		return app.compare(param, diffPercent)
 	}
-	return app.compare(param, diff)
+
+	// 走这个方式，不需要样本
+	return app.compareForValue(param, realVal)
 }
 
-func (app *MonitorAlertCheckJob) reverse(compareType entity.MonitorAlertCheckParamsCompareType) entity.MonitorAlertCheckParamsCompareType {
+func (app *MonitorAlertCheckJob) compareForValue(param entity.MonitorAlertCheckParamsItem, realVal float64) bool {
+	compareType := param.CompareType
+	value := param.Value
+
 	switch compareType {
 	case entity.MonitorAlertCheckParamsCompareTypeGt:
-		return entity.MonitorAlertCheckParamsCompareTypeLt
+		return realVal > value
 	case entity.MonitorAlertCheckParamsCompareTypeLt:
-		return entity.MonitorAlertCheckParamsCompareTypeGt
+		return realVal < value
 	case entity.MonitorAlertCheckParamsCompareTypeEq:
-		return entity.MonitorAlertCheckParamsCompareTypeEq
+		return realVal == value
 	case entity.MonitorAlertCheckParamsCompareTypeEgt:
-		return entity.MonitorAlertCheckParamsCompareTypeElt
+		return realVal >= value
 	case entity.MonitorAlertCheckParamsCompareTypeElt:
-		return entity.MonitorAlertCheckParamsCompareTypeEgt
-	default:
-		return entity.MonitorAlertCheckParamsCompareTypeEq
+		return realVal <= value
 	}
+	return false
 }
 
 func (app *MonitorAlertCheckJob) compare(param entity.MonitorAlertCheckParamsItem, diff float64) bool {
