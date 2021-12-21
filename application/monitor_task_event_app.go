@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
+	sysEntity "github.com/pwh19920920/butterfly-admin/domain/entity"
 	"time"
 )
 
@@ -15,8 +16,53 @@ type MonitorTaskEventApplication struct {
 	repository *persistence.Repository
 }
 
-func (app *MonitorTaskEventApplication) Query(req *types.MonitorTaskEventQueryRequest) (int64, []entity.MonitorTaskEvent, error) {
-	return app.repository.MonitorTaskEventRepository.Select(req)
+func (app *MonitorTaskEventApplication) Query(req *types.MonitorTaskEventQueryRequest) (int64, []types.MonitorTaskEventQueryResponse, error) {
+	length, data, err := app.repository.MonitorTaskEventRepository.Select(req)
+	if err != nil || data == nil || len(data) == 0 {
+		return 0, []types.MonitorTaskEventQueryResponse{}, err
+	}
+
+	taskIds := make([]int64, 0)
+	userIds := make([]int64, 0)
+	for _, item := range data {
+		taskIds = append(taskIds, item.TaskId)
+		if item.DealUser != nil {
+			userIds = append(userIds, *item.DealUser)
+		}
+	}
+	taskMap, err := app.repository.MonitorTaskRepository.SelectByIdsWithMap(taskIds)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	userMap := make(map[int64]sysEntity.SysUser, 0)
+	users, err := app.repository.AlertGroupUserRepository.SelectUsersByUserIds(userIds)
+	if err != nil {
+		return 0, nil, err
+	}
+	for _, user := range users {
+		userMap[user.Id] = user
+	}
+
+	// 整理数据
+	result := make([]types.MonitorTaskEventQueryResponse, 0)
+	for _, item := range data {
+		task, taskOk := taskMap[item.TaskId]
+		var dealUserName string
+		var taskName string
+		if taskOk {
+			taskName = task.TaskName
+		}
+
+		//  处理人信息
+		if item.DealUser != nil {
+			if user, userOk := userMap[*item.DealUser]; userOk {
+				dealUserName = user.Name
+			}
+		}
+		result = append(result, types.MonitorTaskEventQueryResponse{MonitorTaskEvent: item, TaskName: taskName, DealUserName: dealUserName})
+	}
+	return length, result, err
 }
 
 // DealEvent 处理事件

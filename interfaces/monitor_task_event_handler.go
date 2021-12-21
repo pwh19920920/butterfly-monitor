@@ -50,7 +50,7 @@ func (handler *monitorTaskEventHandler) deal(context *gin.Context) {
 	}
 
 	var monitorTaskEventProcessRequest types.MonitorTaskEventProcessRequest
-	if context.ShouldBindQuery(&monitorTaskEventProcessRequest) != nil {
+	if context.ShouldBindJSON(&monitorTaskEventProcessRequest) != nil {
 		response.BuildResponseBadRequest(context, "请求参数有误")
 		return
 	}
@@ -75,7 +75,7 @@ func (handler *monitorTaskEventHandler) complete(context *gin.Context) {
 	}
 
 	var monitorTaskEventProcessRequest types.MonitorTaskEventProcessRequest
-	if context.ShouldBindQuery(&monitorTaskEventProcessRequest) != nil {
+	if context.ShouldBindJSON(&monitorTaskEventProcessRequest) != nil {
 		response.BuildResponseBadRequest(context, "请求参数有误")
 		return
 	}

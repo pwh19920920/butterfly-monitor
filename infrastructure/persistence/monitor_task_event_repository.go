@@ -62,16 +62,29 @@ func (repo *MonitorTaskEventRepositoryImpl) SelectByTaskId(taskId int64) ([]enti
 }
 
 func (repo *MonitorTaskEventRepositoryImpl) Select(req *types.MonitorTaskEventQueryRequest) (int64, []entity.MonitorTaskEvent, error) {
+	whereCase := "1 = 1"
+	whereValue := make([]interface{}, 0)
+	if req.DealStatus != nil {
+		whereCase = whereCase + " and deal_status = ?"
+		whereValue = append(whereValue, req.DealStatus)
+	}
+
+	if req.CreatedAts != nil && len(req.CreatedAts) == 2 {
+		whereCase = whereCase + " and created_at >= ? and created_at < ?"
+		whereValue = append(whereValue, req.CreatedAts[0])
+		whereValue = append(whereValue, req.CreatedAts[1])
+	}
+
 	var count int64 = 0
 	repo.db.Model(&entity.MonitorTaskEvent{}).
-		Where(&req.MonitorTaskEvent).
+		Where(whereCase, whereValue...).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Count(&count)
 
 	var data []entity.MonitorTaskEvent
 	err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
-		Where(&req.MonitorTaskEvent).
+		Where(whereCase, whereValue...).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Order("id desc").
 		Limit(req.PageSize).Offset(req.Offset()).
@@ -106,6 +119,7 @@ func (repo *MonitorTaskEventRepositoryImpl) CompleteEvent(eventId int64, req *ty
 			Where("task_id = ? and id = ? and deal_status = ?", req.TaskId, eventId, entity.MonitorTaskAlertDealStatusProcessing).
 			Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 			Updates(&entity.MonitorTaskEvent{
+				Content:      req.Content,
 				DealStatus:   entity.MonitorTaskEventDealStatusComplete,
 				CompleteTime: &common.LocalTime{Time: time.Now()},
 			}).Error; err != nil {
@@ -114,6 +128,10 @@ func (repo *MonitorTaskEventRepositoryImpl) CompleteEvent(eventId int64, req *ty
 
 		return tx.Model(&entity.MonitorTaskAlert{}).
 			Where("task_id = ? and deal_status = ?", req.TaskId, entity.MonitorTaskAlertDealStatusProcessing).
-			Updates(&entity.MonitorTaskAlert{DealStatus: entity.MonitorTaskAlertDealStatusNormal}).Error
+			Updates(&entity.MonitorTaskAlert{
+				DealStatus:    entity.MonitorTaskAlertDealStatusNormal,
+				AlertStatus:   entity.MonitorTaskAlertStatusNormal,
+				FirstFlagTime: &common.LocalTime{Time: time.Now()},
+			}).Error
 	})
 }

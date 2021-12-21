@@ -7,7 +7,8 @@ import (
 
 type MonitorTaskEventQueryRequest struct {
 	response.RequestPaging
-	entity.MonitorTaskEvent
+	DealStatus *entity.MonitorTaskEventDealStatus `form:"dealStatus"`
+	CreatedAts []string                           `form:"createdAts"`
 }
 
 type MonitorTaskEventProcessRequest struct {
@@ -16,4 +17,10 @@ type MonitorTaskEventProcessRequest struct {
 	Content  string `json:"content"`        // 事件经过
 	AlertMsg string `json:"alertMsg"`       // 报警信息
 	DealUser *int64 `json:"dealUser"`       // 处理人
+}
+
+type MonitorTaskEventQueryResponse struct {
+	entity.MonitorTaskEvent
+	TaskName     string `json:"taskName"`     // 任务名称
+	DealUserName string `json:"dealUserName"` // 处理人名称
 }

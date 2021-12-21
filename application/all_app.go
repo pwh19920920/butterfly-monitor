@@ -72,5 +72,11 @@ func NewApplication(app *adminApp.Application, config config.Config, repository 
 			sequence:   config.Sequence,
 			commonMap:  commonMapApp,
 		},
+
+		// 事件
+		MonitorTaskEventApp: MonitorTaskEventApplication{
+			repository: repository,
+			sequence:   config.Sequence,
+		},
 	}
 }
