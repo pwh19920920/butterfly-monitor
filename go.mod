@@ -3,7 +3,6 @@ module butterfly-monitor
 go 1.17
 
 require (
-	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/go-sql-driver/mysql v1.5.0
@@ -11,8 +10,9 @@ require (
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/pwh19920920/butterfly v1.0.7
-	github.com/pwh19920920/butterfly-admin v1.1.3
+	github.com/pwh19920920/butterfly-admin v1.1.4
 	github.com/pwh19920920/grafanasdk v1.0.5
+	github.com/pwh19920920/snowflake v0.3.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/thedevsaddam/gojsonq/v2 v2.5.2

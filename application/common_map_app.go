@@ -6,8 +6,8 @@ import (
 	handlerImpl "butterfly-monitor/infrastructure/handler"
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/infrastructure/support"
-	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
+	"github.com/pwh19920920/snowflake"
 	"time"
 )
 

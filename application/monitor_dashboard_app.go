@@ -8,7 +8,7 @@ import (
 	"butterfly-monitor/types"
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/snowflake"
+	"github.com/pwh19920920/snowflake"
 	"github.com/sirupsen/logrus"
 )
 

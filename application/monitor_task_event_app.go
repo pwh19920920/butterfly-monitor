@@ -5,9 +5,9 @@ import (
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
 	"errors"
-	"github.com/bwmarrin/snowflake"
 	"github.com/pwh19920920/butterfly-admin/common"
 	sysEntity "github.com/pwh19920920/butterfly-admin/domain/entity"
+	"github.com/pwh19920920/snowflake"
 	"time"
 )
 

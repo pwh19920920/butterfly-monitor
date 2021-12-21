@@ -4,8 +4,8 @@ import (
 	"butterfly-monitor/config/grafana"
 	"butterfly-monitor/config/influxdb"
 	"butterfly-monitor/config/xxljob"
-	"github.com/bwmarrin/snowflake"
 	adminConfig "github.com/pwh19920920/butterfly-admin/config"
+	"github.com/pwh19920920/snowflake"
 	"github.com/xxl-job/xxl-job-executor-go"
 	"gorm.io/gorm"
 )

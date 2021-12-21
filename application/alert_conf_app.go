@@ -5,7 +5,7 @@ import (
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
 	"fmt"
-	"github.com/bwmarrin/snowflake"
+	"github.com/pwh19920920/snowflake"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )

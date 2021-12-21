@@ -5,7 +5,7 @@ import (
 	"butterfly-monitor/infrastructure/persistence"
 	"butterfly-monitor/types"
 	"errors"
-	"github.com/bwmarrin/snowflake"
+	"github.com/pwh19920920/snowflake"
 	"github.com/sirupsen/logrus"
 )
 
