@@ -89,7 +89,7 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 // doExecDataSampling
 func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.MonitorTask, beginTime, maxTime time.Time) (time.Time, error) {
 	// measurement
-	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", job.grafana.SampleRpName, task.TaskKey)
+	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
@@ -103,7 +103,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 	cli := job.influxDbOption.GetClient()
 	logrus.Info(task.TaskKey, "：剔除数据执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
 	querySql := fmt.Sprintf("select * from %s where time >= %v and time < %v", sampleMeasurementName, beginTime.UnixNano(), endTime.UnixNano())
-	query := client.NewQuery(querySql, job.influxDbOption.DbConf.Influx.Database, "s")
+	query := client.NewQueryWithRP(querySql, job.influxDbOption.DbConf.Influx.Database, job.grafana.SampleRpName, "s")
 
 	response, err := cli.Query(query)
 	if err != nil {
@@ -119,6 +119,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 
 	// 代表样本没有, 或者样本数据低于3天
 	if len(result[0].Series) == 0 || len(result[0].Series[0].Values) <= 5 {
+		time.Sleep(time.Duration(20) * time.Millisecond)
 		return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
 	}
 
@@ -151,7 +152,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 
 	// 删除最大，最小数据, 然后继续收集数据
 	deleteSql := fmt.Sprintf("delete from %s where time >= %v and time < %v and (day = '%s' or day = '%s')", sampleMeasurementName, beginTime.UnixNano(), endTime.UnixNano(), minValueDay, maxValueDay)
-	deleteQuery := client.NewQuery(deleteSql, job.influxDbOption.DbConf.Influx.Database, "s")
+	deleteQuery := client.NewQueryWithRP(deleteSql, job.influxDbOption.DbConf.Influx.Database, job.grafana.SampleRpName, "s")
 
 	response, err = cli.Query(deleteQuery)
 	if err != nil {
@@ -163,6 +164,8 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 		logrus.Error("执行查询样本删除失败 -> ", sampleMeasurementName, response.Results[0].Err)
 		return beginTime, err
 	}
+
+	time.Sleep(time.Duration(200) * time.Millisecond)
 	return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
 }
 

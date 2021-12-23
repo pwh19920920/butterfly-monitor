@@ -78,3 +78,19 @@ func (op *DbOption) CreateBatchPoint() (client.BatchPoints, error) {
 	}
 	return bp, nil
 }
+
+// CreateBatchPointWithRP 获取批量保存点
+func (op *DbOption) CreateBatchPointWithRP(rpName string) (client.BatchPoints, error) {
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:        op.DbConf.Influx.Database,
+		Precision:       op.DbConf.Influx.Precision, //精度，默认ns
+		RetentionPolicy: rpName,
+	})
+
+	// 判断错误
+	if err != nil {
+		logrus.Error("influx create batch point failure", err)
+		return nil, err
+	}
+	return bp, nil
+}

@@ -112,14 +112,14 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	}(cli)
 
 	// 查询样本平均, 以及实时数据, 只要有一个不存在, 则忽略, 无法判定为错误
-	sampleMeasurementName := fmt.Sprintf("\"%s.%s_sample\"", app.grafana.SampleRpName, task.TaskKey)
-	sampleVal, err := app.getInfluxdbMeanVal(cli, sampleMeasurementName, startTime, endTime)
+	sampleMeasurementName := app.grafana.GetSampleMeasurementName(task.TaskKey)
+	sampleVal, err := app.getInfluxdbMeanVal(cli, app.grafana.SampleRpName, sampleMeasurementName, startTime, endTime)
 	if err != nil || sampleVal == -1 {
 		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return
 	}
 
-	realVal, err := app.getInfluxdbMeanVal(cli, fmt.Sprintf("\"%s\"", task.TaskKey), startTime, endTime)
+	realVal, err := app.getInfluxdbMeanVal(cli, "", fmt.Sprintf("\"%s\"", task.TaskKey), startTime, endTime)
 	if err != nil {
 		logrus.Infof("[%v]任务实时数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return
@@ -270,9 +270,9 @@ func (app *MonitorAlertCheckJob) compare(param entity.MonitorAlertCheckParamsIte
 }
 
 // 从influxdb获取不到数据，不代表是异常，也有可能本身就没数据
-func (app *MonitorAlertCheckJob) getInfluxdbMeanVal(cli client.Client, measurementName string, startTime, endTime time.Time) (float64, error) {
+func (app *MonitorAlertCheckJob) getInfluxdbMeanVal(cli client.Client, policyName, measurementName string, startTime, endTime time.Time) (float64, error) {
 	querySql := fmt.Sprintf("select mean(value) from %s where time >= %v and time < %v", measurementName, startTime.UnixNano(), endTime.UnixNano())
-	query := client.NewQuery(querySql, app.influxdb.DbConf.Influx.Database, "s")
+	query := client.NewQueryWithRP(querySql, app.influxdb.DbConf.Influx.Database, policyName, "s")
 
 	response, err := cli.Query(query)
 	if err != nil {

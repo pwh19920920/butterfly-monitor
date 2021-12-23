@@ -356,10 +356,10 @@ github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084/go.mod h1:TjEm7z
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/pwh19920920/butterfly v1.0.7 h1:kOP3Et6/mBaYHHkNrR1NobLA+4OHJUxR89Ri5v6KqzQ=
 github.com/pwh19920920/butterfly v1.0.7/go.mod h1:VB2Gguq3Z9TwKO66W9bE6aZ1d22JHbWoo2qUtzi1qv4=
-github.com/pwh19920920/butterfly-admin v1.1.4 h1:rKDABwqr5Jx1loCzighSNUSq4xSQ1x+TNJs9xbHEMys=
-github.com/pwh19920920/butterfly-admin v1.1.4/go.mod h1:WJdgllWljotPgcreyvM74B0L9DMnyk5b02iNRbV4lzQ=
-github.com/pwh19920920/grafanasdk v1.0.5 h1:hk/23g3eVWjCTcKnKutmploZFMwXAlHzTSw3WHFq0Qo=
-github.com/pwh19920920/grafanasdk v1.0.5/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
+github.com/pwh19920920/butterfly-admin v1.1.5 h1:aKo3Tf43SEnthVCnChBsEuz7TcKQwRUOHHTTCNbLdI8=
+github.com/pwh19920920/butterfly-admin v1.1.5/go.mod h1:WJdgllWljotPgcreyvM74B0L9DMnyk5b02iNRbV4lzQ=
+github.com/pwh19920920/grafanasdk v1.0.6 h1:U8Rp6WpN0RtxWGr3aQV7LBcl0i0i4V4a6WoRzbwQUNE=
+github.com/pwh19920920/grafanasdk v1.0.6/go.mod h1:ExXH8vB5Ws+w/hNCVSmAmruSWQKjyrnYIgBdrO5lvB8=
 github.com/pwh19920920/snowflake v0.3.1 h1:7TpcYU+RHN4W+5nh+m8kij/PgwlMnR4i4sWLYJZlFSI=
 github.com/pwh19920920/snowflake v0.3.1/go.mod h1:D45ymZO2ff5NbkFzKNJqy/7YhShMXw2OTcNGGX13rDM=
 github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be h1:ta7tUOvsPHVHGom5hKW5VXNc2xZIkfCKP8iaqOyYtUQ=

@@ -96,8 +96,7 @@ func (job *MonitorDataCollectJob) doExecuteCommand(commandHandler handler.Comman
 }
 
 // recursiveExecuteCommand 递归执行
-func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask,
-	points []*client.Point, beginTime, maxTime time.Time) ([]*client.Point, time.Time, error) {
+func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask, points, samplePoints []*client.Point, beginTime, maxTime time.Time) ([]*client.Point, []*client.Point, time.Time, error) {
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
@@ -111,7 +110,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	// 执行结束
 	if endTime.UnixMilli() > maxTime.UnixMilli() {
 		logrus.Info("task执行结束, taskId: ", task.Id)
-		return points, beginTime, nil
+		return points, samplePoints, beginTime, nil
 	}
 
 	// 执行
@@ -119,7 +118,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime)
 	if err != nil {
 		logrus.Error("commandHandler任务处理器模板引擎渲染失败", task, err.Error())
-		return points, beginTime, errors.New(fmt.Sprintf("commandHandler任务处理器模板引擎渲染失败, taskId: %v", task.Id))
+		return points, samplePoints, beginTime, errors.New(fmt.Sprintf("commandHandler任务处理器模板引擎渲染失败, taskId: %v", task.Id))
 	}
 
 	task.Command = command
@@ -127,7 +126,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	result, err := job.doExecuteCommand(commandHandler, task)
 	if err != nil {
 		logrus.Error("commandHandler执行失败", err.Error())
-		return points, beginTime, err
+		return points, samplePoints, beginTime, err
 	}
 
 	tags := map[string]string{}
@@ -138,13 +137,12 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	// 创建记录
 	point, err := client.NewPoint(task.TaskKey, tags, fields, endTime)
 	if err != nil {
-		return points, beginTime, err
+		return points, samplePoints, beginTime, err
 	}
 
 	// 样本数据
-	samplePoints := make([]*client.Point, 0)
-	sampleMeasurementName := fmt.Sprintf("%s.%s_sample", job.grafana.SampleRpName, task.TaskKey)
-	for i := 1; i <= 7; i++ {
+	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
+	for i := 1; i <= 8; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
 			"value": result,
@@ -156,7 +154,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 
 		samplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
 		if err != nil {
-			return points, beginTime, err
+			return points, samplePoints, beginTime, err
 		}
 
 		samplePoints = append(samplePoints, samplePoint)
@@ -165,17 +163,14 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	// 添加结果
 	logrus.Infof("生成记录数：%v - %v", sampleMeasurementName, len(samplePoints))
 	points = append(points, point)
-	for _, samplePoint := range samplePoints {
-		points = append(points, samplePoint)
-	}
 
 	// 如果不支持回溯，就只执行一次, 直接返回就可以了
 	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
-		return points, endTime, nil
+		return points, samplePoints, endTime, nil
 	}
 
 	// 继续发起下次执行
-	return job.recursiveExecuteCommand(commandHandler, task, points, endTime, maxTime)
+	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime)
 }
 
 // executeCommand 执行命令
@@ -207,7 +202,8 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 
 	// 执行开始
 	points := make([]*client.Point, 0)
-	points, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, beginTime, endTime)
+	samplePoints := make([]*client.Point, 0)
+	points, samplePoints, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, beginTime, endTime)
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
@@ -216,12 +212,37 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	}
 
 	// 收集数据得结果为0条
-	if len(points) == 0 {
+	if len(points) == 0 || len(samplePoints) == 0 {
 		logrus.Error("收集数据为0条, taskId: ", task.Id)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "采集数据结果为0条"})
 		return
 	}
 
+	// 等待实际数据，样本全部保存完毕
+	if err := job.BatchWritingForInfluxDb(cli, task, points, ""); err != nil {
+		return
+	}
+	if err := job.BatchWritingForInfluxDb(cli, task, samplePoints, job.grafana.SampleRpName); err != nil {
+		return
+	}
+	_ = cli.Close()
+
+	// 不需要更新, 直接返回了
+	if !needUpdateCollectTime {
+		return
+	}
+
+	// 更新时间
+	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
+		CollectErrMsg:  " ",
+		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
+	if err != nil {
+		logrus.Error("insert failure", err)
+		return
+	}
+}
+
+func (job *MonitorDataCollectJob) BatchWritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, rpName string) error {
 	// 切割保存
 	pageCount := 5000
 	sliceLen := len(points) / pageCount
@@ -240,41 +261,27 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 
 		ps := points[start:end]
 		writeWg.Add(1)
-		go job.WritingForInfluxDb(cli, task, ps, &writeWg, successOps)
-		time.Sleep(time.Duration(2) * time.Second)
+		go job.WritingForInfluxDb(cli, task, ps, &writeWg, successOps, rpName)
+		time.Sleep(time.Duration(200) * time.Millisecond)
 	}
 
 	// 等待全部执行完毕
 	writeWg.Wait()
-	_ = cli.Close()
 
 	// 判断是否全部保存完毕
 	for i := 0; i < sliceLen; i++ {
 		op := <-successOps
 		if !op {
-			return
+			return errors.New("save failure")
 		}
 	}
-
-	// 不需要更新, 直接返回了
-	if !needUpdateCollectTime {
-		return
-	}
-
-	// 更新时间
-	err = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
-		CollectErrMsg:  " ",
-		PreExecuteTime: &common.LocalTime{Time: preExecuteTime}})
-	if err != nil {
-		logrus.Error("insert failure", err)
-		return
-	}
+	return nil
 }
 
-func (job *MonitorDataCollectJob) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool) {
+func (job *MonitorDataCollectJob) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool, rpName string) {
 	defer wg.Done()
 
-	bp, err := job.influxDbOption.CreateBatchPoint()
+	bp, err := job.influxDbOption.CreateBatchPointWithRP(rpName)
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "createBatchPoint失败"})

@@ -162,12 +162,12 @@ func (handler *GrafanaOptionHandler) AddPanel(uid string, task entity.MonitorTas
 
 func (handler *GrafanaOptionHandler) buildPanel(task entity.MonitorTask) *sdk.Panel {
 	graph := sdk.NewGraph(task.TaskName)
-	target := handler.createTarget("A", task.TaskKey, "实时")
+	target := handler.createTarget("A", "", task.TaskKey, "实时")
 	graph.AddTarget(&target)
 
 	// 是否加入样本对比
 	if task.Sampled == entity.MonitorSampledStatusOpen {
-		target := handler.createTarget("B", fmt.Sprintf("%s.%s_sample", handler.Grafana.SampleRpName, task.TaskKey), "样本")
+		target := handler.createTarget("B", handler.Grafana.SampleRpName, fmt.Sprintf("%s_sample", task.TaskKey), "样本")
 		graph.AddTarget(&target)
 	}
 
@@ -195,13 +195,16 @@ func (handler *GrafanaOptionHandler) buildPanel(task entity.MonitorTask) *sdk.Pa
 }
 
 // 创建target
-func (handler *GrafanaOptionHandler) createTarget(refID, measurement, alias string) sdk.Target {
+func (handler *GrafanaOptionHandler) createTarget(refID, policy, measurement, alias string) sdk.Target {
 	return sdk.Target{
-		RefID:       refID,
-		Datasource:  "InfluxDB",
-		Alias:       alias,
-		Format:      "time_series",
+		RefID:      refID,
+		Datasource: "InfluxDB",
+		Alias:      alias,
+		Format:     "time_series",
+
 		Measurement: measurement,
+		Policy:      policy,
+
 		Select: [][]struct {
 			Params []string `json:"params,omitempty"`
 			Type   string   `json:"type,omitempty"`

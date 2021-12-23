@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"fmt"
 	"github.com/pwh19920920/butterfly/config"
 	sdk "github.com/pwh19920920/grafanasdk"
 	"github.com/spf13/viper"
@@ -13,6 +14,10 @@ type Config struct {
 	Addr         string `yaml:"addr"`         // 地址
 	ApiKey       string `yaml:"apiKey"`       // 密钥
 	SampleRpName string `yaml:"sampleRpName"` // 样本rp名字
+}
+
+func (conf *Config) GetSampleMeasurementName(taskKey string) string {
+	return fmt.Sprintf("%s_sample", taskKey)
 }
 
 type grafanaConf struct {
