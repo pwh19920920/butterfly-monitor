@@ -25,6 +25,10 @@ func (conf *Config) GetSampleMeasurementNameForCreate(taskKey string) string {
 }
 
 func (conf *Config) GetSampleMeasurementNewName(taskKey string) string {
+	return fmt.Sprintf("\"%s_sampling\"", taskKey)
+}
+
+func (conf *Config) GetSampleMeasurementNewNameForCreate(taskKey string) string {
 	return fmt.Sprintf("%s_sampling", taskKey)
 }
 

@@ -143,7 +143,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 
 	// TODO 后续替换入口, 样本数据
 	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
-	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewName(task.TaskKey)
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
 	for i := 1; i <= 8; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
