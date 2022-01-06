@@ -71,8 +71,13 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 		return
 	}
 
-	// 执行开始
-	preSampleTime, err := job.doRecursiveRemoveDataSampling(task, beginTime, endTime)
+	//  TODO 后续替换入口
+	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewName(task.TaskKey)
+
+	// TODO 后续替换入口
+	preSampleTime, err := job.doRecursiveRemoveDataSampling(task, "", sampleMeasurementName, beginTime, endTime)
+	_, _ = job.doRecursiveRemoveDataSampling(task, job.grafana.SampleRpName, sampleMeasurementNewName, beginTime, endTime)
 
 	errMsg := " "
 	if err != nil {
@@ -87,9 +92,7 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 }
 
 // doExecDataSampling
-func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.MonitorTask, beginTime, maxTime time.Time) (time.Time, error) {
-	// measurement
-	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
+func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.MonitorTask, rpName, sampleMeasurementName string, beginTime, maxTime time.Time) (time.Time, error) {
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
@@ -99,11 +102,10 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 		return beginTime, nil
 	}
 
-	// 执行
 	cli := job.influxDbOption.GetClient()
 	logrus.Info(task.TaskKey, "：剔除数据执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
 	querySql := fmt.Sprintf("select * from %s where time >= %v and time < %v", sampleMeasurementName, beginTime.UnixNano(), endTime.UnixNano())
-	query := client.NewQueryWithRP(querySql, job.influxDbOption.DbConf.Influx.Database, job.grafana.SampleRpName, "s")
+	query := client.NewQueryWithRP(querySql, job.influxDbOption.DbConf.Influx.Database, rpName, "s")
 
 	response, err := cli.Query(query)
 	if err != nil {
@@ -119,8 +121,8 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 
 	// 代表样本没有, 或者样本数据低于3天
 	if len(result[0].Series) == 0 || len(result[0].Series[0].Values) <= 5 {
-		time.Sleep(time.Duration(20) * time.Millisecond)
-		return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
+		time.Sleep(time.Duration(200) * time.Millisecond)
+		return job.doRecursiveRemoveDataSampling(task, rpName, sampleMeasurementName, endTime, maxTime)
 	}
 
 	columns := make(map[string]int)
@@ -152,7 +154,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 
 	// 删除最大，最小数据, 然后继续收集数据
 	deleteSql := fmt.Sprintf("delete from %s where time >= %v and time < %v and (day = '%s' or day = '%s')", sampleMeasurementName, beginTime.UnixNano(), endTime.UnixNano(), minValueDay, maxValueDay)
-	deleteQuery := client.NewQueryWithRP(deleteSql, job.influxDbOption.DbConf.Influx.Database, job.grafana.SampleRpName, "s")
+	deleteQuery := client.NewQueryWithRP(deleteSql, job.influxDbOption.DbConf.Influx.Database, rpName, "s")
 
 	response, err = cli.Query(deleteQuery)
 	if err != nil {
@@ -166,7 +168,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 	}
 
 	time.Sleep(time.Duration(200) * time.Millisecond)
-	return job.doRecursiveRemoveDataSampling(task, endTime, maxTime)
+	return job.doRecursiveRemoveDataSampling(task, rpName, sampleMeasurementName, endTime, maxTime)
 }
 
 type MyList []float64

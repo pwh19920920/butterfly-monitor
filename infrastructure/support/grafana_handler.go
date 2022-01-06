@@ -5,7 +5,6 @@ import (
 	"butterfly-monitor/domain/entity"
 	"context"
 	"errors"
-	"fmt"
 	sdk "github.com/pwh19920920/grafanasdk"
 )
 
@@ -167,8 +166,14 @@ func (handler *GrafanaOptionHandler) buildPanel(task entity.MonitorTask) *sdk.Pa
 
 	// 是否加入样本对比
 	if task.Sampled == entity.MonitorSampledStatusOpen {
-		target := handler.createTarget("B", handler.Grafana.SampleRpName, fmt.Sprintf("%s_sample", task.TaskKey), "样本")
+		sampleMeasurementName := handler.Grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
+		target := handler.createTarget("B", "", sampleMeasurementName, "样本")
 		graph.AddTarget(&target)
+
+		// TODO 后续替换入口
+		// sampleMeasurementNewName := handler.Grafana.GetSampleMeasurementNewName(task.TaskKey)
+		// target := handler.createTarget("B", handler.Grafana.SampleRpName, sampleMeasurementNewName, "样本")
+		// graph.AddTarget(&target)
 	}
 
 	graph.Type = "timeseries"

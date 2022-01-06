@@ -17,7 +17,15 @@ type Config struct {
 }
 
 func (conf *Config) GetSampleMeasurementName(taskKey string) string {
-	return fmt.Sprintf("%s_sample", taskKey)
+	return fmt.Sprintf("\"%s.%s_sample\"", conf.SampleRpName, taskKey)
+}
+
+func (conf *Config) GetSampleMeasurementNameForCreate(taskKey string) string {
+	return fmt.Sprintf("%s.%s_sample", conf.SampleRpName, taskKey)
+}
+
+func (conf *Config) GetSampleMeasurementNewName(taskKey string) string {
+	return fmt.Sprintf("%s_sampling", taskKey)
 }
 
 type grafanaConf struct {

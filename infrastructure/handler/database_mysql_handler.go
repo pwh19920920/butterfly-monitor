@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-const defaultMaxIdleConnect = 10
-const defaultMaxOpenConnect = 100
-const defaultConnMaxLifeTimeSecond = 3600
+const defaultMysqlMaxIdleConnect = 10
+const defaultMysqlMaxOpenConnect = 100
+const defaultMysqlConnMaxLifeTimeSecond = 3600
 
 type DatabaseMysqlHandler struct {
 	db *gorm.DB
@@ -68,13 +68,13 @@ func (dbHandler *DatabaseMysqlHandler) NewInstance(database entity.MonitorDataba
 
 	// 连接池设置
 	// SetMaxIdleCons 设置连接池中的最大闲置连接数。
-	sqlDB.SetMaxIdleConns(defaultMaxIdleConnect)
+	sqlDB.SetMaxIdleConns(defaultMysqlMaxIdleConnect)
 
 	// SetMaxOpenCons 设置数据库的最大连接数量。
-	sqlDB.SetMaxOpenConns(defaultMaxOpenConnect)
+	sqlDB.SetMaxOpenConns(defaultMysqlMaxOpenConnect)
 
 	// SetConnMaxLifeTime 设置连接的最大可复用时间。
-	sqlDB.SetConnMaxLifetime(time.Duration(defaultConnMaxLifeTimeSecond) * time.Second)
+	sqlDB.SetConnMaxLifetime(time.Duration(defaultMysqlConnMaxLifeTimeSecond) * time.Second)
 
 	// 返回对象
 	return &DatabaseMysqlHandler{db: db}, nil

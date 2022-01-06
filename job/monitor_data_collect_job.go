@@ -139,9 +139,11 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	if err != nil {
 		return points, samplePoints, beginTime, err
 	}
+	points = append(points, point)
 
-	// 样本数据
-	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
+	// TODO 后续替换入口, 样本数据
+	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewName(task.TaskKey)
 	for i := 1; i <= 8; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
@@ -152,17 +154,23 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 			"day": fmt.Sprintf("%v", i),
 		}
 
-		samplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
+		samplePoint, err := client.NewPoint(sampleMeasurementNewName, tags, fields, endTime.AddDate(0, 0, i))
 		if err != nil {
 			return points, samplePoints, beginTime, err
 		}
 
 		samplePoints = append(samplePoints, samplePoint)
+
+		// TODO 后续替换入口
+		oldSamplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
+		if err != nil {
+			return points, samplePoints, beginTime, err
+		}
+		points = append(points, oldSamplePoint)
 	}
 
 	// 添加结果
 	logrus.Infof("生成记录数：%v - %v", sampleMeasurementName, len(samplePoints))
-	points = append(points, point)
 
 	// 如果不支持回溯，就只执行一次, 直接返回就可以了
 	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
