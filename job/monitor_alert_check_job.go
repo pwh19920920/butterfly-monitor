@@ -62,7 +62,9 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	// 延迟调用匿名函数 (匿名函数在主函数结束之前最后调用，可以捕获主函数中的异常)
 	defer func() {
 		if errInfo := recover(); errInfo != nil {
-			logrus.Errorf("execCheck发送异常, %v", errInfo)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], false)
+			logrus.Errorf("报警规则检查发送异常, %v", string(buf[:n]))
 			return
 		}
 	}()

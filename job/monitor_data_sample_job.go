@@ -9,6 +9,7 @@ import (
 	"github.com/pwh19920920/butterfly-admin/common"
 	"github.com/sirupsen/logrus"
 	"github.com/xxl-job/xxl-job-executor-go"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -60,8 +61,7 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 		if errInfo := recover(); errInfo != nil {
 			var buf [4096]byte
 			n := runtime.Stack(buf[:], false)
-
-			logrus.Errorf("sample剔除样本发送异常, %v", string(buf))
+			logrus.Errorf("sample剔除样本发送异常, %v", string(buf[:n]))
 			return
 		}
 	}()
