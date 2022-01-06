@@ -34,6 +34,7 @@ func init() {
 
 	// 数据库类型
 	databaseHandlerMap[entity.DataSourceTypeMysql] = new(handlerImpl.DatabaseMysqlHandler)
+	databaseHandlerMap[entity.DatabaseMongoHandler] = new(handlerImpl.DatabaseMongoHandler)
 
 	// 报警通道
 	wechatHandler := handlerImpl.ChannelWechatHandler{}

@@ -83,6 +83,10 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 	if err != nil {
 		logrus.Error("doRecursiveRemoveDataSampling exec fail, taskId: ", task.Id, err)
 		errMsg = err.Error()
+
+		if len(errMsg) > 100 {
+			errMsg = errMsg[1:100]
+		}
 	}
 
 	_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{

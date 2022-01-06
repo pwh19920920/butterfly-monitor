@@ -28,7 +28,7 @@ func (repo *MonitorDatabaseRepositoryImpl) SelectAll(lastTime *common.LocalTime)
 func (repo *MonitorDatabaseRepositoryImpl) SelectSimpleAll() ([]entity.MonitorDatabase, error) {
 	var data []entity.MonitorDatabase
 	tx := repo.db.Model(&entity.MonitorDatabase{})
-	err := tx.Select("id", "name", "database").Order("id desc").Find(&data).Error
+	err := tx.Select("id", "name", "database", "type").Order("id desc").Find(&data).Error
 	return data, err
 }
 
