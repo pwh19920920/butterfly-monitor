@@ -110,7 +110,7 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 	}
 
 	cli := job.influxDbOption.GetClient()
-	logrus.Info(task.TaskKey, "：剔除数据执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
+	logrus.Info(sampleMeasurementName, "：剔除数据执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
 	querySql := fmt.Sprintf("select * from %s where time >= %v and time < %v", sampleMeasurementName, beginTime.UnixNano(), endTime.UnixNano())
 	query := client.NewQueryWithRP(querySql, job.influxDbOption.DbConf.Influx.Database, rpName, "s")
 
@@ -121,6 +121,11 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 	}
 
 	result := response.Results
+	if len(result) == 0 {
+		logrus.Error("执行查询样本失败, 查询结果为空 -> ", sampleMeasurementName)
+		return beginTime, err
+	}
+
 	if result[0].Err != "" {
 		logrus.Error("执行查询样本失败 -> ", sampleMeasurementName, result[0].Err)
 		return beginTime, err
