@@ -75,8 +75,8 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 	}
 
 	//  TODO 后续替换入口
-	sampleMeasurementName := job.grafana.GetSampleMeasurementName(task.TaskKey)
-	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewName(task.TaskKey)
+	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForQuery(task.TaskKey)
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForQuery(task.TaskKey)
 
 	// TODO 后续替换入口
 	preSampleTime, err := job.doRecursiveRemoveDataSampling(task, "", sampleMeasurementName, beginTime, endTime)
