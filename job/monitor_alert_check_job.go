@@ -114,13 +114,9 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 		_ = cli.Close()
 	}(cli)
 
-	// TODO 后续替换入口
-	// sampleMeasurementName := app.grafana.GetSampleMeasurementNewName(task.TaskKey)
-	// sampleVal, err := app.getInfluxdbMeanVal(cli, app.grafana.SampleRpName, sampleMeasurementName, startTime, endTime)
-
 	// 查询样本平均, 以及实时数据, 只要有一个不存在, 则忽略, 无法判定为错误
-	sampleMeasurementName := app.grafana.GetSampleMeasurementNameForQuery(task.TaskKey)
-	sampleVal, err := app.getInfluxdbMeanVal(cli, "", sampleMeasurementName, startTime, endTime)
+	sampleMeasurementName := app.grafana.GetSampleMeasurementNewNameForQuery(task.TaskKey)
+	sampleVal, err := app.getInfluxdbMeanVal(cli, app.grafana.SampleRpName, sampleMeasurementName, startTime, endTime)
 	if err != nil || sampleVal == -1 {
 		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
 		return

@@ -141,8 +141,6 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	}
 	points = append(points, point)
 
-	// TODO 后续替换入口, 样本数据
-	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
 	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
 	for i := 1; i <= 8; i++ {
 		// 创建记录
@@ -158,15 +156,7 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		if err != nil {
 			return points, samplePoints, beginTime, err
 		}
-
 		samplePoints = append(samplePoints, samplePoint)
-
-		// TODO 后续替换入口
-		oldSamplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
-		if err != nil {
-			return points, samplePoints, beginTime, err
-		}
-		points = append(points, oldSamplePoint)
 	}
 
 	// 添加结果

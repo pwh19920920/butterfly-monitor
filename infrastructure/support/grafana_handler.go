@@ -166,14 +166,9 @@ func (handler *GrafanaOptionHandler) buildPanel(task entity.MonitorTask) *sdk.Pa
 
 	// 是否加入样本对比
 	if task.Sampled == entity.MonitorSampledStatusOpen {
-		sampleMeasurementName := handler.Grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
-		target := handler.createTarget("B", "", sampleMeasurementName, "样本")
+		sampleMeasurementNewName := handler.Grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
+		target := handler.createTarget("B", handler.Grafana.SampleRpName, sampleMeasurementNewName, "样本")
 		graph.AddTarget(&target)
-
-		// TODO 后续替换入口
-		// sampleMeasurementNewName := handler.Grafana.GetSampleMeasurementNewName(task.TaskKey)
-		// target := handler.createTarget("B", handler.Grafana.SampleRpName, sampleMeasurementNewName, "样本")
-		// graph.AddTarget(&target)
 	}
 
 	graph.Type = "timeseries"
