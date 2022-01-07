@@ -9,8 +9,8 @@ require (
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/kirinlabs/HttpRequest v1.1.1
-	github.com/pwh19920920/butterfly v1.0.7
-	github.com/pwh19920920/butterfly-admin v1.1.5
+	github.com/pwh19920920/butterfly v1.0.8
+	github.com/pwh19920920/butterfly-admin v1.1.6
 	github.com/pwh19920920/grafanasdk v1.0.6
 	github.com/pwh19920920/snowflake v0.3.1
 	github.com/sirupsen/logrus v1.8.1
