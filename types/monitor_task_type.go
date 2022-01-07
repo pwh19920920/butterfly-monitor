@@ -19,9 +19,10 @@ type MonitorTaskQueryRequest struct {
 }
 
 type MonitorTaskExecParams struct {
-	DatabaseId      *int64 `json:"databaseId,string"`
-	ResultFieldPath string `json:"resultFieldPath"`
-	CollectName     string `json:"collectName"` // 集合名称
+	DatabaseId      *int64   `json:"databaseId,string"`
+	ResultFieldPath string   `json:"resultFieldPath"`
+	CollectName     string   `json:"collectName"`  // 集合名称
+	DefaultValue    *float64 `json:"defaultValue"` // 默认值
 }
 
 type MonitorTaskQueryResponse struct {

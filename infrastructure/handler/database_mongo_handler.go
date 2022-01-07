@@ -76,8 +76,9 @@ func (dbHandler *DatabaseMongoHandler) NewInstance(database entity.MonitorDataba
 }
 
 type DatabaseMongoParams struct {
-	ResultFieldPath string `json:"resultFieldPath"` // 支持对象.属性
-	CollectName     string `json:"collectName"`     // 集合名称
+	ResultFieldPath string  `json:"resultFieldPath"` // 支持对象.属性
+	CollectName     string  `json:"collectName"`     // 集合名称
+	DefaultValue    float64 `json:"defaultValue"`    // 默认值
 }
 
 // ExecuteQuery 执行查询
@@ -115,5 +116,7 @@ func (dbHandler *DatabaseMongoHandler) ExecuteQuery(task entity.MonitorTask) (in
 
 		return strconv.ParseFloat(fmt.Sprintf("%d", result), 64)
 	}
-	return nil, errors.New("请求成功, 但取不到结果")
+
+	// 返回默认值, 没有错误, 规定无数据比例100%，数量位0
+	return params.DefaultValue, nil
 }
