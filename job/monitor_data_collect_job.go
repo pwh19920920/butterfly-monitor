@@ -107,6 +107,10 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		endTime = maxTime
 	}
 
+	// 跨步时间，即真正的startTime
+	setpDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.StepSpan))
+	startTime := endTime.Add(setpDuration)
+
 	// 执行结束
 	if endTime.UnixMilli() > maxTime.UnixMilli() {
 		logrus.Info("task执行结束, taskId: ", task.Id)
@@ -114,8 +118,8 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	}
 
 	// 执行
-	logrus.Info(task.TaskKey, "：执行范围：", beginTime.Format("2006-01-02 15:04:05"), "至", endTime.Format("2006-01-02 15:04:05"))
-	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime)
+	logrus.Infof("%s: 执行范围: beginTime: %s - endTime: %s, startTime: %s", task.TaskKey, beginTime.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"), startTime.Format("2006-01-02 15:04:05"))
+	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime, startTime)
 	if err != nil {
 		logrus.Error("commandHandler任务处理器模板引擎渲染失败", task, err.Error())
 		return points, samplePoints, beginTime, errors.New(fmt.Sprintf("commandHandler任务处理器模板引擎渲染失败, taskId: %v", task.Id))
@@ -311,10 +315,11 @@ func (job *MonitorDataCollectJob) WritingForInfluxDb(cli client.Client, task ent
 }
 
 // RenderTaskCommandForRange 模板渲染
-func (job *MonitorDataCollectJob) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime time.Time) (string, error) {
+func (job *MonitorDataCollectJob) RenderTaskCommandForRange(task entity.MonitorTask, beginTime, endTime, startTime time.Time) (string, error) {
 	params := make(map[string]interface{}, 0)
 	params["endTime"] = endTime.Format("2006-01-02 15:04:05")
 	params["beginTime"] = beginTime.Format("2006-01-02 15:04:05")
+	params["startTime"] = startTime.Format("2006-01-02 15:04:05")
 
 	// 创建模板对象, parse关联模板
 	tmpl, err := template.New(task.TaskKey).Parse(task.Command)
