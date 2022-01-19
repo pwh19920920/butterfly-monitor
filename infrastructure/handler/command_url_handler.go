@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/thedevsaddam/gojsonq/v2"
+	"strconv"
 )
 
 type CommandUrlHandler struct {
@@ -38,9 +39,10 @@ func (urlHandler *CommandUrlHandler) ExecuteCommand(task entity.MonitorTask) (in
 		return 0, err
 	}
 
-	result, err := gojsonq.New().FromString(string(body)).FindR(params.ResultFieldPath)
-	if err != nil || result == nil {
-		return nil, errors.New("请求错误, 或者取不到结果")
+	result := gojsonq.New().FromString(string(body)).Find(params.ResultFieldPath)
+	if nil == result {
+		return nil, errors.New("请求成功, 但取不到结果")
 	}
-	return result.Float64()
+
+	return strconv.ParseFloat(fmt.Sprintf("%v", result), 64)
 }

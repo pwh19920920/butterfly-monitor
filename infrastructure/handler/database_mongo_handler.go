@@ -114,7 +114,7 @@ func (dbHandler *DatabaseMongoHandler) ExecuteQuery(task entity.MonitorTask) (in
 			return nil, errors.New("请求成功, 但取不到结果")
 		}
 
-		return strconv.ParseFloat(fmt.Sprintf("%d", result), 64)
+		return strconv.ParseFloat(fmt.Sprintf("%v", result), 64)
 	}
 
 	// 返回默认值, 没有错误, 规定无数据比例100%，数量位0
