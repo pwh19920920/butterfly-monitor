@@ -10,5 +10,11 @@ auth:
     - POST - /log
     - GET - /api/monitor/test
     - GET - /api/health
+    - GET - /api/sys/menu/withOption
+    - GET - /api/sys/role/all
+    - GET - /api/alert/channel/all
+    - GET - /api/alert/group/all
+    - GET - /api/monitor/dashboard/all
+    - GET - /api/monitor/database/all
   ignorePrefixPath:
   commonPath:

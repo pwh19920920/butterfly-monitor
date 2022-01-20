@@ -32,17 +32,6 @@ func init() {
 	timerJob.RegisterJobExec()
 }
 
-type AlertConfObject struct {
-	ScanSpan   int64  `json:"scanSpan"`   // 扫描间隔
-	AlertSpan  int64  `json:"alertSpan"`  // 报警间隔
-	FirstDelay int64  `json:"firstDelay"` // 首次延迟
-	Template   string `json:"template"`   // 报警模板
-}
-
-type AlertConfObjectInstance struct {
-	Alert AlertConfObject `json:"alert"`
-}
-
 func main() {
 	butterfly.Run()
 }
