@@ -25,7 +25,7 @@ type DatabaseMongoHandler struct {
 
 func (dbHandler *DatabaseMongoHandler) TestConnect(database entity.MonitorDatabase) error {
 	// 创建连接
-	dsn := fmt.Sprintf("mongodb://%s:%s@%s/?w=majority", database.Username, database.Password, database.Url)
+	dsn := fmt.Sprintf("mongodb://%s:%s@%s/%s?w=majority", database.Username, database.Password, database.Url, database.Database)
 
 	// 设置连接超时时间
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultMongoTimeout))
