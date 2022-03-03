@@ -320,6 +320,9 @@ func (job *MonitorDataCollectJob) RenderTaskCommandForRange(task entity.MonitorT
 	params["endTime"] = endTime.Format("2006-01-02 15:04:05")
 	params["beginTime"] = beginTime.Format("2006-01-02 15:04:05")
 	params["startTime"] = startTime.Format("2006-01-02 15:04:05")
+	params["startTimeMilli"] = startTime.UnixMilli()
+	params["endTimeMilli"] = endTime.UnixMilli()
+	params["beginTimeMilli"] = beginTime.UnixMilli()
 
 	// 创建模板对象, parse关联模板
 	tmpl, err := template.New(task.TaskKey).Parse(task.Command)
