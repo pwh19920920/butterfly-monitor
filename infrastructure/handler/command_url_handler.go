@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/thedevsaddam/gojsonq/v2"
+	"net/url"
 	"strconv"
 )
 
@@ -28,8 +29,13 @@ func (urlHandler *CommandUrlHandler) ExecuteCommand(task entity.MonitorTask) (in
 		return 0, err
 	}
 
+	parseResult, err := url.Parse(task.Command)
+	if err != nil {
+		return 0, errors.New("路径转换失败")
+	}
+
 	req := HttpRequest.NewRequest()
-	resp, err := req.Get(task.Command)
+	resp, err := req.Get(fmt.Sprintf("%v://%v%v", parseResult.Scheme, parseResult.Host, parseResult.Path), url.PathEscape(parseResult.RawQuery))
 	if err != nil || resp.StatusCode() != 200 {
 		return 0, errors.New(fmt.Sprintf("请求url: %v 发生错误", task.Command))
 	}
