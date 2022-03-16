@@ -174,6 +174,11 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 		return beginTime, err
 	}
 
+	if response.Err != "" {
+		logrus.Error("执行查询样本删除失败 -> ", response.Err)
+		return beginTime, err
+	}
+
 	if response.Results[0].Err != "" {
 		logrus.Error("执行查询样本删除失败 -> ", sampleMeasurementName, response.Results[0].Err)
 		return beginTime, err
