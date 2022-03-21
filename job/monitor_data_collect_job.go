@@ -144,9 +144,8 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		return points, samplePoints, beginTime, err
 	}
 	points = append(points, point)
+	points = append(points, point)
 
-	// TODO 后续替换入口, 样本数据
-	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForCreate(task.TaskKey)
 	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
 	for i := 1; i <= 8; i++ {
 		// 创建记录
@@ -164,17 +163,11 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		}
 
 		samplePoints = append(samplePoints, samplePoint)
-
-		// TODO 后续替换入口
-		oldSamplePoint, err := client.NewPoint(sampleMeasurementName, tags, fields, endTime.AddDate(0, 0, i))
-		if err != nil {
-			return points, samplePoints, beginTime, err
-		}
-		points = append(points, oldSamplePoint)
 	}
 
 	// 添加结果
-	logrus.Infof("生成记录数：%v - %v", sampleMeasurementName, len(samplePoints))
+	logrus.Infof("生成记录数：%v - %v", sampleMeasurementNewName, len(samplePoints))
+	logrus.Infof("生成记录数：%v - %v", task.TaskKey, len(points))
 
 	// 如果不支持回溯，就只执行一次, 直接返回就可以了
 	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
@@ -232,9 +225,11 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 
 	// 等待实际数据，样本全部保存完毕
 	if err := job.BatchWritingForInfluxDb(cli, task, points, ""); err != nil {
+		logrus.Error("保存实时数据发生错误, taskId: ", task.Id, err)
 		return
 	}
 	if err := job.BatchWritingForInfluxDb(cli, task, samplePoints, job.grafana.SampleRpName); err != nil {
+		logrus.Error("保存样本数据发生错误, taskId: ", task.Id, err)
 		return
 	}
 	_ = cli.Close()
@@ -290,10 +285,17 @@ func (job *MonitorDataCollectJob) BatchWritingForInfluxDb(cli client.Client, tas
 	return nil
 }
 
+func (job *MonitorDataCollectJob) CreateBatchPoint(rpName string) (client.BatchPoints, error) {
+	if rpName == "" {
+		return job.influxDbOption.CreateBatchPoint()
+	}
+	return job.influxDbOption.CreateBatchPointWithRP(rpName)
+}
+
 func (job *MonitorDataCollectJob) WritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, wg *sync.WaitGroup, ops chan bool, rpName string) {
 	defer wg.Done()
 
-	bp, err := job.influxDbOption.CreateBatchPointWithRP(rpName)
+	bp, err := job.CreateBatchPoint(rpName)
 	if err != nil {
 		logrus.Error("exec fail, createBatchPoint is error", err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: "createBatchPoint失败"})
