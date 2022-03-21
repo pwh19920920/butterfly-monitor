@@ -74,13 +74,8 @@ func (job *MonitorDataCollectJob) doRemoveDataSampling(task entity.MonitorTask, 
 		return
 	}
 
-	//  TODO 后续替换入口
-	sampleMeasurementName := job.grafana.GetSampleMeasurementNameForQuery(task.TaskKey)
 	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForQuery(task.TaskKey)
-
-	// TODO 后续替换入口
-	preSampleTime, err := job.doRecursiveRemoveDataSampling(task, "", sampleMeasurementName, beginTime, endTime)
-	_, _ = job.doRecursiveRemoveDataSampling(task, job.grafana.SampleRpName, sampleMeasurementNewName, beginTime, endTime)
+	preSampleTime, err := job.doRecursiveRemoveDataSampling(task, job.grafana.SampleRpName, sampleMeasurementNewName, beginTime, endTime)
 
 	errMsg := " "
 	if err != nil {
@@ -171,6 +166,11 @@ func (job *MonitorDataCollectJob) doRecursiveRemoveDataSampling(task entity.Moni
 	response, err = cli.Query(deleteQuery)
 	if err != nil {
 		logrus.Error("执行查询样本删除失败 -> ", sampleMeasurementName, err.Error())
+		return beginTime, err
+	}
+
+	if response.Err != "" {
+		logrus.Error("执行查询样本删除失败 -> ", response.Err)
 		return beginTime, err
 	}
 
