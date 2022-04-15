@@ -90,7 +90,7 @@ func (job *MonitorDataCollectJob) doExecuteCommand(commandHandler handler.Comman
 	select {
 	case <-done:
 		return result, err
-	case <-time.After(30 * time.Second):
+	case <-time.After(25 * time.Second):
 		return 0, errors.New("exec timeout")
 	}
 }
