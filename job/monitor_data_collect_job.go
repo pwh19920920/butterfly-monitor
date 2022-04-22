@@ -96,20 +96,20 @@ func (job *MonitorDataCollectJob) doExecuteCommand(commandHandler handler.Comman
 }
 
 // recursiveExecuteCommand 递归执行
-func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask, points, samplePoints []*client.Point, beginTime, maxTime time.Time) ([]*client.Point, []*client.Point, time.Time, error) {
+func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler.CommandHandler, task entity.MonitorTask, points, samplePoints []*client.Point, beginTime, maxTime time.Time, jobHandler bool) ([]*client.Point, []*client.Point, time.Time, error) {
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
-	// 如果不支持回溯，就只执行一次, 直接返回就可以了
-	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
+	// 如果是job调用，就只执行一次, 直接返回就可以了
+	if jobHandler {
 		duration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
 		beginTime = maxTime.Add(duration)
 		endTime = maxTime
 	}
 
 	// 跨步时间，即真正的startTime
-	setpDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.StepSpan))
-	startTime := endTime.Add(setpDuration)
+	stepDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.StepSpan))
+	startTime := endTime.Add(stepDuration)
 
 	// 执行结束
 	if endTime.UnixMilli() > maxTime.UnixMilli() {
@@ -175,11 +175,11 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	}
 
 	// 继续发起下次执行
-	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime)
+	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime, jobHandler)
 }
 
 // executeCommand 执行命令
-func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time, needUpdateCollectTime bool) {
+func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sync.WaitGroup, beginTime, endTime time.Time, isJobHandler bool) {
 	// 执行标记
 	defer wg.Done()
 
@@ -208,7 +208,7 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	// 执行开始
 	points := make([]*client.Point, 0)
 	samplePoints := make([]*client.Point, 0)
-	points, samplePoints, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, beginTime, endTime)
+	points, samplePoints, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, beginTime, endTime, isJobHandler)
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
@@ -235,7 +235,7 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	_ = cli.Close()
 
 	// 不需要更新, 直接返回了
-	if !needUpdateCollectTime {
+	if !isJobHandler {
 		return
 	}
 
