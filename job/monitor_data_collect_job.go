@@ -121,15 +121,15 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	logrus.Infof("%s: 执行范围: beginTime: %s - endTime: %s, startTime: %s", task.TaskKey, beginTime.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"), startTime.Format("2006-01-02 15:04:05"))
 	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime, startTime)
 	if err != nil {
-		logrus.Error("commandHandler任务处理器模板引擎渲染失败", task, err.Error())
+		logrus.Error("commandHandler任务处理器模板引擎渲染失败, [%v]-[%v], reason: %v", task.Id, task.TaskKey, err.Error())
 		return points, samplePoints, beginTime, errors.New(fmt.Sprintf("commandHandler任务处理器模板引擎渲染失败, taskId: %v", task.Id))
 	}
 
 	task.Command = command
-	logrus.Info("执行指令：", command)
+	logrus.Info("[%v]-[%v] 执行指令：", task.Id, task.TaskKey, command)
 	result, err := job.doExecuteCommand(commandHandler, task)
 	if err != nil {
-		logrus.Error("commandHandler执行失败", err.Error())
+		logrus.Error("[%v]-[%v] 执行指令commandHandler执行失败", task.Id, task.TaskKey, err.Error())
 		return points, samplePoints, beginTime, err
 	}
 
@@ -186,14 +186,14 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	// 延迟调用匿名函数 (匿名函数在主函数结束之前最后调用，可以捕获主函数中的异常)
 	defer func() {
 		if errInfo := recover(); errInfo != nil {
-			logrus.Errorf("execCollect发送异常, %v", errInfo)
+			logrus.Errorf("execCollect发生异常, [%v]-[%v], reason: %v", task.Id, task.TaskKey, errInfo)
 			return
 		}
 	}()
 
 	commandHandler, ok := job.commonMap.GetCommandHandlerMap()[*task.TaskType]
 	if !ok {
-		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误")
+		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误, 任务执行失败：[%v]-[%v]", task.Id, task.TaskKey)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
-		logrus.Errorf("influxdb ping 失败, reason： %v", err.Error())
+		logrus.Errorf("[%v]-[%v] 任务influxdb ping 失败, reason： %v", task.Id, task.TaskKey, err.Error())
 		return
 	}
 

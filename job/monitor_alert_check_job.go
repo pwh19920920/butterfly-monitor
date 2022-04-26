@@ -83,13 +83,13 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 
 	// 检查规则
 	if check.Params == "" {
-		logrus.Infof("execCheck 任务[%v]未配置检查规则", check.TaskId)
+		logrus.Infof("execCheck 任务[%v]-[%v]未配置检查规则", check.TaskId, task.TaskKey)
 		return
 	}
 
 	var params []entity.MonitorAlertCheckParams
 	if err := json.Unmarshal([]byte(check.Params), &params); err != nil {
-		logrus.Infof("execCheck 任务[%v]规则反序列化失败", check.TaskId)
+		logrus.Infof("execCheck 任务[%v]-[%v]规则反序列化失败", check.TaskId, task.TaskKey)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	pingTime, version, err := cli.Ping(time.Duration(10) * time.Second)
 	logrus.Info("influxdb ping返回 - ", pingTime, " - ", version)
 	if err != nil {
-		logrus.Errorf("influxdb ping 失败, reason： %v", err.Error())
+		logrus.Errorf("influxdb ping 失败, 任务[%v]-[%v]执行跳过, reason： %v", check.TaskId, task.TaskKey, err.Error())
 		return
 	}
 
@@ -118,13 +118,13 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	sampleMeasurementName := app.grafana.GetSampleMeasurementNewNameForQuery(task.TaskKey)
 	sampleVal, err := app.getInfluxdbMeanVal(cli, app.grafana.SampleRpName, sampleMeasurementName, startTime, endTime)
 	if err != nil || sampleVal == -1 {
-		logrus.Infof("[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
+		logrus.Infof("[%v]-[%v]任务样本数据没有数据点, 将被忽略, 错误原因：%v", task.Id, task.TaskKey, err)
 		return
 	}
 
 	realVal, err := app.getInfluxdbMeanVal(cli, "", task.TaskKey, startTime, endTime)
 	if err != nil {
-		logrus.Infof("[%v]任务实时数据没有数据点, 将被忽略, 错误原因：%v", task.Id, err)
+		logrus.Infof("[%v]-[%v]任务实时数据没有数据点, 将被忽略, 错误原因：%v", task.Id, task.TaskKey, err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	}
 
 	// 更新AlertStatus状态为2出现异常, PreCheckTime=current
-	logrus.Infof("execCheck 【%v】出现异常, 样本：%v, 实时: %v", task.Id, sampleVal, realVal)
+	logrus.Infof("execCheck [%v]-[%v]出现异常, 样本：%v, 实时: %v", task.Id, task.TaskKey, sampleVal, realVal)
 	_ = app.repository.MonitorTaskAlertRepository.ModifyByPending(check.Id, currentTime)
 }
 
