@@ -100,6 +100,12 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	duration, _ := time.ParseDuration(fmt.Sprintf("%vs", task.TimeSpan))
 	endTime := beginTime.Add(duration)
 
+	// 执行结束
+	if endTime.UnixMilli() > maxTime.UnixMilli() {
+		logrus.Info("task执行结束, taskId: ", task.Id)
+		return points, samplePoints, beginTime, nil
+	}
+
 	// 如果是job调用，就只执行一次, 直接返回就可以了
 	if jobHandler {
 		duration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.TimeSpan))
@@ -111,25 +117,19 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 	stepDuration, _ := time.ParseDuration(fmt.Sprintf("-%vs", task.StepSpan))
 	startTime := endTime.Add(stepDuration)
 
-	// 执行结束
-	if endTime.UnixMilli() > maxTime.UnixMilli() {
-		logrus.Info("task执行结束, taskId: ", task.Id)
-		return points, samplePoints, beginTime, nil
-	}
-
 	// 执行
 	logrus.Infof("%s: 执行范围: beginTime: %s - endTime: %s, startTime: %s", task.TaskKey, beginTime.Format("2006-01-02 15:04:05"), endTime.Format("2006-01-02 15:04:05"), startTime.Format("2006-01-02 15:04:05"))
 	command, err := job.RenderTaskCommandForRange(task, beginTime, endTime, startTime)
 	if err != nil {
-		logrus.Error("commandHandler任务处理器模板引擎渲染失败, [%v]-[%v], reason: %v", task.Id, task.TaskKey, err.Error())
+		logrus.Errorf("commandHandler任务处理器模板引擎渲染失败, [%v]-[%v], reason: %v", task.Id, task.TaskKey, err.Error())
 		return points, samplePoints, beginTime, errors.New(fmt.Sprintf("commandHandler任务处理器模板引擎渲染失败, taskId: %v", task.Id))
 	}
 
 	task.Command = command
-	logrus.Info("[%v]-[%v] 执行指令：", task.Id, task.TaskKey, command)
+	logrus.Infof("[%v]-[%v] 执行指令：%v", task.Id, task.TaskKey, command)
 	result, err := job.doExecuteCommand(commandHandler, task)
 	if err != nil {
-		logrus.Error("[%v]-[%v] 执行指令commandHandler执行失败", task.Id, task.TaskKey, err.Error())
+		logrus.Errorf("[%v]-[%v] 执行指令commandHandler执行失败, err: %v", task.Id, task.TaskKey, err.Error())
 		return points, samplePoints, beginTime, err
 	}
 
@@ -193,7 +193,7 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 
 	commandHandler, ok := job.commonMap.GetCommandHandlerMap()[*task.TaskType]
 	if !ok {
-		logrus.Error("commandHandler任务处理器不存在, 或者处理器类型有误, 任务执行失败：[%v]-[%v]", task.Id, task.TaskKey)
+		logrus.Errorf("commandHandler任务处理器不存在, 或者处理器类型有误, 任务执行失败：[%v]-[%v]", task.Id, task.TaskKey)
 		return
 	}
 
