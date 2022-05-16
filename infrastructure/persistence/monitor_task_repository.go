@@ -3,6 +3,7 @@ package persistence
 import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/types"
+	"errors"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"gorm.io/gorm"
 	"time"
@@ -169,7 +170,10 @@ func (repo *MonitorTaskRepositoryImpl) Delete(id int64) error {
 // GetById 获取对象
 func (repo *MonitorTaskRepositoryImpl) GetById(id int64) (*entity.MonitorTask, error) {
 	var data entity.MonitorTask
-	err := repo.db.Model(&entity.MonitorTask{}).Where("id = ?", id).Find(&data).Error
+	err := repo.db.Model(&entity.MonitorTask{}).First(&data, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	return &data, err
 }
 

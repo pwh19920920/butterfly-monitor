@@ -163,7 +163,7 @@ func (app *MonitorEventCheckJob) BuildGroupForChannelForParamsMap(alerts []entit
 
 func (app *MonitorEventCheckJob) DispatchMessage(groupId int64, text string, channelId int64) error {
 	channel, err := app.repository.AlertChannelRepository.GetById(channelId)
-	if err != nil {
+	if err != nil || channel == nil {
 		return errors.New("数据库获取通道失败")
 	}
 
@@ -186,7 +186,7 @@ func (app *MonitorEventCheckJob) DispatchMessage(groupId int64, text string, cha
 		logrus.Infof("分组下的可用用户为空, groupId: %v", groupId)
 		return nil
 	}
-	return alertChannelHandler.DispatchMessage(channel, groupUsers, text)
+	return alertChannelHandler.DispatchMessage(*channel, groupUsers, text)
 }
 
 func (app *MonitorEventCheckJob) RenderTemplate(paramsArr []MonitorEventTemplateParam, templateStr string) (string, error) {

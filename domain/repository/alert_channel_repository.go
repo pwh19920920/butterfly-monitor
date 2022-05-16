@@ -14,7 +14,7 @@ type AlertChannelRepository interface {
 	SelectAll() ([]entity.AlertChannel, error)
 
 	// GetById 获取
-	GetById(id int64) (entity.AlertChannel, error)
+	GetById(id int64) (*entity.AlertChannel, error)
 
 	// Delete 删除
 	Delete(id int64) error

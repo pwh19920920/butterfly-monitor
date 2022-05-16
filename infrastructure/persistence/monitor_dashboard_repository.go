@@ -3,6 +3,7 @@ package persistence
 import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/types"
+	"errors"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"gorm.io/gorm"
 )
@@ -36,9 +37,10 @@ func (repo *MonitorDashboardRepositoryImpl) UpdateById(id int64, monitorDashboar
 
 func (repo *MonitorDashboardRepositoryImpl) GetById(id int64) (*entity.MonitorDashboard, error) {
 	var data entity.MonitorDashboard
-	err := repo.db.Model(&entity.MonitorDashboard{}).
-		Where(&entity.MonitorDashboard{BaseEntity: common.BaseEntity{Id: id}}).
-		Find(&data).Error
+	err := repo.db.Model(&entity.MonitorDashboard{}).First(&data, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	return &data, err
 }
 

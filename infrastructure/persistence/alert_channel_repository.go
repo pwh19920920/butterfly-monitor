@@ -3,6 +3,7 @@ package persistence
 import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/types"
+	"errors"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"gorm.io/gorm"
 )
@@ -39,11 +40,13 @@ func (repo *AlertChannelRepositoryImpl) SelectAll() ([]entity.AlertChannel, erro
 }
 
 // GetById 查询
-func (repo *AlertChannelRepositoryImpl) GetById(id int64) (entity.AlertChannel, error) {
+func (repo *AlertChannelRepositoryImpl) GetById(id int64) (*entity.AlertChannel, error) {
 	var data entity.AlertChannel
-	err := repo.db.Model(&entity.AlertChannel{}).
-		Where("id = ?", id).Find(&data).Error
-	return data, err
+	err := repo.db.Model(&entity.AlertChannel{}).First(&data, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &data, err
 }
 
 // Delete 删除
