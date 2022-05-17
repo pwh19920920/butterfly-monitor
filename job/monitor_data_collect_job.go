@@ -12,11 +12,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Masterminds/sprig/v3"
 	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"github.com/pwh19920920/snowflake"
 	"github.com/sirupsen/logrus"
 	"github.com/xxl-job/xxl-job-executor-go"
+
 	"sync"
 	"text/template"
 	"time"
@@ -260,10 +262,10 @@ func (job *MonitorDataCollectJob) BatchWritingForInfluxDb(cli client.Client, tas
 	successOps := make(chan bool, sliceLen)
 	var writeWg sync.WaitGroup
 	for i := 0; i < sliceLen; i++ {
-		end := (i+1)*pageCount - 1
+		end := (i + 1) * pageCount
 		start := i * pageCount
 		if len(points) <= end {
-			end = len(points) - 1
+			end = len(points)
 		}
 
 		ps := points[start:end]
@@ -327,7 +329,7 @@ func (job *MonitorDataCollectJob) RenderTaskCommandForRange(task entity.MonitorT
 	params["beginTimeMilli"] = beginTime.UnixMilli()
 
 	// 创建模板对象, parse关联模板
-	tmpl, err := template.New(task.TaskKey).Parse(task.Command)
+	tmpl, err := template.New(task.TaskKey).Funcs(sprig.TxtFuncMap()).Parse(task.Command)
 	if err != nil {
 		return "", err
 	}
