@@ -167,15 +167,6 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		samplePoints = append(samplePoints, samplePoint)
 	}
 
-	// 添加结果
-	logrus.Infof("生成记录数：%v - %v", sampleMeasurementNewName, len(samplePoints))
-	logrus.Infof("生成记录数：%v - %v", task.TaskKey, len(points))
-
-	// 如果不支持回溯，就只执行一次, 直接返回就可以了
-	if *task.RecallStatus == entity.MonitorRecallStatusNotSupport {
-		return points, samplePoints, endTime, nil
-	}
-
 	// 继续发起下次执行
 	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime, jobHandler)
 }
@@ -211,6 +202,11 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	points := make([]*client.Point, 0)
 	samplePoints := make([]*client.Point, 0)
 	points, samplePoints, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, beginTime, endTime, isJobHandler)
+
+	// 添加结果
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
+	logrus.Infof("生成记录数：%v - %v", sampleMeasurementNewName, len(samplePoints))
+	logrus.Infof("生成记录数：%v - %v", task.TaskKey, len(points))
 
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
