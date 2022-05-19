@@ -8,7 +8,6 @@ type MonitorTaskType int32
 type MonitorTaskStatus int32
 type MonitorAlertStatus int32
 type MonitorSampledStatus int32
-type MonitorRecallStatus int32
 
 const (
 	TaskTypeDatabase          MonitorTaskType      = 1
@@ -19,9 +18,6 @@ const (
 	MonitorAlertStatusClose   MonitorAlertStatus   = 0
 	MonitorSampledStatusOpen  MonitorSampledStatus = 1
 	MonitorSampledStatusClose MonitorSampledStatus = 0
-
-	MonitorRecallStatusSupport    MonitorRecallStatus = 1
-	MonitorRecallStatusNotSupport MonitorRecallStatus = 2
 )
 
 type MonitorTask struct {
@@ -41,7 +37,6 @@ type MonitorTask struct {
 	TaskStatus     MonitorTaskStatus    `json:"taskStatus" gorm:"column:task_status"`          // 任务开关
 	AlertStatus    MonitorAlertStatus   `json:"alertStatus" gorm:"column:alert_status"`        // 报警开关
 	Sampled        MonitorSampledStatus `json:"sampled" gorm:"column:sampled"`                 // 是否生成样本
-	RecallStatus   *MonitorRecallStatus `json:"recallStatus" gorm:"column:recall_status"`      // 回溯状态
 }
 
 // TableName 会将 User 的表名重写为 `profiles`

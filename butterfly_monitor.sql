@@ -122,9 +122,6 @@ CREATE TABLE `t_monitor_dashboard`  (
 -- ----------------------------
 -- Records of t_monitor_dashboard
 -- ----------------------------
-INSERT INTO `t_monitor_dashboard` VALUES (1524657288403488769, '2022-05-12 15:46:39', '2022-05-13 14:42:42', 0, 'zi-jin-da-pan', '3UWRc3_7k', '资金大盘', '/d/3UWRc3_7k/zi-jin-da-pan', 1);
-INSERT INTO `t_monitor_dashboard` VALUES (1524668164594470914, '2022-05-12 16:29:52', '2022-05-12 16:29:52', 0, 'zi-jin-da-pan-2', '5iNo23lnz', '资金大盘2', '/d/5iNo23lnz/zi-jin-da-pan-2', 2);
-INSERT INTO `t_monitor_dashboard` VALUES (1525004012573691906, '2022-05-13 14:44:24', '2022-05-13 14:44:24', 0, 'zi-jin-da-pan-4', '_8u__RX7z', '资金大盘4', '/d/_8u__RX7z/zi-jin-da-pan-4', 4);
 
 -- ----------------------------
 -- Table structure for t_monitor_dashboard_task
@@ -166,7 +163,6 @@ CREATE TABLE `t_monitor_database`  (
 -- ----------------------------
 -- Records of t_monitor_database
 -- ----------------------------
-INSERT INTO `t_monitor_database` VALUES (1478994420463308801, '2022-01-06 15:38:43', '2022-05-13 14:42:57', 0, 'butterfly_monitor', 'Mysql', 'root', 'root', 'localhost:3306', 0);
 
 -- ----------------------------
 -- Table structure for t_monitor_task
@@ -473,6 +469,6 @@ CREATE TABLE `t_sys_user`  (
 -- ----------------------------
 -- Records of t_sys_user
 -- ----------------------------
-INSERT INTO `t_sys_user` VALUES (1, '2020-11-24 15:49:07', '2022-05-13 14:44:02', 'admin', '593d4632a8c70251d0e9be4b1799bcc1', '54099a65-a235-158c-d610-74d2ff4c789b', 0, '王小二', 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png', '1', 'pengweihuang@we.cn', '18650036719');
+INSERT INTO `t_sys_user` VALUES (1, '2020-11-24 15:49:07', '2022-05-13 14:44:02', 'admin', '593d4632a8c70251d0e9be4b1799bcc1', '54099a65-a235-158c-d610-74d2ff4c789b', 0, '王小二', 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png', '1', 'pxx', '177');
 
 SET FOREIGN_KEY_CHECKS = 1;
