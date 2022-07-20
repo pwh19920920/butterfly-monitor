@@ -135,20 +135,38 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 		return points, samplePoints, beginTime, err
 	}
 
+	logrus.Infof("任务%v收集到的数据值为: %v", task.TaskKey, result)
+	newPoints, newSamplePoints, err := job.buildPoint(task.TaskKey, result, endTime)
+	if err != nil {
+		return points, samplePoints, beginTime, err
+	}
+
+	// 加入列表
+	points = append(points, newPoints...)
+	samplePoints = append(samplePoints, newSamplePoints...)
+
+	// 继续发起下次执行
+	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime, jobHandler)
+}
+
+func (job *MonitorDataCollectJob) buildPoint(taskKey string, result interface{}, time time.Time) ([]*client.Point, []*client.Point, error) {
+	points := make([]*client.Point, 0)
+	samplePoints := make([]*client.Point, 0)
+
 	tags := map[string]string{}
 	fields := map[string]interface{}{
 		"value": result,
 	}
 
 	// 创建记录
-	point, err := client.NewPoint(task.TaskKey, tags, fields, endTime)
+	point, err := client.NewPoint(taskKey, tags, fields, time)
 	if err != nil {
-		return points, samplePoints, beginTime, err
+		return points, samplePoints, err
 	}
 	points = append(points, point)
 	points = append(points, point)
 
-	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(taskKey)
 	for i := 1; i <= 8; i++ {
 		// 创建记录
 		fields := map[string]interface{}{
@@ -159,16 +177,14 @@ func (job *MonitorDataCollectJob) recursiveExecuteCommand(commandHandler handler
 			"day": fmt.Sprintf("%v", i),
 		}
 
-		samplePoint, err := client.NewPoint(sampleMeasurementNewName, tags, fields, endTime.AddDate(0, 0, i))
+		samplePoint, err := client.NewPoint(sampleMeasurementNewName, tags, fields, time.AddDate(0, 0, i))
 		if err != nil {
-			return points, samplePoints, beginTime, err
+			return points, samplePoints, err
 		}
 
 		samplePoints = append(samplePoints, samplePoint)
 	}
-
-	// 继续发起下次执行
-	return job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, endTime, maxTime, jobHandler)
+	return points, samplePoints, err
 }
 
 // executeCommand 执行命令
@@ -203,16 +219,16 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 	samplePoints := make([]*client.Point, 0)
 	points, samplePoints, preExecuteTime, err := job.recursiveExecuteCommand(commandHandler, task, points, samplePoints, beginTime, endTime, isJobHandler)
 
-	// 添加结果
-	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
-	logrus.Infof("生成记录数：%v - %v", sampleMeasurementNewName, len(samplePoints))
-	logrus.Infof("生成记录数：%v - %v", task.TaskKey, len(points))
-
 	if err != nil {
 		logrus.Error("recursiveExecuteCommand exec fail, taskId: ", task.Id, err)
 		_ = job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()})
 		return
 	}
+
+	// 添加结果
+	sampleMeasurementNewName := job.grafana.GetSampleMeasurementNewNameForCreate(task.TaskKey)
+	logrus.Infof("生成记录数：%v - %v", sampleMeasurementNewName, len(samplePoints))
+	logrus.Infof("生成记录数：%v - %v", task.TaskKey, len(points))
 
 	// 收集数据得结果为0条
 	if len(points) == 0 || len(samplePoints) == 0 {
@@ -249,7 +265,7 @@ func (job *MonitorDataCollectJob) executeCommand(task entity.MonitorTask, wg *sy
 
 func (job *MonitorDataCollectJob) BatchWritingForInfluxDb(cli client.Client, task entity.MonitorTask, points []*client.Point, rpName string) error {
 	// 切割保存
-	pageCount := 5000
+	pageCount := 3000
 	sliceLen := len(points) / pageCount
 	if len(points)%pageCount != 0 {
 		sliceLen += 1
