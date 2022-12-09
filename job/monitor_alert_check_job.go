@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/xxl-job/xxl-job-executor-go"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -164,11 +165,16 @@ func (app *MonitorAlertCheckJob) execCheck(conf application.AlertConfObject, che
 	_ = app.repository.MonitorTaskAlertRepository.ModifyByPending(check.Id, currentTime)
 }
 
+func Decimal(num float64) float64 {
+	num, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", num), 64)
+	return num
+}
+
 // *** 组于组之间为or ***
 func (app *MonitorAlertCheckJob) checkForParam(currentTime time.Time, check entity.MonitorTaskAlert, paramGroups []entity.MonitorAlertCheckParams, sampleVal, realVal float64) (bool, []string) {
 	// 如果实时不存在，直接认为是异常
 	if realVal == -1 {
-		return true, []string{fmt.Sprintf("样本值: %v, 当前值为空, 续发生超过%v秒", sampleVal, check.Duration)}
+		return true, []string{fmt.Sprintf("样本值: %v, 当前值为空, 持续发生超过%v秒", Decimal(sampleVal), check.Duration)}
 	}
 
 	for _, param := range paramGroups {
@@ -194,7 +200,7 @@ func (app *MonitorAlertCheckJob) checkForParamArr(check entity.MonitorTaskAlert,
 		itemResult := app.checkForParamItem(params, sampleVal, realVal)
 		if itemResult {
 			hitMsg = append(hitMsg, fmt.Sprintf("样本值: %v, 当前值: %v, %v样本阈值%v%s, 持续发生超过%v秒",
-				sampleVal, realVal, params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg(), check.Duration))
+				Decimal(sampleVal), Decimal(realVal), params.CompareType.GetTransferMsg(), params.Value, params.ValueType.GetTransferMsg(), check.Duration))
 		}
 
 		// 1. 当表达式为or，其中一个为true, 就整个都是true
