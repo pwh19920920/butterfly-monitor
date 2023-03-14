@@ -5,8 +5,9 @@ import "github.com/pwh19920920/butterfly-admin/common"
 type DataSourceType int32
 
 const (
-	DataSourceTypeMysql  DataSourceType = 0
-	DatabaseMongoHandler DataSourceType = 1
+	DataSourceTypeMongo  DataSourceType = 1
+	DataSourceTypeMysql  DataSourceType = 2
+	DataSourceTypeInflux DataSourceType = 3
 )
 
 type MonitorDatabase struct {

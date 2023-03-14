@@ -203,6 +203,25 @@ func (repo *MonitorTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.Monito
 	return data, err
 }
 
+func (repo *MonitorTaskRepositoryImpl) SelectByTaskKey(taskKey string) (*entity.MonitorTask, error) {
+	var data entity.MonitorTask
+	err := repo.db.Model(&entity.MonitorTask{}).Where("task_key", taskKey).First(&data).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &data, err
+}
+
+// Count 统计总数
+func (repo *MonitorTaskRepositoryImpl) Count() (*int64, error) {
+	var count int64
+	err := repo.db.
+		Model(&entity.MonitorTask{}).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count).Error
+	return &count, err
+}
+
 // Select 分页查询
 func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest) (int64, []entity.MonitorTask, error) {
 	var count int64 = 0
@@ -247,4 +266,13 @@ func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest
 		Limit(req.PageSize).Offset(req.Offset()).
 		Find(&data).Error
 	return count, data, err
+}
+
+// SelectAll 获取对象
+func (repo *MonitorTaskRepositoryImpl) SelectAll() ([]entity.MonitorTask, error) {
+	var data []entity.MonitorTask
+	err := repo.db.Model(&entity.MonitorTask{}).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Find(&data).Error
+	return data, err
 }

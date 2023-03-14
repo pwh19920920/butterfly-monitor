@@ -26,6 +26,16 @@ func (repo *MonitorTaskEventRepositoryImpl) FindEventJob() ([]entity.MonitorTask
 	return data, err
 }
 
+// FindPendingEventAll 获取等待报警的所有event
+func (repo *MonitorTaskEventRepositoryImpl) FindPendingEventAll() ([]entity.MonitorTaskEvent, error) {
+	var data []entity.MonitorTaskEvent
+	err := repo.db.
+		Model(&entity.MonitorTaskEvent{}).
+		Where("deal_status = ?", entity.MonitorTaskEventDealStatusPending).
+		Find(&data).Error
+	return data, err
+}
+
 // Create 创建
 func (repo *MonitorTaskEventRepositoryImpl) Create(monitorTaskEvent *entity.MonitorTaskEvent) error {
 	return repo.db.Model(&entity.MonitorTaskEvent{}).Create(&monitorTaskEvent).Error
@@ -110,6 +120,16 @@ func (repo *MonitorTaskEventRepositoryImpl) DealEvent(eventId int64, req *types.
 			Where("task_id = ? and deal_status = ?", req.TaskId, entity.MonitorTaskAlertDealStatusNormal).
 			Updates(&entity.MonitorTaskAlert{DealStatus: entity.MonitorTaskAlertDealStatusProcessing}).Error
 	})
+}
+
+// Count 统计总数
+func (repo *MonitorTaskEventRepositoryImpl) Count() (*int64, error) {
+	var count int64
+	err := repo.db.
+		Model(&entity.MonitorTaskEvent{}).
+		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count).Error
+	return &count, err
 }
 
 // CompleteEvent 事件完成

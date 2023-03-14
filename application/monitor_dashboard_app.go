@@ -19,6 +19,10 @@ type MonitorDashboardApplication struct {
 	Grafana        *grafana.Config
 }
 
+func (application *MonitorDashboardApplication) Count() (*int64, error) {
+	return application.repository.MonitorDashboardRepository.Count()
+}
+
 // Query 分页查询
 func (application *MonitorDashboardApplication) Query(request *types.MonitorDashboardQueryRequest) (int64, []entity.MonitorDashboard, error) {
 	total, data, err := application.repository.MonitorDashboardRepository.Select(request)

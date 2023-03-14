@@ -23,4 +23,7 @@ type MonitorDashboardRepository interface {
 
 	// SelectSimpleAll 简单查询
 	SelectSimpleAll() ([]entity.MonitorDashboard, error)
+
+	// Count 统计总数
+	Count() (*int64, error)
 }

@@ -20,8 +20,9 @@ type ChannelWechatHandlerRequestBody struct {
 }
 
 type ChannelWechatHandlerRequest struct {
-	MsgType string                          `json:"msgtype"`
-	Text    ChannelWechatHandlerRequestBody `json:"text"`
+	MsgType  string                          `json:"msgtype"`
+	Text     ChannelWechatHandlerRequestBody `json:"text"`
+	Markdown ChannelWechatHandlerRequestBody `json:"markdown"`
 }
 
 func (channelHandler ChannelWechatHandler) GetClassName() string {
@@ -42,8 +43,8 @@ func (channelHandler ChannelWechatHandler) DispatchMessage(channel entity.AlertC
 	}
 
 	data, _ := json.Marshal(ChannelWechatHandlerRequest{
-		MsgType: "text",
-		Text: ChannelWechatHandlerRequestBody{
+		MsgType: "markdown",
+		Markdown: ChannelWechatHandlerRequestBody{
 			Content: message,
 		},
 	})

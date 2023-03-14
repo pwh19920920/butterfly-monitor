@@ -5,6 +5,7 @@ import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/job"
 	"butterfly-monitor/types"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/response"
 	"github.com/pwh19920920/butterfly/server"
@@ -53,11 +54,11 @@ func (handler *monitorTaskHandler) create(context *gin.Context) {
 	// option
 	err = handler.monitorTaskApp.Create(&monitorTaskCreateRequest)
 	if err != nil {
-		response.BuildResponseSysErr(context, "创建任务失败")
+		response.BuildResponseBadRequest(context, "创建任务失败, "+err.Error())
 		return
 	}
 
-	response.BuildResponseSuccess(context, "ok")
+	response.BuildResponseSuccess(context, fmt.Sprintf("%v", monitorTaskCreateRequest.MonitorTask.Id))
 }
 
 func (handler *monitorTaskHandler) execForTimeRange(context *gin.Context) {

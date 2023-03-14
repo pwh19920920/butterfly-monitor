@@ -68,3 +68,13 @@ func (repo *MonitorDatabaseRepositoryImpl) Select(req *types.MonitorDatabaseQuer
 		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
 	return count, data, err
 }
+
+// Count 统计总数
+func (repo *MonitorDatabaseRepositoryImpl) Count() (*int64, error) {
+	var count int64
+	err := repo.db.
+		Model(&entity.MonitorDatabase{}).
+		Not(&entity.MonitorDatabase{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count).Error
+	return &count, err
+}

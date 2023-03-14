@@ -27,6 +27,8 @@ func init() {
 	interfaces.InitAlertGroupHandler(app)
 	interfaces.InitAlertChannelHandler(app)
 	interfaces.InitMonitorTaskEventHandler(app)
+	interfaces.InitMonitorHomeHandler(app)
+	interfaces.InitSysLoginHandler(app)
 
 	// 注册定时任务
 	timerJob.RegisterJobExec()

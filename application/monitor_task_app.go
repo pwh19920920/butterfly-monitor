@@ -21,6 +21,10 @@ type MonitorTaskApplication struct {
 	grafanaHandler *support.GrafanaOptionHandler
 }
 
+func (application *MonitorTaskApplication) Count() (*int64, error) {
+	return application.repository.MonitorTaskRepository.Count()
+}
+
 // Query 分页查询
 func (application *MonitorTaskApplication) Query(request *types.MonitorTaskQueryRequest) (int64, []types.MonitorTaskQueryResponse, error) {
 	total, data, err := application.repository.MonitorTaskRepository.Select(request)
@@ -104,6 +108,16 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 	monitorTask.PreExecuteTime = &common.LocalTime{Time: time.Now()}
 	monitorTask.PreSampleTime = &common.LocalTime{Time: time.Now()}
 
+	// 判断taskKey是否存在, 存在则拒绝
+	existTask, err := application.repository.MonitorTaskRepository.SelectByTaskKey(monitorTask.TaskKey)
+	if err != nil {
+		return err
+	}
+
+	if existTask != nil {
+		return errors.New("任务key已存在")
+	}
+
 	// 转换
 	dashboardIds, err := request.GetDashboardIds()
 	if err != nil {
@@ -152,8 +166,11 @@ func (application *MonitorTaskApplication) Create(request *types.MonitorTaskCrea
 	err = application.repository.MonitorTaskRepository.Save(&monitorTask, monitorDashboardTasks, taskAlert)
 	if err != nil {
 		logrus.Error("MonitorTaskRepository.Save() happen error", err)
+		return err
 	}
-	return err
+
+	request.MonitorTask = monitorTask
+	return nil
 }
 
 // Modify 修改数据源， 原则上taskKey不允许修改

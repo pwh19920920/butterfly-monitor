@@ -46,4 +46,13 @@ type MonitorTaskRepository interface {
 	SelectByIdsWithMap(ids []int64) (map[int64]entity.MonitorTask, error)
 
 	SelectByIds(ids []int64) ([]entity.MonitorTask, error)
+
+	// SelectByTaskKey 通过任务key查询
+	SelectByTaskKey(taskKey string) (*entity.MonitorTask, error)
+
+	// Count 统计总数
+	Count() (*int64, error)
+
+	// SelectAll 查询全部
+	SelectAll() ([]entity.MonitorTask, error)
 }

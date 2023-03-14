@@ -14,6 +14,8 @@ type Config struct {
 	Addr         string `yaml:"addr"`         // 地址
 	ApiKey       string `yaml:"apiKey"`       // 密钥
 	SampleRpName string `yaml:"sampleRpName"` // 样本rp名字
+	ClientId     string `yaml:"clientId"`     // clientId
+	Secret       string `json:"secret"`       // 秘密
 }
 
 func (conf *Config) GetSampleMeasurementNameForQuery(taskKey string) string {

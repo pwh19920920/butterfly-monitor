@@ -97,6 +97,7 @@ func (app *MonitorEventCheckJob) eventCheck(cxt context.Context, param *xxl.RunR
 				continue
 			}
 
+			text = strings.ReplaceAll(text, "\n\n", "\n")
 			err = app.DispatchMessage(groupId, text, channelId)
 			if err == nil {
 				for _, param := range params {
@@ -121,7 +122,7 @@ func (app *MonitorEventCheckJob) eventCheck(cxt context.Context, param *xxl.RunR
 	})
 
 	if err != nil {
-		println(err.Error())
+		logrus.Error("事件更新数据库失败", err.Error())
 	}
 	return "execute complete"
 }

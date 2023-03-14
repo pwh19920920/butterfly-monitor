@@ -15,6 +15,10 @@ type MonitorDatabaseApplication struct {
 	commonMap  CommonMapApplication
 }
 
+func (application *MonitorDatabaseApplication) Count() (*int64, error) {
+	return application.repository.MonitorDatabaseRepository.Count()
+}
+
 // Query 分页查询
 func (application *MonitorDatabaseApplication) Query(request *types.MonitorDatabaseQueryRequest) (int64, []entity.MonitorDatabase, error) {
 	total, data, err := application.repository.MonitorDatabaseRepository.Select(request)

@@ -12,4 +12,6 @@ xxl:
 grafana:
   sampleRpName: expire_30d
   addr: http://localhost:3000
-  apiKey: eyJrIjoiZVFPYlZNNG0xTEF0THhST1NQMGJzN1czM1huTFo2NDEiLCJuIjoiYWRtaW4iLCJpZCI6MX0=
+  clientId: 314626c1-8500-e1dd-a8c3-d6753fc4a6bb
+  secret: cae30a08-1912-ea19-14a0-42300477be35
+  apiKey: eyJrIjoiZ0lHcDRYbkd6b05kUUh4cldGR1VqQ0tkbktsaTh0M3AiLCJuIjoic3VwZXIiLCJpZCI6MX0=

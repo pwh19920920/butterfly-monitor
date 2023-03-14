@@ -16,6 +16,10 @@ type MonitorTaskEventApplication struct {
 	repository *persistence.Repository
 }
 
+func (app *MonitorTaskEventApplication) Count() (*int64, error) {
+	return app.repository.MonitorTaskEventRepository.Count()
+}
+
 func (app *MonitorTaskEventApplication) Query(req *types.MonitorTaskEventQueryRequest) (int64, []types.MonitorTaskEventQueryResponse, error) {
 	length, data, err := app.repository.MonitorTaskEventRepository.Select(req)
 	if err != nil || data == nil || len(data) == 0 {

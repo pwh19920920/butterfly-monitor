@@ -9,6 +9,9 @@ type MonitorTaskEventRepository interface {
 	// FindEventJob 获取需要执行的job
 	FindEventJob() ([]entity.MonitorTaskEvent, error)
 
+	// FindPendingEventAll 获取等待报警的所有event
+	FindPendingEventAll() ([]entity.MonitorTaskEvent, error)
+
 	// Create 创建
 	Create(monitorTaskEvent *entity.MonitorTaskEvent) error
 
@@ -32,4 +35,7 @@ type MonitorTaskEventRepository interface {
 
 	// CompleteEvent 事件完成
 	CompleteEvent(eventId int64, req *types.MonitorTaskEventProcessRequest) error
+
+	// Count 统计
+	Count() (*int64, error)
 }

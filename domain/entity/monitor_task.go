@@ -10,12 +10,15 @@ type MonitorAlertStatus int32
 type MonitorSampledStatus int32
 
 const (
-	TaskTypeDatabase          MonitorTaskType      = 1
-	TaskTypeURL               MonitorTaskType      = 2
-	MonitorTaskStatusOpen     MonitorTaskStatus    = 1
-	MonitorTaskStatusClose    MonitorTaskStatus    = 0
-	MonitorAlertStatusOpen    MonitorAlertStatus   = 1
-	MonitorAlertStatusClose   MonitorAlertStatus   = 0
+	TaskTypeDatabase MonitorTaskType = 1
+	TaskTypeURL      MonitorTaskType = 2
+
+	MonitorTaskStatusOpen  MonitorTaskStatus = 1
+	MonitorTaskStatusClose MonitorTaskStatus = 0
+
+	MonitorAlertStatusOpen  MonitorAlertStatus = 1
+	MonitorAlertStatusClose MonitorAlertStatus = 0
+
 	MonitorSampledStatusOpen  MonitorSampledStatus = 1
 	MonitorSampledStatusClose MonitorSampledStatus = 0
 )

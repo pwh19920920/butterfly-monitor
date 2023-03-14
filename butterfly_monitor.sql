@@ -1,19 +1,3 @@
-/*
- Navicat Premium Data Transfer
-
- Source Server         : localhost
- Source Server Type    : MySQL
- Source Server Version : 50736
- Source Host           : localhost:3306
- Source Schema         : butterfly_monitor
-
- Target Server Type    : MySQL
- Target Server Version : 50736
- File Encoding         : 65001
-
- Date: 13/05/2022 14:47:27
-*/
-
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -33,12 +17,6 @@ CREATE TABLE `t_alert_channel`  (
   `fail_route` int(255) NOT NULL DEFAULT 1 COMMENT '失败路由，1否，2是',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报警通道' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of t_alert_channel
--- ----------------------------
-INSERT INTO `t_alert_channel` VALUES (1465598810553061376, '2021-12-01 00:29:21', '2022-05-13 14:42:19', 0, '企业微信群提醒', 2, '{\"addr\":\"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=d1d5354d-be44-4539-b6b0-d7534bde1e33\"}', 'ChannelWechatHandler', 1);
-INSERT INTO `t_alert_channel` VALUES (1465618975940415488, '2021-12-02 01:49:28', '2022-05-13 14:42:19', 0, '邮箱', 1, '{\"host\":\"smtp.exmail.qq.com\",\"port\":465,\"username\":\"ibg-fund@we.cn\",\"password\":\"3dkrkpzPecq59kZL\",\"ssl\":1}', 'ChannelEmailHandler', 1);
 
 -- ----------------------------
 -- Table structure for t_alert_conf
@@ -61,7 +39,7 @@ CREATE TABLE `t_alert_conf`  (
 -- Records of t_alert_conf
 -- ----------------------------
 INSERT INTO `t_alert_conf` VALUES (1462795963172130816, '2021-11-23 06:51:50', '2022-05-13 14:42:24', 0, 'alertSpan', '300', '报警间隔', 1);
-INSERT INTO `t_alert_conf` VALUES (1462797872809381888, '2021-11-26 14:59:25', '2022-05-13 14:42:24', 0, 'template', 'spider系统预警\n\n{{range .items}}\n{{.TaskName}}：{{.HitRule}}\n{{end}}\n\n', '报警模板', 2);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381888, '2021-11-26 14:59:25', '2023-03-14 15:59:35', 0, 'template', '# SPIDER业务监控平台系统预警\n{{- range .items}}\n<font color=\"info\">{{.TaskName}}：</font><font color=\"comment\">{{.HitRule}}</font>\n{{if ne \"\" .RelationTaskNames}}<font color=\"warning\">{{.RelationTaskNames}}</font>{{end}}\n{{- end}}', '报警模板', 2);
 
 -- ----------------------------
 -- Table structure for t_alert_group
@@ -75,11 +53,6 @@ CREATE TABLE `t_alert_group`  (
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '报警组名称',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报警组' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of t_alert_group
--- ----------------------------
-INSERT INTO `t_alert_group` VALUES (1465196552401195008, '2021-12-02 05:50:55', '2022-05-13 14:42:30', 0, '核心系统组');
 
 -- ----------------------------
 -- Table structure for t_alert_group_user
@@ -100,7 +73,7 @@ CREATE TABLE `t_alert_group_user`  (
 -- ----------------------------
 -- Records of t_alert_group_user
 -- ----------------------------
-INSERT INTO `t_alert_group_user` VALUES (1465213686179172352, '2021-11-29 14:59:01', '2022-05-13 14:42:35', 0, 1, 1465196552401195008);
+INSERT INTO `t_alert_group_user` VALUES (1635552563094884371, '2023-03-14 16:04:53', '2023-03-14 16:04:53', 0, 1, 1465196552401195008);
 
 -- ----------------------------
 -- Table structure for t_monitor_dashboard
@@ -120,10 +93,6 @@ CREATE TABLE `t_monitor_dashboard`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '监控主板表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of t_monitor_dashboard
--- ----------------------------
-
--- ----------------------------
 -- Table structure for t_monitor_dashboard_task
 -- ----------------------------
 DROP TABLE IF EXISTS `t_monitor_dashboard_task`;
@@ -139,10 +108,6 @@ CREATE TABLE `t_monitor_dashboard_task`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '监控主板任务关联表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of t_monitor_dashboard_task
--- ----------------------------
-
--- ----------------------------
 -- Table structure for t_monitor_database
 -- ----------------------------
 DROP TABLE IF EXISTS `t_monitor_database`;
@@ -156,13 +121,9 @@ CREATE TABLE `t_monitor_database`  (
   `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '账号',
   `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '密码',
   `url` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据库连接地址',
-  `type` tinyint(10) NOT NULL COMMENT '数据库类型：1-mongodb，0-mysql',
+  `type` tinyint(10) NOT NULL COMMENT '数据库类型：1-mongodb，2-mysql, 3-influxDB',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '监控数据源表' ROW_FORMAT = DYNAMIC;
-
--- ----------------------------
--- Records of t_monitor_database
--- ----------------------------
 
 -- ----------------------------
 -- Table structure for t_monitor_task
@@ -187,14 +148,9 @@ CREATE TABLE `t_monitor_task`  (
   `collect_err_msg` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '收集错误信息',
   `sample_err_msg` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '样本错误信息',
   `sampled` tinyint(2) NOT NULL DEFAULT 1 COMMENT '是否需要样本，2不需要，1需要',
-  `recall_status` int(4) NOT NULL DEFAULT 1 COMMENT '是否支持回溯：1支持，2不支持',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uniq_task_key`(`task_key`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '监控任务表' ROW_FORMAT = DYNAMIC;
-
--- ----------------------------
--- Records of t_monitor_task
--- ----------------------------
 
 -- ----------------------------
 -- Table structure for t_monitor_task_alert
@@ -220,10 +176,6 @@ CREATE TABLE `t_monitor_task_alert`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报警规则' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of t_monitor_task_alert
--- ----------------------------
-
--- ----------------------------
 -- Table structure for t_monitor_task_event
 -- ----------------------------
 DROP TABLE IF EXISTS `t_monitor_task_event`;
@@ -246,10 +198,6 @@ CREATE TABLE `t_monitor_task_event`  (
   INDEX `idx_alert_id`(`alert_id`) USING BTREE,
   INDEX `idx_task_id`(`task_id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '报警事件表' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of t_monitor_task_event
--- ----------------------------
 
 -- ----------------------------
 -- Table structure for t_sys_menu
@@ -405,6 +353,22 @@ INSERT INTO `t_sys_permission` VALUES (1473138135784230931, '2021-12-21 11:47:56
 INSERT INTO `t_sys_permission` VALUES (1473138135784230932, '2021-12-21 11:47:56', '2022-05-13 14:43:41', 1465165133809455104, 1, '1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716', 0, 0, 0, 0);
 INSERT INTO `t_sys_permission` VALUES (1473138135784230933, '2021-12-21 11:47:56', '2022-05-13 14:43:41', 1465561401698291712, 1, '1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204', 0, 0, 0, 0);
 INSERT INTO `t_sys_permission` VALUES (1473138135784230934, '2021-12-21 11:47:56', '2022-05-13 14:43:41', 1472888326758338560, 1, '1472889239543746560,1473138104612163585,1473138104612163586', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486659, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1472888326758338560, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486660, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1452284009022230528, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486661, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1332302770434215928, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486662, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1332302770434215930, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486663, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1465561401698291712, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486664, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1465165133809455104, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486665, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1462709329521020928, 1589530194366959618, '', 0, 1, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486666, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1332302770434215926, 1589530194366959618, '', 0, 1, 0, 1);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486667, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1465652495161233408, 1589530194366959618, '', 0, 1, 0, 1);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486668, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1472888326758338560, 1589530194366959618, '1472889239543746560,1473138104612163585,1473138104612163586', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486669, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1452284009022230528, 1589530194366959618, '1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486670, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1332302770434215928, 1589530194366959618, '1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486671, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1332302770434215930, 1589530194366959618, '1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,1463451882771976198', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486672, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1465561401698291712, 1589530194366959618, '1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486673, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1465165133809455104, 1589530194366959618, '1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716', 0, 0, 0, 0);
+INSERT INTO `t_sys_permission` VALUES (1635552427308486674, '2022-11-07 16:17:40', '2022-11-07 16:17:40', 1462709329521020928, 1589530194366959618, '1462721145227710464,1462721145227710465,1465652723025186818', 0, 0, 0, 0);
 
 -- ----------------------------
 -- Table structure for t_sys_role
@@ -423,6 +387,7 @@ CREATE TABLE `t_sys_role`  (
 -- Records of t_sys_role
 -- ----------------------------
 INSERT INTO `t_sys_role` VALUES (1, '2021-11-05 04:51:40', '2022-05-13 14:43:50', 'super_admin', 0);
+INSERT INTO `t_sys_role` VALUES (1589530194366959618, '2022-11-07 16:08:25', '2023-03-14 16:04:20', 'common_user', 0);
 
 -- ----------------------------
 -- Table structure for t_sys_token
@@ -436,14 +401,14 @@ CREATE TABLE `t_sys_token`  (
   `user_id` bigint(20) NOT NULL,
   `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `deleted` tinyint(1) NOT NULL DEFAULT 0,
+  `expire_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 190 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统令牌表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 209 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统令牌表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of t_sys_token
 -- ----------------------------
-INSERT INTO `t_sys_token` VALUES (188, '2022-05-12 15:20:11', '2022-05-12 15:20:11', 'fa679b61-f79d-473d-9c7f-1a21d1a718a9', 1, '39e36e27-9fa2-4739-8a3b-5b7d0fd3f384', 0);
-INSERT INTO `t_sys_token` VALUES (189, '2022-05-13 14:40:45', '2022-05-13 14:40:45', '20912588-ed08-4598-89f2-73d83d4ef0e7', 1, 'e785d341-a003-4457-9a59-f01c9ef22159', 0);
+INSERT INTO `t_sys_token` VALUES (208, '2023-03-14 15:55:04', '2023-03-14 15:55:04', '33e5c97d-a29c-4fd6-966a-2cd65dedf599', 1, 'ad6056c8-9cc1-4723-830a-ae605e1f5f59', 0, '2023-03-15 03:55:04');
 
 -- ----------------------------
 -- Table structure for t_sys_user
@@ -469,6 +434,6 @@ CREATE TABLE `t_sys_user`  (
 -- ----------------------------
 -- Records of t_sys_user
 -- ----------------------------
-INSERT INTO `t_sys_user` VALUES (1, '2020-11-24 15:49:07', '2022-05-13 14:44:02', 'admin', '593d4632a8c70251d0e9be4b1799bcc1', '54099a65-a235-158c-d610-74d2ff4c789b', 0, '王小二', 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png', '1', 'pxx', '177');
+INSERT INTO `t_sys_user` VALUES (1, '2020-11-24 15:49:07', '2023-03-14 17:45:57', 'admin', '593d4632a8c70251d0e9be4b1799bcc1', '54099a65-a235-158c-d610-74d2ff4c789b', 0, '王小二', 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png', '1', 'super@vip.com', '186xxx2xxx9');
 
 SET FOREIGN_KEY_CHECKS = 1;

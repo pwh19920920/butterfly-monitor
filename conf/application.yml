@@ -2,6 +2,7 @@ server:
   serverName: 'butterfly-monitor'
   engineMode: 'test'
   serverAddr: :8081
+  methodOverride: true
 
 auth:
   ignorePath:
@@ -9,7 +10,11 @@ auth:
     - POST - /kill
     - POST - /log
     - GET - /api/monitor/test
+    - GET - /api/monitor/homeCount
     - GET - /api/health
+    - GET - /api/sys/user/all
+    - GET - /api/oauth/userInfo
+    - POST - /api/oauth/token
   ignorePrefixPath:
   commonPath:
     - GET - /api/sys/menu/withOption
@@ -18,3 +23,5 @@ auth:
     - GET - /api/alert/group/all
     - GET - /api/monitor/dashboard/all
     - GET - /api/monitor/database/all
+    - GET - /api/monitor/group/all
+    - POST - /api/oauth/authorize

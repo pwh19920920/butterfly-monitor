@@ -3,7 +3,6 @@ package persistence
 import (
 	"butterfly-monitor/domain/entity"
 	"butterfly-monitor/types"
-	"errors"
 	"github.com/pwh19920920/butterfly-admin/common"
 	"gorm.io/gorm"
 )
@@ -37,10 +36,9 @@ func (repo *MonitorDashboardRepositoryImpl) UpdateById(id int64, monitorDashboar
 
 func (repo *MonitorDashboardRepositoryImpl) GetById(id int64) (*entity.MonitorDashboard, error) {
 	var data entity.MonitorDashboard
-	err := repo.db.Model(&entity.MonitorDashboard{}).First(&data, id).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
+	err := repo.db.Model(&entity.MonitorDashboard{}).
+		Where(&entity.MonitorDashboard{BaseEntity: common.BaseEntity{Id: id}}).
+		Find(&data).Error
 	return &data, err
 }
 
@@ -62,4 +60,14 @@ func (repo *MonitorDashboardRepositoryImpl) Select(req *types.MonitorDashboardQu
 		Not(&entity.MonitorDashboard{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
 	return count, data, err
+}
+
+// Count 统计总数
+func (repo *MonitorDashboardRepositoryImpl) Count() (*int64, error) {
+	var count int64
+	err := repo.db.
+		Model(&entity.MonitorDashboard{}).
+		Not(&entity.MonitorDashboard{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count).Error
+	return &count, err
 }

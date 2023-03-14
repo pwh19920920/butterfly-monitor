@@ -23,6 +23,9 @@ type MonitorTaskExecParams struct {
 	ResultFieldPath string   `json:"resultFieldPath"`
 	CollectName     string   `json:"collectName"`  // 集合名称
 	DefaultValue    *float64 `json:"defaultValue"` // 默认值
+	Database        string   `json:"database"`
+	RetentionPolicy string   `json:"retentionPolicy"`
+	Column          string   `json:"column"`
 }
 
 type MonitorTaskQueryResponse struct {
