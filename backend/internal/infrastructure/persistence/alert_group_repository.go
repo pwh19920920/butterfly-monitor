@@ -1,0 +1,106 @@
+package persistence
+
+import (
+	"errors"
+
+	"dragonfly-monitor/internal/common"
+	"dragonfly-monitor/internal/domain/entity"
+	"dragonfly-monitor/internal/types"
+
+	"gorm.io/gorm"
+)
+
+type AlertGroupRepositoryImpl struct {
+	db *gorm.DB
+}
+
+func NewAlertGroupRepositoryImpl(db *gorm.DB) *AlertGroupRepositoryImpl {
+	return &AlertGroupRepositoryImpl{db: db}
+}
+
+// SelectAll 查询全部
+func (repo *AlertGroupRepositoryImpl) SelectAll() ([]entity.AlertGroup, error) {
+	var data []entity.AlertGroup
+	err := repo.db.Model(&entity.AlertGroup{}).
+		Not(&entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Find(&data).Error
+	return data, err
+}
+
+// Select 分页查询
+func (repo *AlertGroupRepositoryImpl) Select(req *types.AlertGroupQueryRequest) (int64, []entity.AlertGroup, error) {
+	var count int64 = 0
+	notCase := &entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
+	whereSql := "1 = 1"
+	whereArg := make([]interface{}, 0)
+	if req.Name != "" {
+		whereSql += " and name like ?"
+		whereArg = append(whereArg, "%"+req.Name+"%")
+	}
+	_ = repo.db.Model(&entity.AlertGroup{}).Where(whereSql, whereArg...).Not(notCase).Count(&count)
+
+	var data []entity.AlertGroup
+	err := repo.db.Model(&entity.AlertGroup{}).
+		Order("id desc").
+		Where(whereSql, whereArg...).
+		Not(notCase).
+		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
+	return count, data, err
+}
+
+// GetById 按主键查询
+func (repo *AlertGroupRepositoryImpl) GetById(id int64) (*entity.AlertGroup, error) {
+	var data entity.AlertGroup
+	err := repo.db.Model(&entity.AlertGroup{}).
+		Where(&entity.AlertGroup{BaseEntity: common.BaseEntity{Id: id}}).
+		Not(&entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		First(&data).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &data, err
+}
+
+// Save 事务保存分组与用户关联
+func (repo *AlertGroupRepositoryImpl) Save(group *entity.AlertGroup, users []entity.AlertGroupUser) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		if users != nil && len(users) > 0 {
+			if err := tx.Model(&entity.AlertGroupUser{}).Create(users).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&entity.AlertGroup{}).Create(&group).Error
+	})
+}
+
+// Modify 事务更新分组并重建用户关联
+func (repo *AlertGroupRepositoryImpl) Modify(id int64, group *entity.AlertGroup, users []entity.AlertGroupUser) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		// 软删除旧关联
+		if err := tx.Where("group_id = ?", id).Updates(&entity.AlertGroupUser{
+			BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+		}).Error; err != nil {
+			return err
+		}
+
+		// 创建新关联
+		if users != nil && len(users) > 0 {
+			if err := tx.Model(&entity.AlertGroupUser{}).Create(users).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Model(&entity.AlertGroup{}).
+			Where(&entity.AlertGroup{BaseEntity: common.BaseEntity{Id: id}}).
+			Updates(&group).Error
+	})
+}
+
+// Count 统计分组总数
+func (repo *AlertGroupRepositoryImpl) Count() (int64, error) {
+	var count int64
+	err := repo.db.Model(&entity.AlertGroup{}).
+		Not(&entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Count(&count).Error
+	return count, err
+}

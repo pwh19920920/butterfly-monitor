@@ -1,0 +1,76 @@
+server:
+  serverName: 'dragonfly-monitor'
+  engineMode: 'debug'
+  serverAddr: :8088
+  methodOverride: true
+
+db:
+  dsn: 'root:root@tcp(127.0.0.1:3306)/dragonfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
+  maxIdleConnect: 10
+  maxOpenConnect: 100
+  connMaxLifeTimeSecond: 3600
+
+# 时序存储后端：victoriaMetrics（默认）| tdEngine
+timeseries:
+  backend: victoriaMetrics
+
+# VictoriaMetrics
+victoriaMetrics:
+  addr: 'http://127.0.0.1:8428'
+  username: ''
+  password: ''
+  database: 'monitor'
+
+# TDEngine（backend=tdEngine 时使用；REST /rest/sql）
+tdEngine:
+  addr: 'http://127.0.0.1:6041'
+  username: 'root'
+  password: 'taosdata'
+  database: 'monitor'
+
+# Grafana
+# apiKey: Grafana Service Account Token 或 API Key（需 Editor 权限）
+# datasourceUid: 直接绑定真实数据源 UID；type 由 timeseries.backend 决定
+# 未配 datasourceUid 时会调 /api/datasources 自动解析（通常需 Admin）
+grafana:
+  addr: 'http://127.0.0.1:3000'
+  # Service Account Token（Admin）
+  apiKey: 'glsa_bIn6cDsM9YBbMlM2Rms9hWMDSBFuop1O_98b0bf8a'
+  # Prometheus 数据源 monitor
+  datasourceUid: 'dft8czwgzi2gwf'
+
+
+
+# XXL-JOB 执行器
+xxl:
+  serverAddr: 'http://127.0.0.1:8080/xxl-job-admin'
+  accessToken: ''
+
+logger:
+  logPath: './logs'
+  closeConsoleOut: false
+
+auth:
+  # 免登录
+  ignorePath:
+    - GET - /api/monitor/test
+    - GET - /api/monitor/homeCount
+    - GET - /api/health
+    - GET - /api/monitor/database/refresh
+    - POST - /run
+    - POST - /kill
+    - POST - /log
+  ignorePrefixPath:
+    - GET - /api/sys/menu/refresh
+    - POST - /api/monitor/task/dataPush
+  # 需登录无需权限
+  commonPath:
+    - GET - /api/sys/menu/withOption
+    - GET - /api/sys/role/all
+    - GET - /api/sys/user/all
+    - GET - /api/alert/channel/all
+    - GET - /api/alert/group/all
+    - GET - /api/monitor/dashboard/all
+    - GET - /api/monitor/database/all
+    - GET - /api/monitor/group/all
+    - GET - /api/monitor/systemMetrics

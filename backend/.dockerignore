@@ -1,0 +1,20 @@
+# 版本控制
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# 构建产物与运行时产物
+bin/
+logs/
+
+# 工具与文档（不需要进镜像）
+.nezha/
+.claude/
+CLAUDE.md
+*.md
+!configs/
+
+# 注意：保留 vendor/ 与 configs/（Dockerfile 依赖）

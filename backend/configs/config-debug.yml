@@ -1,0 +1,29 @@
+# debug profile：本地开发覆盖项（与 config.yml 同目录，按需手工合并或后续扩展加载）
+server:
+  engineMode: 'debug'
+  serverAddr: :8088
+
+db:
+  dsn: 'root:root@tcp(127.0.0.1:3306)/dragonfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
+
+timeseries:
+  backend: victoriaMetrics
+
+victoriaMetrics:
+  addr: 'http://127.0.0.1:8428'
+
+tdEngine:
+  addr: 'http://127.0.0.1:6041'
+  username: 'root'
+  password: 'taosdata'
+  database: 'monitor'
+
+grafana:
+  addr: 'http://127.0.0.1:3000'
+  # Service Account Token（Admin）
+  apiKey: 'glsa_bIn6cDsM9YBbMlM2Rms9hWMDSBFuop1O_98b0bf8a'
+  # Prometheus 数据源 monitor
+  datasourceUid: 'dft8czwgzi2gwf'
+
+logger:
+  closeConsoleOut: false
