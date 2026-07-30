@@ -45,3 +45,11 @@ export async function monitorTaskModifySampled(id: string | number, status: numb
     method: 'PUT',
   });
 }
+
+// 聚合预览：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度（不落库）
+export async function monitorTaskPreviewAggregate(data: Record<string, any>) {
+  return request<API.Resp<API.MonitorTaskPreviewResponse>>('/api/monitor/task/previewAggregate', {
+    method: 'POST',
+    data,
+  });
+}

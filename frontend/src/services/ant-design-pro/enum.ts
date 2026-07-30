@@ -17,11 +17,18 @@ export const DatabaseTypeEnum: Record<number, string> = {
   2: 'Mysql',
 };
 
-// 任务类型：1 Database 2 URL 3 Push（外部推送）
+// 任务类型：0 Drilldown(系统下钻，特殊) 1 Database 2 URL 3 Push（外部推送）
 export const TaskTypeEnum: Record<number, string> = {
+  0: '系统下钻',
   1: 'Database',
   2: 'URL',
   3: 'Push',
+};
+
+// 数据类型：1 正常查询(单值) 2 聚合查询(分组多行)
+export const DataTypeEnum: Record<number, string> = {
+  1: '正常查询',
+  2: '聚合查询',
 };
 
 // 任务状态

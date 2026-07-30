@@ -82,8 +82,7 @@ func (handler *sysRoleHandler) create(context *gin.Context) {
 	}
 
 	// option
-	err = handler.sysRoleApp.Create(context.Request.Context(), &sysRoleCreateRequest)
-	if err != nil {
+	if err = handler.sysRoleApp.Create(context.Request.Context(), &sysRoleCreateRequest); err != nil {
 		response.BuildResponseBadRequest(context, "创建角色失败")
 		return
 	}
@@ -106,8 +105,7 @@ func (handler *sysRoleHandler) modify(context *gin.Context) {
 	}
 
 	// option
-	err = handler.sysRoleApp.Modify(context.Request.Context(), &sysRoleCreateRequest)
-	if err != nil {
+	if err = handler.sysRoleApp.Modify(context.Request.Context(), &sysRoleCreateRequest); err != nil {
 		response.BuildResponseBadRequest(context, "创建角色失败")
 		return
 	}
@@ -125,8 +123,7 @@ func (handler *sysRoleHandler) delete(context *gin.Context) {
 	}
 
 	// option
-	err = handler.sysRoleApp.Delete(context.Request.Context(), id)
-	if err != nil {
+	if err = handler.sysRoleApp.Delete(context.Request.Context(), id); err != nil {
 		response.BuildResponseBadRequest(context, "删除角色失败")
 		return
 	}

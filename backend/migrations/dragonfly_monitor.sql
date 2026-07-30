@@ -194,11 +194,13 @@ CREATE TABLE `t_monitor_task` (
   `sampled` tinyint(2) NOT NULL DEFAULT '1' COMMENT '样本展示开关(仅Grafana)',
   `monitor_group` varchar(255) NOT NULL DEFAULT '',
   `labels` varchar(2000) NOT NULL DEFAULT '',
+  `data_type` int(4) NOT NULL DEFAULT '1' COMMENT '1=单值采集 2=分组聚合采集',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_task_key` (`task_key`),
   KEY `idx_task_status` (`task_status`),
   KEY `idx_pre_execute_time` (`pre_execute_time`),
-  KEY `idx_pre_sample_time` (`pre_sample_time`)
+  KEY `idx_pre_sample_time` (`pre_sample_time`),
+  KEY `idx_data_type` (`data_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监控任务';
 
 

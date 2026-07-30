@@ -8,11 +8,20 @@ type MonitorTaskType int32
 type MonitorTaskStatus int32
 type MonitorAlertStatus int32
 type MonitorSampledStatus int32
+type MonitorTaskDataType int32
 
 const (
-	TaskTypeDatabase MonitorTaskType = 1
-	TaskTypeURL      MonitorTaskType = 2
-	TaskTypePush     MonitorTaskType = 3
+	// TaskTypeDrilldown 系统下钻：数据源为时序库(VM)，从依赖的聚合任务结果中按标签过滤取数。
+	// 值为 0 是特殊标记，与正常任务(1/2/3)互斥，必须在 executeCollect 中显式 ==0 判断。
+	TaskTypeDrilldown MonitorTaskType = 0
+	TaskTypeDatabase  MonitorTaskType = 1
+	TaskTypeURL       MonitorTaskType = 2
+	TaskTypePush      MonitorTaskType = 3
+
+	// DataTypeNormal 单值采集（默认）
+	DataTypeNormal MonitorTaskDataType = 1
+	// DataTypeAggregate 分组聚合采集：多行分组结果写入时序库，仅收集不做采样/告警
+	DataTypeAggregate MonitorTaskDataType = 2
 
 	MonitorTaskStatusOpen  MonitorTaskStatus = 1
 	MonitorTaskStatusClose MonitorTaskStatus = 0
@@ -44,6 +53,8 @@ type MonitorTask struct {
 	Sampled        MonitorSampledStatus `json:"sampled" gorm:"column:sampled"`                 // 样本展示开关(仅 Grafana)
 	MonitorGroup   string               `json:"monitorGroup" gorm:"column:monitor_group"`      // 依赖分组
 	Labels         string               `json:"labels" gorm:"column:labels"`                   // 标签 JSON
+	DataType       MonitorTaskDataType  `json:"dataType" gorm:"column:data_type"`              // 采集数据类型：1单值 2聚合
+	RelatedTaskIds string               `json:"relatedTaskIds" gorm:"column:related_task_ids"` // 关联任务 ID（逗号分隔），叠加实时/样本曲线到本面板
 }
 
 func (MonitorTask) TableName() string {

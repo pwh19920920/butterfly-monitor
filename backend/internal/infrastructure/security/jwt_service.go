@@ -54,8 +54,7 @@ func (jwtService *JwtServiceImpl) GetSubjectFromToken(token string) (string, err
 
 	// 数据转json
 	var claims = jwt.RegisteredClaims{}
-	err = json.Unmarshal(decoded, &claims)
-	if err != nil {
+	if err = json.Unmarshal(decoded, &claims); err != nil {
 		return "", err
 	}
 

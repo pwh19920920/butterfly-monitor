@@ -22,8 +22,7 @@ func NewSysMenuRepositoryImpl(db *gorm.DB) *SysMenuRepositoryImpl {
 func (s *SysMenuRepositoryImpl) Save(menu *entity.SysMenu, options *[]entity.SysMenuOption) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if options != nil && len(*options) > 0 {
-			err := tx.Model(&entity.SysMenuOption{}).Create(options).Error
-			if err != nil {
+			if err := tx.Model(&entity.SysMenuOption{}).Create(options).Error; err != nil {
 				return err
 			}
 		}
@@ -69,19 +68,17 @@ func (s *SysMenuRepositoryImpl) UpdateEntityAndChildRouteById(id int64, oldRoute
 		// insert into on duplicate key update
 		if options != nil && len(*options) > 0 {
 			// insert into on duplicate key update
-			err = tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
+			if err = tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
 				DoUpdates: clause.AssignmentColumns([]string{"deleted"}),
-			}).Create(options).Error
-			if err != nil {
+			}).Create(options).Error; err != nil {
 				return err
 			}
 		}
 
 		// UPDATE `config` SET `value`=REPLACE(`value`,'8080','8989') WHERE `value` LIKE '%8080%'
-		err = tx.Model(&entity.SysMenu{}).
+		if err = tx.Model(&entity.SysMenu{}).
 			Where("route like ?", oldRoute+"%").
-			UpdateColumn("route", gorm.Expr("REPLACE(route, ?, ?)", oldRoute, menu.Route)).Error
-		if err != nil {
+			UpdateColumn("route", gorm.Expr("REPLACE(route, ?, ?)", oldRoute, menu.Route)).Error; err != nil {
 			return err
 		}
 
@@ -104,10 +101,9 @@ func (s *SysMenuRepositoryImpl) UpdateById(id int64, menu *entity.SysMenu, optio
 
 		if options != nil && len(*options) > 0 {
 			// insert into on duplicate key update
-			err = tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
+			if err = tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
 				DoUpdates: clause.AssignmentColumns([]string{"deleted"}),
-			}).Create(options).Error
-			if err != nil {
+			}).Create(options).Error; err != nil {
 				return err
 			}
 		}

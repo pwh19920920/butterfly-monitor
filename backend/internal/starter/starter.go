@@ -74,7 +74,7 @@ func InitButterflyAdmin() (config.Config, *application.Application) {
 	interfaces.InitMonitorSystemHandler(app)
 
 	// 2. 注册 CommonMap handlers
-	registerHandlers(app, repository)
+	registerHandlers(app, repository, allConfig)
 
 	// 4. 可选：每分钟扫数据源建连
 	go refreshDatabaseConnections(app, repository)
@@ -95,7 +95,7 @@ func InitButterflyAdmin() (config.Config, *application.Application) {
 }
 
 // registerHandlers 装配 Database / Command / Channel handler 到 CommonMap
-func registerHandlers(app *application.Application, repository *persistence.Repository) {
+func registerHandlers(app *application.Application, repository *persistence.Repository, allConfig config.Config) {
 	if app.CommonMap == nil {
 		return
 	}
@@ -114,12 +114,12 @@ func registerHandlers(app *application.Application, repository *persistence.Repo
 		GetConn: func(id int64) (interface{}, bool) {
 			return app.CommonMap.GetDatabaseConn(context.Background(), id)
 		},
-		GetHandler: func(dsType int32) (func(ctx context.Context, db interface{}, task entity.MonitorTask) (float64, error), bool) {
+		GetHandler: func(dsType int32) (infraHandler.DatabaseHandlerAdapter, bool) {
 			h, ok := app.CommonMap.GetDatabaseHandler(context.Background(), dsType)
 			if !ok {
 				return nil, false
 			}
-			return h.ExecuteQuery, true
+			return h, true
 		},
 
 		GetDatabaseType: func(id int64) (int32, error) {
@@ -129,6 +129,16 @@ func registerHandlers(app *application.Application, repository *persistence.Repo
 			}
 
 			return int32(db.Type), nil
+		},
+	})
+
+	// DatabaseTimeseriesHandler：TaskTypeDrilldown（=0，特殊值）。
+	// 下钻任务以它为 CommandHandler，executeCollect 复用 cmd.ExecuteCommand → buildCollectPoints 主流程，
+	// 无需单独分支。它从依赖的聚合任务 VM 中按标签过滤取 float64，其余采样/告警与正常任务完全一致。
+	app.CommonMap.RegisterCommandHandler(ctx, int32(entity.TaskTypeDrilldown), &infraHandler.DatabaseTimeseriesHandler{
+		TimeSeries: allConfig.TimeSeries,
+		GetSourceTask: func(id int64) (*entity.MonitorTask, error) {
+			return repository.MonitorTaskRepository.GetById(id)
 		},
 	})
 

@@ -113,7 +113,7 @@ func (h *GrafanaHandler) ModifyDashboardName(uid, name string) error {
 }
 
 // AddPanel 向大盘追加 timeseries panel
-func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool) error {
+func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool, related []RelatedMetric) error {
 	if !h.enabled() || uid == "" || taskKey == "" {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool) e
 	// 已存在则改为 update（保留原 panel id）
 	for i, p := range panels {
 		if panelDesc(p) == taskKey {
-			panel, err := h.buildPanel(taskKey, taskName, sampled, panelGridPos(p), panelID(p))
+			panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
 			if err != nil {
 				return err
 			}
@@ -135,7 +135,7 @@ func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool) e
 			return h.saveDashboard(board, meta, true)
 		}
 	}
-	panel, err := h.buildPanel(taskKey, taskName, sampled, nil, nextPanelID(panels))
+	panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool) e
 
 // ModifyDashBoardPanel 对单个 dashboard 做 panel 增/删/改
 // add/del/update 三选一语义（与 application 调用一致）
-func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sampled bool, add, del, update bool) error {
+func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sampled bool, related []RelatedMetric, add, del, update bool) error {
 	if !h.enabled() || uid == "" || taskKey == "" {
 		return nil
 	}
@@ -172,7 +172,7 @@ func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sam
 		found := false
 		for i, p := range panels {
 			if panelDesc(p) == taskKey {
-				panel, err := h.buildPanel(taskKey, taskName, sampled, panelGridPos(p), panelID(p))
+				panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
 				if err != nil {
 					return err
 				}
@@ -182,7 +182,7 @@ func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sam
 		}
 		if !found {
 			// 没有则当新增
-			panel, err := h.buildPanel(taskKey, taskName, sampled, nil, nextPanelID(panels))
+			panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
 			if err != nil {
 				return err
 			}
@@ -196,7 +196,7 @@ func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sam
 		// 已存在则更新
 		for i, p := range panels {
 			if panelDesc(p) == taskKey {
-				panel, err := h.buildPanel(taskKey, taskName, sampled, panelGridPos(p), panelID(p))
+				panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
 				if err != nil {
 					return err
 				}
@@ -205,7 +205,7 @@ func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sam
 				return h.saveDashboard(board, meta, true)
 			}
 		}
-		panel, err := h.buildPanel(taskKey, taskName, sampled, nil, nextPanelID(panels))
+		panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
 		if err != nil {
 			return err
 		}
@@ -423,7 +423,15 @@ func bindDatasource(target map[string]interface{}, dsType, dsUID string) {
 	}
 }
 
-func (h *GrafanaHandler) buildPanel(taskKey, taskName string, sampled bool, grid map[string]interface{}, id int) (map[string]interface{}, error) {
+// RelatedMetric 关联任务在面板上的取数信息
+// 关联任务的实时/样本曲线会叠加到主任务面板，图例命名为 任务名_实时 / 任务名_样本
+type RelatedMetric struct {
+	TaskKey  string
+	TaskName string
+	Sampled  bool
+}
+
+func (h *GrafanaHandler) buildPanel(taskKey, taskName string, sampled bool, related []RelatedMetric, grid map[string]interface{}, id int) (map[string]interface{}, error) {
 	if taskName == "" {
 		taskName = taskKey
 	}
@@ -436,15 +444,43 @@ func (h *GrafanaHandler) buildPanel(taskKey, taskName string, sampled bool, grid
 		return nil, err
 	}
 
-	targets := make([]map[string]interface{}, 0, 2)
+	targets := make([]map[string]interface{}, 0, 2+len(related)*2)
 	if h.dialect != nil {
-		tA := h.dialect.BuildPanelTarget("A", "实时", h.dialect.RealtimeExpr(taskKey))
+		// refID 按 A/B/.../Z/AA/AB... 递增，主任务占前两个，关联任务依次往后
+		refIdx := 0
+		nextRef := func() string {
+			refIdx++
+			n := refIdx
+			s := ""
+			for n > 0 {
+				n--
+				s = string(rune('A'+n%26)) + s
+				n /= 26
+			}
+			return s
+		}
+		tA := h.dialect.BuildPanelTarget(nextRef(), "实时", h.dialect.RealtimeExpr(taskKey))
 		bindDatasource(tA, dsType, dsUID)
 		targets = append(targets, tA)
 		if sampled {
-			tB := h.dialect.BuildPanelTarget("B", "样本", h.dialect.SmoothExpr(taskKey))
+			tB := h.dialect.BuildPanelTarget(nextRef(), "样本", h.dialect.SmoothExpr(taskKey))
 			bindDatasource(tB, dsType, dsUID)
 			targets = append(targets, tB)
+		}
+		// 关联任务：每个叠加 实时（+样本，若该任务开了样本展示）
+		for _, r := range related {
+			name := r.TaskName
+			if name == "" {
+				name = r.TaskKey
+			}
+			tr := h.dialect.BuildPanelTarget(nextRef(), name+"_实时", h.dialect.RealtimeExpr(r.TaskKey))
+			bindDatasource(tr, dsType, dsUID)
+			targets = append(targets, tr)
+			if r.Sampled {
+				ts := h.dialect.BuildPanelTarget(nextRef(), name+"_样本", h.dialect.SmoothExpr(r.TaskKey))
+				bindDatasource(ts, dsType, dsUID)
+				targets = append(targets, ts)
+			}
 		}
 	}
 	return map[string]interface{}{

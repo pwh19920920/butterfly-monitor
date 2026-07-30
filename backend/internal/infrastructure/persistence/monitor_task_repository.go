@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"dragonfly-monitor/internal/common"
@@ -21,6 +22,9 @@ func NewMonitorTaskRepositoryImpl(db *gorm.DB) *MonitorTaskRepositoryImpl {
 
 // FindJobBySharding 分片查询待采集任务（不分页）
 func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
+	if shardTotal <= 0 {
+		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
+	}
 	var data []entity.MonitorTask
 	err := repo.db.
 		Model(&entity.MonitorTask{}).
@@ -33,6 +37,9 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(shardIndex, shardTotal 
 
 // FindSamplingJobBySharding 分片查询待采样任务
 func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
+	if shardTotal <= 0 {
+		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
+	}
 	var data []entity.MonitorTask
 	err := repo.db.
 		Model(&entity.MonitorTask{}).
@@ -95,10 +102,9 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 			// 提交了告警配置：按 task_id 查询（含已软删除的记录）
 			// 存在则恢复软删除并更新业务字段，不存在则新增
 			var exist entity.MonitorTaskAlert
-			err := tx.Model(&entity.MonitorTaskAlert{}).
+			if err := tx.Model(&entity.MonitorTaskAlert{}).
 				Where("task_id = ?", taskAlert.TaskId).
-				First(&exist).Error
-			if err != nil {
+				First(&exist).Error; err != nil {
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
 					return err
 				}
@@ -126,9 +132,21 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 			}
 		}
 
-		return tx.Model(&entity.MonitorTask{}).
+		if err := tx.Model(&entity.MonitorTask{}).
 			Where(&entity.MonitorTask{BaseEntity: common.BaseEntity{Id: id}}).
-			Updates(&monitorTask).Error
+			Updates(&monitorTask).Error; err != nil {
+			return err
+		}
+		// TaskType 为指针且 Drilldown=0 是合法值，Updates 会跳过零值指针字段，
+		// 导致任务类型改为下钻时 task_type 不更新。显式补写（D-010）。
+		if monitorTask.TaskType != nil {
+			if err := tx.Model(&entity.MonitorTask{}).
+				Where("id = ?", id).
+				UpdateColumn("task_type", *monitorTask.TaskType).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

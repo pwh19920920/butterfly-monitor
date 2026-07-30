@@ -20,8 +20,7 @@ func NewSysRoleRepositoryImpl(db *gorm.DB) *SysRoleRepositoryImpl {
 func (repo *SysRoleRepositoryImpl) Save(permissions *[]entity.SysPermission, role *entity.SysRole) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		if permissions != nil && len(*permissions) != 0 {
-			err := tx.Model(&entity.SysPermission{}).Create(permissions).Error
-			if err != nil {
+			if err := tx.Model(&entity.SysPermission{}).Create(permissions).Error; err != nil {
 				return err
 			}
 		}
@@ -42,8 +41,7 @@ func (repo *SysRoleRepositoryImpl) UpdateById(id int64, permissions *[]entity.Sy
 
 		// 插入新得权限
 		if permissions != nil && len(*permissions) != 0 {
-			err := tx.Model(&entity.SysPermission{}).Create(permissions).Error
-			if err != nil {
+			if err := tx.Model(&entity.SysPermission{}).Create(permissions).Error; err != nil {
 				return err
 			}
 		}

@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"dragonfly-monitor/internal/common"
@@ -20,6 +21,9 @@ func NewMonitorTaskAlertRepositoryImpl(db *gorm.DB) *MonitorTaskAlertRepositoryI
 
 // FindCheckJob 分片查询待检测的告警规则
 func (repo *MonitorTaskAlertRepositoryImpl) FindCheckJob(shardIndex, shardTotal int64) ([]entity.MonitorTaskAlert, error) {
+	if shardTotal <= 0 {
+		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
+	}
 	var data []entity.MonitorTaskAlert
 	err := repo.db.
 		Model(&entity.MonitorTaskAlert{}).
@@ -104,15 +108,14 @@ func (repo *MonitorTaskAlertRepositoryImpl) ModifyByPending(id int64, currentTim
 // ModifyForNormal 恢复正常，并忽略关联的 Pending 事件
 func (repo *MonitorTaskAlertRepositoryImpl) ModifyForNormal(id int64, currentTime time.Time) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where(&entity.MonitorTaskAlert{
+		if err := tx.Where(&entity.MonitorTaskAlert{
 			BaseEntity: common.BaseEntity{Id: id},
 			DealStatus: entity.MonitorTaskAlertDealStatusNormal,
 		}).Updates(&entity.MonitorTaskAlert{
 			FirstFlagTime: &common.LocalTime{Time: currentTime},
 			PreCheckTime:  &common.LocalTime{Time: currentTime},
 			AlertStatus:   entity.MonitorTaskAlertStatusNormal,
-		}).Error
-		if err != nil {
+		}).Error; err != nil {
 			return err
 		}
 		return tx.Where(&entity.MonitorTaskEvent{
@@ -128,14 +131,13 @@ func (repo *MonitorTaskAlertRepositoryImpl) ModifyForNormal(id int64, currentTim
 // ModifyByFiring 标记为触发：存在 pending/processing 事件则更新消息与等级，否则创建事件
 func (repo *MonitorTaskAlertRepositoryImpl) ModifyByFiring(id int64, currentTime time.Time, monitorTaskEvent *entity.MonitorTaskEvent) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		err := tx.Where(&entity.MonitorTaskAlert{
+		if err := tx.Where(&entity.MonitorTaskAlert{
 			BaseEntity: common.BaseEntity{Id: id},
 			DealStatus: entity.MonitorTaskAlertDealStatusNormal,
 		}).Updates(&entity.MonitorTaskAlert{
 			PreCheckTime: &common.LocalTime{Time: currentTime},
 			AlertStatus:  entity.MonitorTaskAlertStatusFiring,
-		}).Error
-		if err != nil {
+		}).Error; err != nil {
 			return err
 		}
 

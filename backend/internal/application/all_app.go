@@ -59,7 +59,7 @@ func NewApplication(
 
 		// 监控
 		MonitorDatabase:  NewMonitorDatabaseApplication(seq, repository, commonMap),
-		MonitorTask:      NewMonitorTaskApplication(seq, repository, grafanaHandler),
+		MonitorTask:      NewMonitorTaskApplication(seq, repository, grafanaHandler, commonMap),
 		MonitorDashboard: NewMonitorDashboardApplication(seq, repository, grafanaHandler, cfg.Grafana),
 		MonitorGroup:     NewMonitorGroupApplication(seq, repository),
 		MonitorTaskEvent: NewMonitorTaskEventApplication(seq, repository, &alertConf),

@@ -35,9 +35,9 @@ tdEngine:
 grafana:
   addr: 'http://127.0.0.1:3000'
   # Service Account Token（Admin）
-  apiKey: 'glsa_bIn6cDsM9YBbMlM2Rms9hWMDSBFuop1O_98b0bf8a'
+  apiKey: 'glsa_yGQL7b03pVs4mfWCgnfRGHNcgcIykt59_35a166ea'
   # Prometheus 数据源 monitor
-  datasourceUid: 'dft8czwgzi2gwf'
+  datasourceUid: 'aftgxkmnssef4c'
 
 
 

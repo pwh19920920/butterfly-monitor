@@ -55,8 +55,7 @@ func (handler *sysUserHandler) create(context *gin.Context) {
 	}
 
 	// option
-	err := handler.sysUserApp.Create(context.Request.Context(), &sysUser)
-	if err != nil {
+	if err := handler.sysUserApp.Create(context.Request.Context(), &sysUser); err != nil {
 		response.BuildResponseBadRequest(context, "创建用户失败")
 		return
 	}
@@ -72,8 +71,7 @@ func (handler *sysUserHandler) modify(context *gin.Context) {
 	}
 
 	// option
-	err := handler.sysUserApp.Modify(context.Request.Context(), &sysUser)
-	if err != nil {
+	if err := handler.sysUserApp.Modify(context.Request.Context(), &sysUser); err != nil {
 		response.BuildResponseBadRequest(context, "更新用户失败")
 		return
 	}

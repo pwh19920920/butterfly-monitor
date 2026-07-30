@@ -13,6 +13,12 @@ type TimeSeriesPoint struct {
 	Timestamp time.Time
 }
 
+// SeriesData 带标签的时间序列查询结果：一个 series 对应一组标签 + 一组按时间排列的值
+type SeriesData struct {
+	Labels map[string]string // 该 series 的标签集合，如 {"region":"华东","dept":"技术部"}
+	Values []float64         // 按时间顺序排列的值
+}
+
 // TimeSeriesStore 时序读写抽象（VictoriaMetrics / 将来 Influx 等）
 type TimeSeriesStore interface {
 	// WritePoints 批量写入
@@ -23,6 +29,9 @@ type TimeSeriesStore interface {
 	QueryMean(ctx context.Context, metric string, start, end time.Time) (*float64, error)
 	// QueryRangeValues 查询区间内原始 value 列表
 	QueryRangeValues(ctx context.Context, metric string, start, end time.Time) ([]float64, error)
+	// QueryRangeWithTags 查询区间内的多 series 数据，并按 tagFilters 过滤标签。
+	// tagFilters 为空(map[nil])表示不过滤，返回该 metric 下所有 series。
+	QueryRangeWithTags(ctx context.Context, metric string, start, end time.Time, tagFilters map[string][]string) ([]SeriesData, error)
 }
 
 // MetricQueryDialect 指标命名 + Grafana 查询方言

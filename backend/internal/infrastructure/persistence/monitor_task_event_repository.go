@@ -280,13 +280,12 @@ func (repo *MonitorTaskEventRepositoryImpl) CountByStatus() (map[entity.MonitorT
 		Count      int64
 	}
 	var results []statusCount
-	err := repo.db.
+	if err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Select("deal_status, COUNT(*) as count").
 		Group("deal_status").
-		Scan(&results).Error
-	if err != nil {
+		Scan(&results).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[entity.MonitorTaskEventDealStatus]int64)
@@ -304,13 +303,12 @@ func (repo *MonitorTaskEventRepositoryImpl) CountByLevel() (map[int32]int64, err
 	}
 	var results []levelCount
 	notCase := &entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
-	err := repo.db.
+	if err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Not(notCase).
 		Select("event_level, COUNT(*) as count").
 		Group("event_level").
-		Scan(&results).Error
-	if err != nil {
+		Scan(&results).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int32]int64)

@@ -57,8 +57,7 @@ func (handler *sysMenuHandler) create(context *gin.Context) {
 	}
 
 	// option
-	err = handler.menuApp.Create(context.Request.Context(), &sysMenuCreateRequest)
-	if err != nil {
+	if err = handler.menuApp.Create(context.Request.Context(), &sysMenuCreateRequest); err != nil {
 		response.BuildResponseBadRequest(context, "创建菜单失败")
 		return
 	}
@@ -76,15 +75,13 @@ func (handler *sysMenuHandler) update(context *gin.Context) {
 	}
 
 	// 数据校验
-	err = sysMenuCreateRequest.ValidateForModify()
-	if err != nil {
+	if err = sysMenuCreateRequest.ValidateForModify(); err != nil {
 		response.BuildResponseBadRequest(context, fmt.Sprintf("请求参数有误: %v", err.Error()))
 		return
 	}
 
 	// option
-	err = handler.menuApp.Modify(context.Request.Context(), &sysMenuCreateRequest)
-	if err != nil {
+	if err = handler.menuApp.Modify(context.Request.Context(), &sysMenuCreateRequest); err != nil {
 		response.BuildResponseBadRequest(context, "更新菜单失败")
 		return
 	}
@@ -102,8 +99,7 @@ func (handler *sysMenuHandler) delete(context *gin.Context) {
 	}
 
 	// option
-	err = handler.menuApp.Delete(context.Request.Context(), id)
-	if err != nil {
+	if err = handler.menuApp.Delete(context.Request.Context(), id); err != nil {
 		response.BuildResponseBadRequest(context, "删除菜单失败:"+err.Error())
 		return
 	}
@@ -132,8 +128,7 @@ func (handler *sysMenuHandler) option(context *gin.Context) {
 
 func (handler *sysMenuHandler) refresh(context *gin.Context) {
 	// option
-	err := handler.menuApp.Refresh(context.Request.Context())
-	if err != nil {
+	if err := handler.menuApp.Refresh(context.Request.Context()); err != nil {
 		response.BuildResponseBadRequest(context, "刷新失败")
 		return
 	}

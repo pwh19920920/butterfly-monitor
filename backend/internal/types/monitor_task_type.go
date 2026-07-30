@@ -2,6 +2,7 @@ package types
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 
 	"dragonfly-monitor/internal/common"
@@ -10,6 +11,10 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pwh19920920/butterfly/pkg/response"
 )
+
+// taskKeyRe 限定 TaskKey 格式：字母或下划线开头，后跟字母/数字/下划线。
+// 因为在 VictoriaMetrics / TDengine / Grafana 中作为 metric 名必须为合法标识符。
+var taskKeyRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 type MonitorTaskQueryRequest struct {
 	response.RequestPaging
@@ -28,6 +33,23 @@ type MonitorTaskExecParams struct {
 	Database        string   `json:"database"`
 	RetentionPolicy string   `json:"retentionPolicy"`
 	Column          string   `json:"column"`
+
+	// 聚合任务专用 (DataType=Aggregate)
+	LabelColumns []string `json:"labelColumns"` // 分组维度列名，每个元素成为一个 tag
+	ValueColumns []string `json:"valueColumns"` // 指标值列名，每个元素生成一个独立 metric
+
+	// 系统下钻任务专用 (TaskType=Drilldown)
+	SourceTaskId *int64       `json:"sourceTaskId,string"` // 依赖的聚合任务 ID
+	Filters      []FilterRule `json:"filters"`             // 标签过滤条件，维度数量需与聚合分组层数一致
+	QueryMetric  string       `json:"queryMetric"`         // 指定取聚合任务哪个 valueColumn 对应的 metric
+}
+
+// FilterRule 下钻任务的标签过滤条件
+// FieldName 由源聚合任务的 LabelColumns 带过来（用户不可改），Value 由用户填写（单值精确匹配）
+type FilterRule struct {
+	FieldName string `json:"fieldName"` // 维度名，如 region / dept
+	Operator  string `json:"operator"`  // 当前固定为等值匹配 eq
+	Value     string `json:"value"`     // 过滤值，下钻需每个维度全填，恰好命中 1 个 series
 }
 
 type MonitorTaskAlertCreateRequest struct {
@@ -141,13 +163,17 @@ func (req MonitorTaskCreateRequest) GetDashboardIds() ([]int64, error) {
 }
 
 func (req MonitorTaskCreateRequest) ValidateForCreate() error {
-	// Push 任务由外部推送数据，无执行指令，跳过 command 校验
+	// Push / 系统下钻 任务由外部或时序库取数，无执行指令，跳过 command 校验
 	cmdRule := []validation.Rule{validation.Required, validation.Length(1, 2000)}
-	if req.TaskType != nil && *req.TaskType == entity.TaskTypePush {
+	if req.TaskType != nil &&
+		(*req.TaskType == entity.TaskTypePush || *req.TaskType == entity.TaskTypeDrilldown) {
 		cmdRule = []validation.Rule{validation.Length(0, 2000)}
 	}
 	return validation.ValidateStruct(&req,
-		validation.Field(&req.TaskKey, validation.Required, validation.Length(1, 255)),
+		validation.Field(&req.TaskKey, validation.Required,
+			validation.Length(1, 255),
+			validation.Match(taskKeyRe).Error("TaskKey 必须以字母或下划线开头，且仅允许字母、数字、下划线"),
+		),
 		validation.Field(&req.TaskName, validation.Required, validation.Length(1, 255)),
 		validation.Field(&req.TimeSpan, validation.Required, validation.Min(1)),
 		validation.Field(&req.StepSpan, validation.Required, validation.Min(1)),
@@ -158,6 +184,20 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 type MonitorTaskExecForRangeRequest struct {
 	BeginDate *common.LocalTime `json:"beginDate"`
 	EndDate   *common.LocalTime `json:"endDate"`
+}
+
+// MonitorTaskPreviewRequest 聚合预览请求：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度
+type MonitorTaskPreviewRequest struct {
+	TaskType   *entity.MonitorTaskType `json:"taskType"`   // 数据源类型（Database/URL）
+	DataSource *entity.DataSourceType  `json:"dataSource"` // Database 任务的数据源类型（Mongo/Mysql）
+	DatabaseId *int64                  `json:"databaseId,string"`
+	Command    string                  `json:"command"`
+	ExecParams MonitorTaskExecParams   `json:"execParams"`
+}
+
+// MonitorTaskPreviewResponse 聚合预览结果：列名列表
+type MonitorTaskPreviewResponse struct {
+	Columns []string `json:"columns"`
 }
 
 // MonitorTaskPushDataItem 单条推送数据

@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"dragonfly-monitor/internal/common/constant"
 	"dragonfly-monitor/internal/domain/entity"
+	domainHandler "dragonfly-monitor/internal/domain/handler"
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -60,31 +62,62 @@ func (h *DatabaseMongoHandler) NewInstance(database entity.MonitorDatabase) (int
 }
 
 func (h *DatabaseMongoHandler) ExecuteQuery(ctx context.Context, db interface{}, task entity.MonitorTask) (float64, error) {
+	docs, err := h.runAggregation(ctx, db, task)
+	if err != nil {
+		return 0, err
+	}
+	if len(docs) == 0 {
+		return 0, errors.New("mongo aggregation returned empty result")
+	}
+	return extractFirstNumeric(docs[0])
+}
+
+// Close 关闭 MongoDB 客户端
+func (h *DatabaseMongoHandler) Close(db interface{}) error {
 	conn, ok := db.(*mongoConn)
 	if !ok || conn == nil || conn.client == nil {
-		return 0, errors.New("invalid mongo connection")
+		return nil
+	}
+	return conn.client.Disconnect(context.Background())
+}
+
+// ExecuteQueryMultiRows 分组聚合采集：执行聚合管道并返回全部文档，每个文档映射为一个 RowResult。
+func (h *DatabaseMongoHandler) ExecuteQueryMultiRows(ctx context.Context, db interface{}, task entity.MonitorTask) ([]domainHandler.RowResult, error) {
+	docs, err := h.runAggregation(ctx, db, task)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]domainHandler.RowResult, 0, len(docs))
+	for _, doc := range docs {
+		row := domainHandler.RowResult{Columns: make(map[string]interface{}, len(doc))}
+		for k, v := range doc {
+			row.Columns[k] = v
+		}
+		results = append(results, row)
+	}
+	return results, nil
+}
+
+// runAggregation 公共聚合执行：解析管道 → 设超时 → 执行 Aggregate → 返回全部文档。
+// ExecuteQuery 取首文档提取数值，ExecuteQueryMultiRows 映射全部文档为 RowResult。
+func (h *DatabaseMongoHandler) runAggregation(ctx context.Context, db interface{}, task entity.MonitorTask) ([]bson.M, error) {
+	conn, ok := db.(*mongoConn)
+	if !ok || conn == nil || conn.client == nil {
+		return nil, errors.New("invalid mongo connection")
 	}
 
-	// 解析 Extended JSON 聚合管道
-	// 格式：{"collection":"xxx","pipeline":[{...},{...}]}
-	// 或简化为：直接管道数组 [{...},{...}]（默认 collection 从 Params 取）
 	var pipelineSpec struct {
 		Collection string   `bson:"collection" json:"collection"`
 		Pipeline   []bson.D `bson:"pipeline" json:"pipeline"`
 	}
-
-	// 尝试对象格式
 	if err := bson.UnmarshalExtJSON([]byte(task.Command), true, &pipelineSpec); err != nil || len(pipelineSpec.Pipeline) == 0 {
-		// 回退：直接解析为管道数组
 		var pipeline []bson.D
 		if err2 := bson.UnmarshalExtJSON([]byte(task.Command), true, &pipeline); err2 != nil {
-			return 0, fmt.Errorf("parse mongo aggregation pipeline: %w", err)
+			return nil, fmt.Errorf("parse mongo aggregation pipeline: %w", err)
 		}
 		pipelineSpec.Pipeline = pipeline
 	}
-
 	if pipelineSpec.Collection == "" {
-		// 允许 Params 中带 collection=xxx
 		pipelineSpec.Collection = "metrics"
 	}
 
@@ -95,39 +128,28 @@ func (h *DatabaseMongoHandler) ExecuteQuery(ctx context.Context, db interface{},
 		defer cancel()
 	}
 
-	// 转成 mongo.Pipeline
 	stages := make(mongo.Pipeline, 0, len(pipelineSpec.Pipeline))
 	for _, stage := range pipelineSpec.Pipeline {
 		stages = append(stages, stage)
 	}
 
+	// 防御性追加 $limit：若用户未在管道末指定 $limit，自动追加以防返回海量文档 OOM
+	hasLimit := len(stages) > 0 && len(stages[len(stages)-1]) > 0 && stages[len(stages)-1][0].Key == "$limit"
+	if !hasLimit {
+		stages = append(stages, bson.D{{Key: "$limit", Value: constant.MaxAggregateRows}})
+	}
+
 	cursor, err := conn.client.Database(conn.dbName).Collection(pipelineSpec.Collection).Aggregate(ctx, stages)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer func() { _ = cursor.Close(ctx) }()
 
-	if !cursor.Next(ctx) {
-		if err = cursor.Err(); err != nil {
-			return 0, err
-		}
-		return 0, errors.New("mongo aggregation returned empty result")
+	var docs []bson.M
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
 	}
-
-	var doc bson.M
-	if err = cursor.Decode(&doc); err != nil {
-		return 0, err
-	}
-	return extractFirstNumeric(doc)
-}
-
-// Close 关闭 MongoDB 客户端
-func (h *DatabaseMongoHandler) Close(db interface{}) error {
-	conn, ok := db.(*mongoConn)
-	if !ok || conn == nil || conn.client == nil {
-		return nil
-	}
-	return conn.client.Disconnect(context.Background())
+	return docs, nil
 }
 
 func buildMongoClient(database entity.MonitorDatabase) (*mongo.Client, error) {

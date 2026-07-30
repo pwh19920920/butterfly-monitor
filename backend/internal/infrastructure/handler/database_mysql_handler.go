@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
+	"dragonfly-monitor/internal/common/constant"
 	"dragonfly-monitor/internal/domain/entity"
+	domainHandler "dragonfly-monitor/internal/domain/handler"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
@@ -16,6 +19,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// limitRe 匹配 LIMIT 关键字（大小写不敏感），用于判断 SQL 是否已自带行数限制。
+var limitRe = regexp.MustCompile(`\bLIMIT\s+\d+`)
 
 // DatabaseMysqlHandler MySQL 数据源
 type DatabaseMysqlHandler struct{}
@@ -175,4 +181,72 @@ func validateReadOnlySQL(sqlText string) error {
 	}
 
 	return nil
+}
+
+// ExecuteQueryMultiRows 分组聚合采集：执行只读查询并返回多行，每行按列名映射为 RowResult。
+// 复用 ExecuteQuery 的只读校验与会话级只读防御，仅把单值 Scan 改为多行 Rows 扫描。
+func (h *DatabaseMysqlHandler) ExecuteQueryMultiRows(ctx context.Context, db interface{}, task entity.MonitorTask) ([]domainHandler.RowResult, error) {
+	gdb, ok := db.(*gorm.DB)
+	if !ok || gdb == nil {
+		return nil, errors.New("invalid mysql connection")
+	}
+	gdb = gdb.WithContext(ctx)
+
+	command := strings.TrimSpace(task.Command)
+	if err := validateReadOnlySQL(command); err != nil {
+		return nil, fmt.Errorf("monitor task command rejected: %w", err)
+	}
+
+	execErr := gdb.Exec("SET SESSION TRANSACTION READ ONLY").Error
+	if execErr != nil {
+		logrus.Warnf("set session read-only fail, fallback to static guard only: %v", execErr)
+	}
+
+	// SQL 未含 LIMIT 时追加 LIMIT 子句，数据库端限制返回行数，避免 OOM
+	hasLimit := limitRe.MatchString(strings.ToUpper(command))
+	if !hasLimit {
+		command = command + fmt.Sprintf(" LIMIT %d", constant.MaxAggregateRows)
+	}
+	rows, err := gdb.Raw(command).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]domainHandler.RowResult, 0)
+	scanBuf := make([]interface{}, len(cols))
+	scanPtr := make([]interface{}, len(cols))
+	for i := range scanBuf {
+		scanPtr[i] = &scanBuf[i]
+	}
+
+	for rows.Next() {
+		if err := rows.Scan(scanPtr...); err != nil {
+			return nil, err
+		}
+		row := domainHandler.RowResult{Columns: make(map[string]interface{}, len(cols))}
+		for i, col := range cols {
+			v := scanBuf[i]
+			switch t := v.(type) {
+			case []byte:
+				row.Columns[col] = string(t)
+			default:
+				row.Columns[col] = v
+			}
+		}
+		results = append(results, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if resetErr := gdb.Exec("SET SESSION TRANSACTION READ WRITE").Error; resetErr != nil && execErr == nil {
+		logrus.Warnf("reset session read-write fail: %v", resetErr)
+	}
+	return results, nil
 }

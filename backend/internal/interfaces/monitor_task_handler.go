@@ -63,7 +63,8 @@ func (h *monitorTaskHandler) create(context *gin.Context) {
 
 func (h *monitorTaskHandler) modify(context *gin.Context) {
 	var req types.MonitorTaskCreateRequest
-	if context.ShouldBindJSON(&req) != nil {
+	err := context.ShouldBindJSON(&req)
+	if err != nil {
 		response.BuildResponseBadRequest(context, "请求参数有误")
 		return
 	}
@@ -160,7 +161,20 @@ func (h *monitorTaskHandler) dataPush(context *gin.Context) {
 	response.BuildResponseSuccess(context, "ok")
 }
 
-// InitMonitorTaskHandler 加载路由
+// PreviewAggregate 聚合预览：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度（不落库）
+func (h *monitorTaskHandler) previewAggregate(context *gin.Context) {
+	var req types.MonitorTaskPreviewRequest
+	if context.ShouldBindJSON(&req) != nil {
+		response.BuildResponseBadRequest(context, "请求参数有误")
+		return
+	}
+	data, err := h.app.PreviewAggregate(context.Request.Context(), &req)
+	if err != nil {
+		response.BuildResponseBadRequest(context, "预览查询失败: "+err.Error())
+		return
+	}
+	response.BuildResponseSuccess(context, data)
+}
 func InitMonitorTaskHandler(app *application.Application, timerJob *job.Job) {
 	handler := monitorTaskHandler{app: app.MonitorTask, job: &timerJob.DataCollect}
 	var route []server.RouteInfo
@@ -172,5 +186,6 @@ func InitMonitorTaskHandler(app *application.Application, timerJob *job.Job) {
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "/taskStatus/:id/:status", HandlerFunc: handler.modifyTaskStatus})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPut, Path: "/sampled/:id/:status", HandlerFunc: handler.modifySampled})
 	route = append(route, server.RouteInfo{HttpMethod: server.HttpPost, Path: "/dataPush", HandlerFunc: handler.dataPush})
+	route = append(route, server.RouteInfo{HttpMethod: server.HttpPost, Path: "/previewAggregate", HandlerFunc: handler.previewAggregate})
 	server.RegisterRoute("/api/monitor/task", route)
 }

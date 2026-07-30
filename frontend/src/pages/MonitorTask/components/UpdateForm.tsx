@@ -9,24 +9,35 @@ import {
   ProFormTextArea,
   ProFormTimePicker,
 } from '@ant-design/pro-components';
-import { Col, Divider, Form, Modal, Row, Spin } from 'antd';
+import { Button, Col, Divider, Form, message, Modal, Row, Spin } from 'antd';
 import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { monitorDatabaseQueryAll } from '@/services/ant-design-pro/monitor.database';
 import { monitorDashboardQueryAll } from '@/services/ant-design-pro/monitor.dashboard';
 import { alertChannelQueryAll } from '@/services/ant-design-pro/alert.channel';
 import { alertGroupQueryAll } from '@/services/ant-design-pro/alert.group';
 import { monitorGroupQueryAll } from '@/services/ant-design-pro/monitor.group';
+import { monitorTaskQuery, monitorTaskGetById } from '@/services/ant-design-pro/monitor.task';
+import { monitorTaskPreviewAggregate } from '@/services/ant-design-pro/monitor.task';
 import {
   CheckParamCompareTypeEnum,
   CheckParamRelationEnum,
   CheckParamsLevelTypeEnum,
   CheckParamValueTypeEnum,
+  DataTypeEnum,
   TaskTypeEnum,
 } from '@/services/ant-design-pro/enum';
 
 // 与后端 entity.AlertChannelTypeWebhook 一致
 const ALERT_CHANNEL_TYPE_WEBHOOK = 2;
+// 任务类型常量
+const TASK_TYPE_DRILLDOWN = 0;
+const TASK_TYPE_DATABASE = 1;
+const TASK_TYPE_URL = 2;
+const TASK_TYPE_PUSH = 3;
+// 数据类型常量
+const DATA_TYPE_NORMAL = 1;
+const DATA_TYPE_AGGREGATE = 2;
 
 type SelectItem = { label: string; value: number | string };
 
@@ -39,6 +50,10 @@ type CreateOrUpdateFormProps = {
 const taskTypes: SelectItem[] = Object.keys(TaskTypeEnum).map((item) => ({
   value: Number(item),
   label: TaskTypeEnum[Number(item)],
+}));
+const dataTypes: SelectItem[] = Object.keys(DataTypeEnum).map((item) => ({
+  value: Number(item),
+  label: DataTypeEnum[Number(item)],
 }));
 const relations: SelectItem[] = Object.keys(CheckParamRelationEnum).map((item) => ({
   value: Number(item),
@@ -56,26 +71,49 @@ const valueTypes: SelectItem[] = Object.keys(CheckParamValueTypeEnum).map((item)
   value: Number(item),
   label: CheckParamValueTypeEnum[Number(item)],
 }));
+// 无值默认值下拉：仅正常查询 / 系统下钻有意义
+const defaultValueOptions: SelectItem[] = [
+  { value: 0, label: '0（数值类无值）' },
+  { value: 100, label: '100（百分比类无值）' },
+];
 
 const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
   const isCreateView = props.taskType === -1;
   const form = Form.useFormInstance();
   const [selectTaskType, setSelectTaskType] = useState<number>(props.taskType);
+  // 用 Form.useWatch 驱动，编辑态 initialValues 的 dataType 自动同步
+  const dataType: number = Form.useWatch('dataType', form) ?? DATA_TYPE_NORMAL;
   const [databases, setDatabases] = useState<SelectItem[]>([]);
   const [databaseTypeMap, setDatabaseTypeMap] = useState<Map<string, number>>(new Map());
   const [databaseType, setDatabaseType] = useState<number>();
   const [dashboards, setDashboards] = useState<SelectItem[]>([]);
   const [alertChannels, setAlertChannels] = useState<SelectItem[]>([]);
-  // 通道 id → 类型（1邮件 2Webhook 3短信）
   const [channelTypeMap, setChannelTypeMap] = useState<Map<string, number>>(new Map());
   const [alertGroups, setAlertGroups] = useState<SelectItem[]>([]);
   const [monitorGroups, setMonitorGroups] = useState<SelectItem[]>([]);
-  // 已选通道是否需要报警分组：全 Webhook 时不需要
   const [needAlertGroups, setNeedAlertGroups] = useState(true);
   const selectedChannelIds = Form.useWatch(['taskAlert', 'alertChannels'], form);
 
+  // 聚合预览
+  const [columns, setColumns] = useState<string[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const commandValue: string = Form.useWatch('command', form) || '';
+
+  // 系统下钻
+  const [aggregateTasks, setAggregateTasks] = useState<SelectItem[]>([]);
+  const [sourceLabelColumns, setSourceLabelColumns] = useState<string[]>([]);
+  const [sourceValueColumns, setSourceValueColumns] = useState<string[]>([]);
+  const [sourceLoading, setSourceLoading] = useState(false);
+
+  // 关联任务：把其它任务的实时/样本曲线叠加到本任务面板
+  const [relatedTasks, setRelatedTasks] = useState<SelectItem[]>([]);
+
+  // 聚合任务不显示告警块
+  const showAlertConfig = selectTaskType !== TASK_TYPE_DRILLDOWN
+    ? !(selectTaskType === TASK_TYPE_DATABASE || selectTaskType === TASK_TYPE_URL) || dataType !== DATA_TYPE_AGGREGATE
+    : true;
+
   useEffect(() => {
-    // 数据源
     monitorDatabaseQueryAll().then((resp) => {
       const data = (resp.data || []).map((item) => ({
         label: item.name || '',
@@ -89,7 +127,6 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
       setDatabaseTypeMap(map);
     });
 
-    // 面板
     monitorDashboardQueryAll()
       .then((resp) => {
         setDashboards(
@@ -103,7 +140,6 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
         });
       });
 
-    // 报警通道（同时缓存类型，用于判断是否需要报警分组）
     alertChannelQueryAll().then((resp) => {
       setAlertChannels(
         (resp.data || []).map((item) => ({ label: item.name || '', value: String(item.id) })),
@@ -117,14 +153,12 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
       setChannelTypeMap(typeMap);
     });
 
-    // 报警组
     alertGroupQueryAll().then((resp) => {
       setAlertGroups(
         (resp.data || []).map((item) => ({ label: item.name || '', value: String(item.id) })),
       );
     });
 
-    // 监控分组
     monitorGroupQueryAll().then((resp) => {
       const nameMap: Record<string, string> = {};
       (resp.data || []).forEach((item) => {
@@ -138,29 +172,149 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
         }),
       );
     });
+
+    // 下钻候选聚合任务
+    monitorTaskQuery({ pageSize: 1000, taskType: TASK_TYPE_DATABASE } as any)
+      .then((resp) => {
+        const list = (resp.data || []).filter((item: any) => item.dataType === DATA_TYPE_AGGREGATE);
+        setAggregateTasks(
+          list.map((item: any) => ({ label: item.taskName || item.taskKey, value: String(item.id) })),
+        );
+      })
+      .catch(() => {});
+
+    // 关联任务候选：所有任务（排除当前编辑任务自身，避免自关联）
+    monitorTaskQuery({ pageSize: 1000 } as any)
+      .then((resp) => {
+        const list = (resp.data || []).filter(
+          (item: any) => String(item.id) !== String(props.taskId),
+        );
+        setRelatedTasks(
+          list.map((item: any) => ({ label: item.taskName || item.taskKey, value: String(item.id) })),
+        );
+      })
+      .catch(() => {});
   }, []);
 
-  // 已选通道全为 Webhook 时不需要报警分组，并清空已选分组
+  // 已选通道全为 Webhook 时不需报警分组
   useEffect(() => {
-    if (channelTypeMap.size === 0) {
+    if (channelTypeMap.size === 0) return;
+    const ids: string[] = (selectedChannelIds || []).map((id: string | number) => String(id));
+    const need = ids.length === 0 || ids.some((id) => channelTypeMap.get(id) !== ALERT_CHANNEL_TYPE_WEBHOOK);
+    setNeedAlertGroups(need);
+    form.setFieldValue(['taskAlert', 'needAlertGroups'], need);
+    if (!need) form.setFieldValue(['taskAlert', 'alertGroups'], undefined);
+  }, [selectedChannelIds, channelTypeMap, form]);
+
+  // 任务类型变化：非 Database/URL → 强制 dataType=Normal
+  useEffect(() => {
+    if (selectTaskType === TASK_TYPE_DATABASE || selectTaskType === TASK_TYPE_URL) return;
+    form.setFieldValue('dataType', DATA_TYPE_NORMAL);
+  }, [selectTaskType, form]);
+
+  // 编辑态初始化 databaseType：initialValues 不触发下拉 onChange，需按已选 databaseId 从 map 反查（D-019）。
+  // 否则编辑 Database 任务时 mongo 额外参数/提取字段不渲染，且预览 dataSource 为 undefined。
+  const databaseId = Form.useWatch(['taskExecParams', 'databaseId'], form);
+  useEffect(() => {
+    if (databaseType === undefined && databaseId && databaseTypeMap.size > 0) {
+      setDatabaseType(databaseTypeMap.get(String(databaseId)));
+    }
+  }, [databaseId, databaseTypeMap, databaseType]);
+
+  // 编辑下钻任务：按已存的 sourceTaskId 加载源任务指标列，填充取数指标下拉（不改动 filters）
+  const drilldownInitRef = useRef(false);
+  useEffect(() => {
+    if (drilldownInitRef.current) return;
+    if (selectTaskType !== TASK_TYPE_DRILLDOWN || isCreateView) return;
+    const sourceId = form.getFieldValue(['taskExecParams', 'sourceTaskId']);
+    if (!sourceId) return;
+    drilldownInitRef.current = true;
+    monitorTaskGetById(String(sourceId))
+      .then((resp) => {
+        const ep = (resp.data as any)?.taskExecParams || {};
+        setSourceLabelColumns(ep.labelColumns || []);
+        setSourceValueColumns(ep.valueColumns || []);
+      })
+      .catch(() => {});
+  }, [selectTaskType, isCreateView, form]);
+
+  // 预览
+  const handlePreview = async () => {
+    const values = form.getFieldsValue(true);
+    const execParams = values.taskExecParams || {};
+    setPreviewLoading(true);
+    try {
+      const resp = await monitorTaskPreviewAggregate({
+        taskType: selectTaskType,
+        dataSource: databaseType,
+        databaseId: execParams.databaseId,
+        command: values.command,
+        execParams,
+      });
+      const cols = resp.data?.columns || [];
+      setColumns(cols);
+      if (cols.length === 0) message.info('查询未返回任何列，请检查 SQL 或数据源');
+    } catch (e: any) {
+      message.error(`预览失败：${e?.info?.errorMessage || e?.message || '请稍后重试'}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // 选源聚合任务 → 自动带出维度
+  const handleSourceTaskChange = async (sourceId: string) => {
+    if (!sourceId) {
+      setSourceLabelColumns([]);
+      setSourceValueColumns([]);
       return;
     }
-    const ids: string[] = (selectedChannelIds || []).map((id: string | number) => String(id));
-    // 未选通道时默认仍展示分组字段；全 Webhook 才隐藏
-    const need =
-      ids.length === 0 ||
-      ids.some((id) => channelTypeMap.get(id) !== ALERT_CHANNEL_TYPE_WEBHOOK);
-    setNeedAlertGroups(need);
-    // 写入表单供提交校验读取（非接口字段，buildPayload 会剥离）
-    form.setFieldValue(['taskAlert', 'needAlertGroups'], need);
-    if (!need) {
-      form.setFieldValue(['taskAlert', 'alertGroups'], undefined);
+    setSourceLoading(true);
+    try {
+      const resp = await monitorTaskGetById(sourceId);
+      const src: any = resp.data || {};
+      const ep = src.taskExecParams || {};
+      const labels: string[] = ep.labelColumns || [];
+      const values: string[] = ep.valueColumns || [];
+      setSourceLabelColumns(labels);
+      setSourceValueColumns(values);
+      if (labels.length > 0) {
+        // 仅当维度结构（fieldName 集合）变化时才重置 filters，保留用户已填的过滤值（D-021）
+        const currentFilters: any[] = form.getFieldValue(['taskExecParams', 'filters']) || [];
+        const sameStructure =
+          currentFilters.length === labels.length &&
+          labels.every((field, i) => currentFilters[i]?.fieldName === field);
+        if (!sameStructure) {
+          form.setFieldValue(
+            ['taskExecParams', 'filters'],
+            labels.map((field: string) => ({ fieldName: field, operator: 'eq', value: '' })),
+          );
+        }
+      }
+      if (values.length > 0) {
+        form.setFieldValue(['taskExecParams', 'queryMetric'], values[0]);
+      }
+    } catch {
+      setSourceLabelColumns([]);
+      setSourceValueColumns([]);
+    } finally {
+      setSourceLoading(false);
     }
-  }, [selectedChannelIds, channelTypeMap, form]);
+  };
+
+  const selectedLabelColumns: string[] = Form.useWatch(['taskExecParams', 'labelColumns'], form) || [];
+  const selectedValueColumns: string[] = Form.useWatch(['taskExecParams', 'valueColumns'], form) || [];
+  const allColumns: string[] = useMemo(() => {
+    const set = new Set<string>(columns);
+    selectedLabelColumns.forEach((c) => set.add(c));
+    selectedValueColumns.forEach((c) => set.add(c));
+    return Array.from(set);
+  }, [columns, selectedLabelColumns, selectedValueColumns]);
 
   if (dashboards.length === 0 && !isCreateView) {
     return <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />;
   }
+
+  // ---------- render ----------
 
   return (
     <>
@@ -195,6 +349,16 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
           width="md"
           mode="multiple"
           options={monitorGroups}
+        />
+        <ProFormSelect
+          name="relatedTaskIds"
+          label="关联任务"
+          width="md"
+          mode="multiple"
+          showSearch
+          options={relatedTasks}
+          disabled={dataType === DATA_TYPE_AGGREGATE}
+          tooltip="把关联任务的实时/样本曲线叠加到本任务面板展示，图例为 任务名_实时 / 任务名_样本；聚合任务不支持关联"
         />
         <ProFormDigit
           name="timeSpan"
@@ -236,13 +400,11 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
           rules={[{ required: true, message: '任务类型不能为空' }]}
           fieldProps={{
             onChange: (value: number) => {
-              if (value === 1 && databases.length === 0) {
+              if (value === TASK_TYPE_DATABASE && databases.length === 0) {
                 Modal.info({
                   title: '操作提示',
                   content: '当前还没有添加任何数据源，请先添加数据源再进行添加任务',
-                  onOk() {
-                    location.href = '/monitor/database';
-                  },
+                  onOk() { location.href = '/monitor/database'; },
                 });
               }
               setSelectTaskType(value);
@@ -250,8 +412,8 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
           }}
         />
 
-        {/* 数据库任务：选择数据源 */}
-        {selectTaskType === 1 && (
+        {/* Database 任务数据源选择 */}
+        {selectTaskType === TASK_TYPE_DATABASE && (
           <ProFormSelect
             name={['taskExecParams', 'databaseId']}
             label="数据库"
@@ -260,19 +422,15 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
             fieldProps={{
               showSearch: true,
               onChange: (value: string) => {
-                if (!value) {
-                  setDatabaseType(-1);
-                  return;
-                }
-                setDatabaseType(databaseTypeMap.get(value));
+                setDatabaseType(value ? databaseTypeMap.get(value) : -1);
               },
             }}
             rules={[{ required: true, message: '数据库不能为空' }]}
           />
         )}
 
-        {/* http(2) 或 mongo(1) 需要提取字段 */}
-        {(selectTaskType === 2 || (selectTaskType === 1 && databaseType === 1)) && (
+        {/* 提取字段（http / mongo） */}
+        {(selectTaskType === TASK_TYPE_URL || (selectTaskType === TASK_TYPE_DATABASE && databaseType === 1)) && (
           <ProFormText
             name={['taskExecParams', 'resultFieldPath']}
             label="提取字段"
@@ -283,7 +441,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
         )}
 
         {/* mongo 额外参数 */}
-        {selectTaskType === 1 && databaseType === 1 && (
+        {selectTaskType === TASK_TYPE_DATABASE && databaseType === 1 && (
           <>
             <ProFormText
               name={['taskExecParams', 'collectName']}
@@ -302,9 +460,84 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
             />
           </>
         )}
+
+        {/* DB/URL 任务：数据类型 */}
+        {(selectTaskType === TASK_TYPE_DATABASE || selectTaskType === TASK_TYPE_URL) && (
+          <ProFormSelect
+            name="dataType"
+            label="数据类型"
+            width="md"
+            options={dataTypes}
+            initialValue={DATA_TYPE_NORMAL}
+            tooltip="正常查询：单值采集 + 采样 + 告警；聚合查询：分组多行写入时序库，只收集不告警"
+          />
+        )}
       </ProForm.Group>
 
-      {selectTaskType !== -1 && selectTaskType !== 3 && (
+      {/* 系统下钻 */}
+      {selectTaskType === TASK_TYPE_DRILLDOWN && (
+        <>
+          <Divider>下钻配置</Divider>
+          <ProForm.Group>
+            <ProFormSelect
+              name={['taskExecParams', 'sourceTaskId']}
+              label="依赖的聚合任务"
+              width="md"
+              options={aggregateTasks}
+              showSearch
+              rules={[{ required: true, message: '请选择依赖的聚合任务' }]}
+              fieldProps={{
+                loading: sourceLoading,
+                onChange: (value: string) => handleSourceTaskChange(value),
+              }}
+            />
+            <ProFormSelect
+              name={['taskExecParams', 'queryMetric']}
+              label="取数指标(valueColumn)"
+              width="md"
+              options={sourceValueColumns.map((c) => ({ label: c, value: c }))}
+              rules={[{ required: true, message: '请选择取数指标' }]}
+            />
+            <ProFormSelect
+              name={['taskExecParams', 'defaultValue']}
+              label="无值默认值"
+              width="md"
+              options={defaultValueOptions}
+              initialValue={0}
+              tooltip="点位不存在时返回该值：0=数值类 100=百分比类"
+            />
+          </ProForm.Group>
+          <ProCard title="过滤维度（必须全部填写）" style={{ marginBottom: 8 }} boxShadow>
+            <ProFormList
+              name={['taskExecParams', 'filters']}
+              copyIconProps={false}
+              deleteIconProps={false}
+              creatorButtonProps={false}
+            >
+              <Row gutter={23}>
+                <Col span={8}>
+                  <ProFormText name="fieldName" label="维度名" width="md" disabled />
+                </Col>
+                <Col span={8}>
+                  <ProFormText name="operator" label="匹配方式" width="md" disabled initialValue="eq" />
+                </Col>
+                <Col span={8}>
+                  <ProFormText
+                    name="value"
+                    label="过滤值"
+                    width="md"
+                    placeholder="请输入过滤值"
+                    rules={[{ required: true, message: '过滤值不能为空' }]}
+                  />
+                </Col>
+              </Row>
+            </ProFormList>
+          </ProCard>
+        </>
+      )}
+
+      {/* 执行指令：Push / 下钻 不需要 */}
+      {selectTaskType !== TASK_TYPE_PUSH && selectTaskType !== TASK_TYPE_DRILLDOWN && (
         <ProFormTextArea
           name="command"
           label="执行指令"
@@ -318,6 +551,92 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
             </>
           }
         />
+      )}
+
+      {/* 聚合查询：预览按钮在同一行右侧 */}
+      {dataType === DATA_TYPE_AGGREGATE && (
+        <>
+          <Divider>聚合配置</Divider>
+          <ProCard style={{ marginBottom: 8 }} boxShadow>
+            <Row gutter={16}>
+              <Col span={20}>
+                <ProFormSelect
+                  name={['taskExecParams', 'labelColumns']}
+                  label="labelColumns"
+                  fieldProps={{
+                    mode: 'multiple',
+                    style: { width: '100%' },
+                    onChange: () => form.validateFields([['taskExecParams', 'valueColumns']]),
+                  }}
+                  options={allColumns
+                    .filter((c) => !selectedValueColumns.includes(c))
+                    .map((c) => ({ label: c, value: c }))}
+                  dependencies={[['taskExecParams', 'valueColumns']]}
+                  rules={[
+                    { required: true, message: '请至少选择一个 label' },
+                    {
+                      validator: () => {
+                        const labels: string[] = form.getFieldValue(['taskExecParams', 'labelColumns']) || [];
+                        const values: string[] = form.getFieldValue(['taskExecParams', 'valueColumns']) || [];
+                        // 已选列却未预览（columns 为空）时拦截，避免绕过互斥校验提交重叠列（D-020）
+                        if (labels.length + values.length > 0 && columns.length === 0) {
+                          return Promise.reject(new Error('请先点击「预览选列」获取列，再分配 label/value'));
+                        }
+                        if (allColumns.length > 0 && labels.length + values.length !== allColumns.length) {
+                          return Promise.reject(new Error('预览列必须全部分配到 label/value，每列只能归属其一'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                />
+                <ProFormSelect
+                  name={['taskExecParams', 'valueColumns']}
+                  label="valueColumns"
+                  fieldProps={{
+                    mode: 'multiple',
+                    style: { width: '100%' },
+                    onChange: () => form.validateFields([['taskExecParams', 'labelColumns']]),
+                  }}
+                  options={allColumns
+                    .filter((c) => !selectedLabelColumns.includes(c))
+                    .map((c) => ({ label: c, value: c }))}
+                  dependencies={[['taskExecParams', 'labelColumns']]}
+                  rules={[
+                    { required: true, message: '请至少选择一个 value' },
+                    {
+                      validator: () => {
+                        const labels: string[] = form.getFieldValue(['taskExecParams', 'labelColumns']) || [];
+                        const values: string[] = form.getFieldValue(['taskExecParams', 'valueColumns']) || [];
+                        // 已选列却未预览（columns 为空）时拦截，避免绕过互斥校验提交重叠列（D-020）
+                        if (labels.length + values.length > 0 && columns.length === 0) {
+                          return Promise.reject(new Error('请先点击「预览选列」获取列，再分配 label/value'));
+                        }
+                        if (allColumns.length > 0 && labels.length + values.length !== allColumns.length) {
+                          return Promise.reject(new Error('预览列必须全部分配到 label/value，每列只能归属其一'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                />
+              </Col>
+              <Col span={4} style={{ paddingTop: 30, textAlign: 'right' }}>
+                <Button
+                  type="primary"
+                  loading={previewLoading}
+                  disabled={!commandValue.trim()}
+                  onClick={handlePreview}
+                >
+                  预览选列
+                </Button>
+                <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+                  先预览取列，再勾选
+                </div>
+              </Col>
+            </Row>
+          </ProCard>
+        </>
       )}
 
       <Divider>任务标签</Divider>
@@ -350,150 +669,146 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
         </ProFormList>
       </ProCard>
 
-      {/* 报警检查配置与异常检测规则合为一组（均选填；填其一则另一侧也必须填） */}
-      <Divider>报警配置（选填）</Divider>
-      <ProCard title="报警检查配置" style={{ marginBottom: 8 }} bordered>
-        {/* 三列一行，与异常检测规则布局一致 */}
-        <Row gutter={23}>
-          <Col span={8}>
-            <ProFormSelect
-              name={['taskAlert', 'alertChannels']}
-              label="报警通道"
-              width="md"
-              showSearch
-              options={alertChannels}
-              fieldProps={{ mode: 'multiple' }}
-              tooltip="若所选通道均为 Webhook，无需再选报警分组"
-            />
-          </Col>
-          {/* 邮件/短信等需要接收人；纯 Webhook 通道不依赖报警分组 */}
-          {needAlertGroups && (
-            <Col span={8}>
-              <ProFormSelect
-                name={['taskAlert', 'alertGroups']}
-                label="报警分组"
-                width="md"
-                showSearch
-                options={alertGroups}
-                fieldProps={{ mode: 'multiple' }}
-              />
-            </Col>
-          )}
-          <Col span={8}>
-            <ProFormDigit
-              name={['taskAlert', 'timeSpan']}
-              label="检查间隔(秒)"
-              width="md"
-              placeholder="请输入检查间隔"
-              min={1}
-            />
-          </Col>
-          <Col span={8}>
-            <ProFormDigit
-              name={['taskAlert', 'duration']}
-              label="持续时间(秒)"
-              width="md"
-              placeholder="请输入持续时间"
-              min={1}
-            />
-          </Col>
-        </Row>
-      </ProCard>
-      <ProCard title="异常检测规则" bordered>
-        <ProFormList
-          name={['taskAlert', 'checkParams']}
-          // 新增规则组时写入真实表单值（defaultValue 只影响展示，不进 Form）
-          creatorRecord={{
-            relation: 1,
-            effectTimes: [dayjs().startOf('day'), dayjs().endOf('day')],
-            // 与 CheckParamsLevelTypeEnum 一致：0严重 1高 2中 3低（无 -1）
-            level: 2,
-            rules: [],
-          }}
-          itemRender={({ listDom, action }) => (
-            <ProCard extra={action} title="规则条件组" style={{ marginBottom: 8 }} type="inner">
-              {listDom}
-            </ProCard>
-          )}
-        >
-          <Row gutter={23} style={{ marginRight: 14 }}>
-            <Col span={8}>
-              <ProFormSelect
-                name="relation"
-                label="组内条件关系"
-                width="md"
-                showSearch
-                options={relations}
-                initialValue={1}
-                extra="组与组之间固定为「或者」；此处仅控制本组内规则的或/且"
-                rules={[{ required: true, message: '条件关系不能为空' }]}
-              />
-            </Col>
-            <Col span={8}>
-              <ProFormTimePicker.RangePicker
-                name="effectTimes"
-                label="生效时间"
-                width="md"
-                // initialValue 才会写入 Form；fieldProps.defaultValue 只是 UI 占位
-                initialValue={[dayjs().startOf('day'), dayjs().endOf('day')]}
-                rules={[{ required: true, message: '生效时间不能为空' }]}
-                fieldProps={{
-                  format: 'HH:mm:ss',
-                }}
-              />
-            </Col>
-            <Col span={8}>
-              <ProFormSelect
-                name="level"
-                label="告警等级"
-                width="md"
-                showSearch
-                options={levelTypes}
-                // 默认中级，对应 enum: 0严重 1高 2中 3低
-                initialValue={2}
-                rules={[{ required: true, message: '告警等级不能为空' }]}
-              />
-            </Col>
-          </Row>
-          <ProFormList
-            name="rules"
-            copyIconProps={false}
-            deleteIconProps={{ tooltipText: '不需要这行了' }}
-          >
+      {/* 报警配置：聚合任务不展示 */}
+      {showAlertConfig && (
+        <>
+          <Divider>报警配置（选填）</Divider>
+          <ProCard title="报警检查配置" style={{ marginBottom: 8 }} boxShadow>
             <Row gutter={23}>
               <Col span={8}>
                 <ProFormSelect
-                  name="compareType"
-                  label="比较类型"
+                  name={['taskAlert', 'alertChannels']}
+                  label="报警通道"
                   width="md"
                   showSearch
-                  options={compareTypes}
-                  rules={[{ required: true, message: '比较类型不能为空' }]}
+                  options={alertChannels}
+                  fieldProps={{ mode: 'multiple' }}
+                  tooltip="若所选通道均为 Webhook 则无需再选报警分组"
+                />
+              </Col>
+              {needAlertGroups && (
+                <Col span={8}>
+                  <ProFormSelect
+                    name={['taskAlert', 'alertGroups']}
+                    label="报警分组"
+                    width="md"
+                    showSearch
+                    options={alertGroups}
+                    fieldProps={{ mode: 'multiple' }}
+                  />
+                </Col>
+              )}
+              <Col span={8}>
+                <ProFormDigit
+                  name={['taskAlert', 'timeSpan']}
+                  label="检查间隔(秒)"
+                  width="md"
+                  placeholder="请输入检查间隔"
+                  min={1}
                 />
               </Col>
               <Col span={8}>
                 <ProFormDigit
-                  name="value"
-                  label="比较值"
+                  name={['taskAlert', 'duration']}
+                  label="持续时间(秒)"
                   width="md"
-                  placeholder="请输入比较值"
-                  rules={[{ required: true, message: '比较值不能为空' }]}
-                />
-              </Col>
-              <Col span={8}>
-                <ProFormSelect
-                  name="valueType"
-                  label="值类型"
-                  width="md"
-                  showSearch
-                  options={valueTypes}
-                  rules={[{ required: true, message: '值类型不能为空' }]}
+                  placeholder="请输入持续时间"
+                  min={1}
                 />
               </Col>
             </Row>
-          </ProFormList>
-        </ProFormList>
-      </ProCard>
+          </ProCard>
+          <ProCard title="异常检测规则" boxShadow>
+            <ProFormList
+              name={['taskAlert', 'checkParams']}
+              creatorRecord={{
+                relation: 1,
+                effectTimes: [dayjs().startOf('day'), dayjs().endOf('day')],
+                level: 2,
+                rules: [],
+              }}
+              itemRender={({ listDom, action }) => (
+                <ProCard extra={action} title="规则条件组" style={{ marginBottom: 8 }} type="inner">
+                  {listDom}
+                </ProCard>
+              )}
+            >
+              <Row gutter={23} style={{ marginRight: 14 }}>
+                <Col span={8}>
+                  <ProFormSelect
+                    name="relation"
+                    label="组内条件关系"
+                    width="md"
+                    showSearch
+                    options={relations}
+                    initialValue={1}
+                    extra="组与组之间固定为「或者」"
+                    rules={[{ required: true, message: '条件关系不能为空' }]}
+                  />
+                </Col>
+                <Col span={8}>
+                  <ProFormTimePicker.RangePicker
+                    name="effectTimes"
+                    label="生效时间"
+                    width="md"
+                    initialValue={[dayjs().startOf('day'), dayjs().endOf('day')]}
+                    rules={[{ required: true, message: '生效时间不能为空' }]}
+                    fieldProps={{ format: 'HH:mm:ss' }}
+                  />
+                </Col>
+                <Col span={8}>
+                  <ProFormSelect
+                    name="level"
+                    label="告警等级"
+                    width="md"
+                    showSearch
+                    options={levelTypes}
+                    initialValue={2}
+                    rules={[{ required: true, message: '告警等级不能为空' }]}
+                  />
+                </Col>
+              </Row>
+              <ProFormList
+                name="rules"
+                copyIconProps={false}
+                deleteIconProps={{ tooltipText: '不需要这行了' }}
+              >
+                <Row gutter={23}>
+                  <Col span={8}>
+                    <ProFormSelect
+                      name="compareType"
+                      label="比较类型"
+                      width="md"
+                      showSearch
+                      options={compareTypes}
+                      rules={[{ required: true, message: '比较类型不能为空' }]}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name="value"
+                      label="比较值"
+                      width="md"
+                      placeholder="请输入比较值"
+                      rules={[{ required: true, message: '比较值不能为空' }]}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormSelect
+                      name="valueType"
+                      label="值类型"
+                      width="md"
+                      showSearch
+                      options={valueTypes}
+                      rules={[{ required: true, message: '值类型不能为空' }]}
+                    />
+                  </Col>
+                </Row>
+              </ProFormList>
+            </ProFormList>
+          </ProCard>
+        </>
+      )}
     </>
   );
 };

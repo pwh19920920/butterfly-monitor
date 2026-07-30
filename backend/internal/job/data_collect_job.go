@@ -2,8 +2,11 @@ package job
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -160,6 +163,13 @@ func (job *MonitorDataCollectJob) executeCollect(ctx context.Context, task entit
 	if task.TaskType == nil {
 		return
 	}
+
+	// 聚合任务（DataType=Aggregate）：多行分组结果写入时序库，仅收集不做采样/告警
+	if task.DataType == entity.DataTypeAggregate {
+		job.collectAggregate(ctx, task, collectMaxSecond)
+		return
+	}
+
 	cmd, ok := job.commonMap.GetCommandHandler(ctx, int32(*task.TaskType))
 	if !ok {
 		logger.WarnFormat(ctx, "no command handler for taskType=%v task=%s", *task.TaskType, task.TaskKey)
@@ -206,5 +216,136 @@ func (job *MonitorDataCollectJob) executeCollect(ctx context.Context, task entit
 	}); err != nil {
 		// 采集时间未落库，下一轮调度可能重复采集/重复写时序，必须留痕
 		logger.ErrorFormat(ctx, "update PreExecuteTime fail task=%s: %v", task.TaskKey, err)
+	}
+}
+
+// collectAggregate 聚合任务收集：从数据源取多行分组结果，按 labelColumns/valueColumns 拆解为
+// 多个带标签的时序点写入 VM。仅收集，不做采样与告警（DataType=Aggregate）。
+// 聚合任务复用现有 CommandHandler.ExecuteMultiRows，数据源类型由 TaskType 决定（DB/URL/Push）。
+func (job *MonitorDataCollectJob) collectAggregate(ctx context.Context, task entity.MonitorTask, collectMaxSecond int64) {
+	if collectMaxSecond <= 0 {
+		collectMaxSecond = 25
+	}
+	taskCtx, cancel := context.WithTimeout(ctx, time.Duration(collectMaxSecond)*time.Second)
+	defer cancel()
+
+	var params types.MonitorTaskExecParams
+	if task.ExecParams != "" {
+		if err := json.Unmarshal([]byte(task.ExecParams), &params); err != nil {
+			job.recordCollectError(ctx, task, err)
+			return
+		}
+	}
+	if len(params.LabelColumns) == 0 || len(params.ValueColumns) == 0 {
+		job.recordCollectError(ctx, task, fmt.Errorf("聚合任务需配置 labelColumns 与 valueColumns"))
+		return
+	}
+
+	cmd, ok := job.commonMap.GetCommandHandler(ctx, int32(*task.TaskType))
+	if !ok {
+		job.recordCollectError(ctx, task, fmt.Errorf("no command handler for taskType=%v", *task.TaskType))
+		return
+	}
+
+	// 渲染命令模板（DB/URL 的 Command 可能含时间变量）
+	end := time.Now()
+	begin := end.Add(-time.Duration(task.TimeSpan) * time.Second)
+	start := end.Add(-time.Duration(task.StepSpan) * time.Second)
+	if rendered, err := renderCommand(task.Command, begin, start, end); err == nil {
+		task.Command = rendered
+	}
+
+	rows, err := cmd.ExecuteMultiRows(taskCtx, task)
+	if err != nil {
+		job.recordCollectError(ctx, task, err)
+		return
+	}
+
+	now := time.Now()
+	// 防御：label/value 列名不可为空或仍是聚合函数调用（未取别名会导致 tag/metric 命名错乱）
+	if bad := common.FindUnnamedAggColumns(append(append([]string{}, params.LabelColumns...), params.ValueColumns...)); len(bad) > 0 {
+		job.recordCollectError(ctx, task, fmt.Errorf("聚合列名不规范：%s 缺少别名，聚合函数/表达式列必须用 AS 取别名（如 COUNT(*) AS cnt）", strings.Join(bad, "、")))
+		return
+	}
+	points := make([]domainHandler.TimeSeriesPoint, 0)
+	for _, row := range rows {
+		tags := make(map[string]string, len(params.LabelColumns))
+		for _, lc := range params.LabelColumns {
+			if v, ok := row.Columns[lc]; ok {
+				tags[lc] = fmt.Sprint(v)
+			}
+		}
+		for _, vc := range params.ValueColumns {
+			v, ok := row.Columns[vc]
+			if !ok {
+				continue
+			}
+			f, ok := toFloat64Value(v)
+			if !ok {
+				logger.WarnFormat(ctx, "aggregate value column %s not numeric, skip task=%s", vc, task.TaskKey)
+				continue
+			}
+			points = append(points, domainHandler.TimeSeriesPoint{
+				Metric:    task.TaskKey + "_" + vc,
+				Tags:      tags,
+				Value:     f,
+				Timestamp: now,
+			})
+		}
+	}
+
+	if len(points) > 0 && job.timeSeries != nil {
+		if err := job.timeSeries.BatchWrite(ctx, points, 3000); err != nil {
+			logger.ErrorFormat(ctx, "aggregate timeseries write fail task=%s: %v", task.TaskKey, err)
+		}
+	}
+	if err := job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{
+		PreExecuteTime: &common.LocalTime{Time: now},
+		CollectErrMsg:  " ",
+	}); err != nil {
+		logger.ErrorFormat(ctx, "update PreExecuteTime fail aggregate task=%s: %v", task.TaskKey, err)
+	}
+}
+
+// recordCollectError 记录采集错误到 CollectErrMsg
+func (job *MonitorDataCollectJob) recordCollectError(ctx context.Context, task entity.MonitorTask, err error) {
+	logger.ErrorFormat(ctx, "aggregate collect fail task=%s: %v", task.TaskKey, err)
+	if uErr := job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()}); uErr != nil {
+		logger.ErrorFormat(ctx, "record aggregate collect error fail task=%s: collectErr=%v updateErr=%v", task.TaskKey, err, uErr)
+	}
+}
+
+// toFloat64Value 将任意数值类型转为 float64
+func toFloat64Value(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int8:
+		return float64(n), true
+	case int16:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint8:
+		return float64(n), true
+	case uint16:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		return f, err == nil
+	default:
+		return 0, false
 	}
 }

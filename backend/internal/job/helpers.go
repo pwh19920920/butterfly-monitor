@@ -1,13 +1,11 @@
 package job
 
 import (
-	"bytes"
 	"fmt"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"dragonfly-monitor/internal/domain/entity"
@@ -23,24 +21,23 @@ func recoverLog(name string) {
 	}
 }
 
+// renderCommand 模板渲染：把 SQL/URL 命令中的 {{.xxx}} 占位替换为时间参数。
+// 使用简单字符串替换替代 text/template 引擎，避免用户可控的 command 字段被当作模板语法解析，
+// 防止未来 FuncMap 变更导致潜在的 RCE 风险。
 func renderCommand(cmd string, begin, start, end time.Time) (string, error) {
-	tpl, err := template.New("cmd").Parse(cmd)
-	if err != nil {
-		return cmd, err
+	repl := map[string]string{
+		"{{.beginTime}}":      begin.Format("2006-01-02 15:04:05"),
+		"{{.startTime}}":      start.Format("2006-01-02 15:04:05"),
+		"{{.endTime}}":        end.Format("2006-01-02 15:04:05"),
+		"{{.beginTimeMilli}}": fmt.Sprintf("%d", begin.UnixMilli()),
+		"{{.startTimeMilli}}": fmt.Sprintf("%d", start.UnixMilli()),
+		"{{.endTimeMilli}}":   fmt.Sprintf("%d", end.UnixMilli()),
 	}
-	data := map[string]interface{}{
-		"beginTime":      begin.Format("2006-01-02 15:04:05"),
-		"startTime":      start.Format("2006-01-02 15:04:05"),
-		"endTime":        end.Format("2006-01-02 15:04:05"),
-		"beginTimeMilli": begin.UnixMilli(),
-		"startTimeMilli": start.UnixMilli(),
-		"endTimeMilli":   end.UnixMilli(),
+	result := cmd
+	for k, v := range repl {
+		result = strings.ReplaceAll(result, k, v)
 	}
-	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, data); err != nil {
-		return cmd, err
-	}
-	return buf.String(), nil
+	return result, nil
 }
 
 // evaluateRules 规则判定

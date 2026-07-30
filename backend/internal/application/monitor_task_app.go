@@ -25,11 +25,12 @@ type MonitorTaskApplication struct {
 	sequence       *snowflake.Node
 	repository     *persistence.Repository
 	grafanaHandler *support.GrafanaHandler
+	commonMap      *CommonMapApplication
 }
 
 // NewMonitorTaskApplication 创建监控任务应用服务
-func NewMonitorTaskApplication(sequence *snowflake.Node, repository *persistence.Repository, grafanaHandler *support.GrafanaHandler) MonitorTaskApplication {
-	return MonitorTaskApplication{sequence: sequence, repository: repository, grafanaHandler: grafanaHandler}
+func NewMonitorTaskApplication(sequence *snowflake.Node, repository *persistence.Repository, grafanaHandler *support.GrafanaHandler, commonMap *CommonMapApplication) MonitorTaskApplication {
+	return MonitorTaskApplication{sequence: sequence, repository: repository, grafanaHandler: grafanaHandler, commonMap: commonMap}
 }
 
 // Query 分页查询（附带规则运行态 taskAlertStatus）
@@ -174,6 +175,37 @@ func (app *MonitorTaskApplication) needAlertGroups(channelIds []string) (bool, e
 	return need, nil
 }
 
+// resolveRelatedMetrics 把关联任务 ID（逗号分隔字符串）解析为 Grafana 面板取数信息。
+// 关联任务的实时/样本曲线会叠加到主任务面板；无效 ID 静默跳过，不阻断主流程。
+func (app *MonitorTaskApplication) resolveRelatedMetrics(ctx context.Context, relatedIds string) []support.RelatedMetric {
+	if strings.TrimSpace(relatedIds) == "" {
+		return nil
+	}
+	ids := make([]int64, 0)
+	for _, idStr := range strings.Split(relatedIds, ",") {
+		if id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	tasks, err := app.repository.MonitorTaskRepository.SelectByIds(ids)
+	if err != nil {
+		logger.WarnFormat(ctx, "resolveRelatedMetrics: 查询关联任务失败 ids=%v: %v", ids, err)
+		return nil
+	}
+	metrics := make([]support.RelatedMetric, 0, len(tasks))
+	for _, t := range tasks {
+		metrics = append(metrics, support.RelatedMetric{
+			TaskKey:  t.TaskKey,
+			TaskName: t.TaskName,
+			Sampled:  t.Sampled == entity.MonitorSampledStatusOpen,
+		})
+	}
+	return metrics
+}
+
 // Create 创建任务：校验 TaskKey 唯一 + Grafana 加 panel + 事务保存
 func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.MonitorTaskCreateRequest) error {
 	if err := req.ValidateForCreate(); err != nil {
@@ -213,6 +245,16 @@ func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.Monito
 		return err
 	}
 	task.ExecParams = string(execBytes)
+	// dataType 兜底：仅聚合任务需显式置为 Aggregate(2)；其余（正常/下钻/Push）
+	// 统一归为 Normal(1)，避免零值 0 写入污染语义（下钻逻辑仅依赖 TaskType，不读 DataType）
+	if task.DataType != entity.DataTypeAggregate {
+		task.DataType = entity.DataTypeNormal
+	} else {
+		// 聚合任务只收集不告警不采样，强制关闭；且不支持关联任务
+		task.AlertStatus = entity.MonitorAlertStatusClose
+		task.Sampled = entity.MonitorSampledStatusClose
+		task.RelatedTaskIds = ""
+	}
 
 	dashboardIds, err := req.GetDashboardIds()
 	if err != nil {
@@ -254,18 +296,22 @@ func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.Monito
 	}
 
 	if app.grafanaHandler != nil && len(dashboardIds) > 0 {
-		dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(dashboardIds)
-		if err != nil {
-			return err
-		}
-		sampled := task.Sampled == entity.MonitorSampledStatusOpen
-		for _, d := range dashboards {
-			if strings.TrimSpace(d.Uid) == "" {
-				return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+		// 聚合任务的数据写入 taskKey_valueCol（多维度多 metric），不适合单一 realtime panel，跳过同步
+		if task.DataType != entity.DataTypeAggregate {
+			dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(dashboardIds)
+			if err != nil {
+				return err
 			}
-			if err := app.grafanaHandler.AddPanel(d.Uid, task.TaskKey, task.TaskName, sampled); err != nil {
-				logger.Error(ctx, "Grafana AddPanel failed", err)
-				return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+			sampled := task.Sampled == entity.MonitorSampledStatusOpen
+			related := app.resolveRelatedMetrics(ctx, task.RelatedTaskIds)
+			for _, d := range dashboards {
+				if strings.TrimSpace(d.Uid) == "" {
+					return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+				}
+				if err := app.grafanaHandler.AddPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related); err != nil {
+					logger.Error(ctx, "Grafana AddPanel failed", err)
+					return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+				}
 			}
 		}
 	}
@@ -305,6 +351,15 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 		return err
 	}
 	task.ExecParams = string(execBytes)
+	// dataType 兜底：同 Create，仅聚合任务置 Aggregate(2)，其余归 Normal(1)
+	if task.DataType != entity.DataTypeAggregate {
+		task.DataType = entity.DataTypeNormal
+	} else {
+		// 聚合任务只收集不告警不采样，强制关闭；且不支持关联任务
+		task.AlertStatus = entity.MonitorAlertStatusClose
+		task.Sampled = entity.MonitorSampledStatusClose
+		task.RelatedTaskIds = ""
+	}
 
 	oldDashboards, err := app.repository.MonitorDashboardTaskRepository.FindByTaskId(req.Id)
 	if err != nil {
@@ -332,58 +387,64 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 	}
 
 	if app.grafanaHandler != nil {
-		allIds := make([]int64, 0)
-		for id := range oldSet {
-			allIds = append(allIds, id)
-		}
-		for id := range newSet {
-			if !oldSet[id] {
+		// 聚合任务的数据写入 taskKey_valueCol（多维度多 metric），不适合单一 realtime panel，跳过同步
+		if task.DataType != entity.DataTypeAggregate {
+			allIds := make([]int64, 0)
+			for id := range oldSet {
 				allIds = append(allIds, id)
 			}
-		}
-		dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(allIds)
-		if err != nil {
-			return err
-		}
-		dashboardMap := make(map[int64]entity.MonitorDashboard)
-		for _, d := range dashboards {
-			dashboardMap[d.Id] = d
-		}
-		sampled := task.Sampled == entity.MonitorSampledStatusOpen
-		for id := range oldSet {
-			d, ok := dashboardMap[id]
-			if !ok {
-				continue
+			for id := range newSet {
+				if !oldSet[id] {
+					allIds = append(allIds, id)
+				}
 			}
-			if strings.TrimSpace(d.Uid) == "" {
-				return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+			dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(allIds)
+			if err != nil {
+				return err
 			}
-			if newSet[id] {
-				if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, false, false, true); err != nil {
-					logger.Error(ctx, "Grafana ModifyDashBoardPanel(update) failed", err)
+			dashboardMap := make(map[int64]entity.MonitorDashboard)
+			for _, d := range dashboards {
+				dashboardMap[d.Id] = d
+			}
+			// 编辑表单不管理 sampled，请求体里 Sampled 恒为 0；
+			// Grafana 同步须以数据库旧值为准，否则保存任务会把面板的样本展示误关
+			sampled := old.Sampled == entity.MonitorSampledStatusOpen
+			related := app.resolveRelatedMetrics(ctx, task.RelatedTaskIds)
+			for id := range oldSet {
+				d, ok := dashboardMap[id]
+				if !ok {
+					continue
+				}
+				if strings.TrimSpace(d.Uid) == "" {
+					return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+				}
+				if newSet[id] {
+					if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, false, true); err != nil {
+						logger.Error(ctx, "Grafana ModifyDashBoardPanel(update) failed", err)
+						return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+					}
+				} else {
+					if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, true, false); err != nil {
+						logger.Error(ctx, "Grafana ModifyDashBoardPanel(delete) failed", err)
+						return fmt.Errorf("删除 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+					}
+				}
+			}
+			for id := range newSet {
+				if oldSet[id] {
+					continue
+				}
+				d, ok := dashboardMap[id]
+				if !ok {
+					continue
+				}
+				if strings.TrimSpace(d.Uid) == "" {
+					return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+				}
+				if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, true, false, false); err != nil {
+					logger.Error(ctx, "Grafana ModifyDashBoardPanel(add) failed", err)
 					return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
 				}
-			} else {
-				if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, false, true, false); err != nil {
-					logger.Error(ctx, "Grafana ModifyDashBoardPanel(delete) failed", err)
-					return fmt.Errorf("删除 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
-				}
-			}
-		}
-		for id := range newSet {
-			if oldSet[id] {
-				continue
-			}
-			d, ok := dashboardMap[id]
-			if !ok {
-				continue
-			}
-			if strings.TrimSpace(d.Uid) == "" {
-				return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
-			}
-			if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, true, false, false); err != nil {
-				logger.Error(ctx, "Grafana ModifyDashBoardPanel(add) failed", err)
-				return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
 			}
 		}
 	}
@@ -432,6 +493,17 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 // ModifyAlertStatus 修改告警开关
 // 开启时必须已有告警配置（t_monitor_task_alert 存在且含检测规则/通道等）
 func (app *MonitorTaskApplication) ModifyAlertStatus(ctx context.Context, id int64, status entity.MonitorAlertStatus) error {
+	task, err := app.repository.MonitorTaskRepository.GetById(id)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return errors.New("任务不存在")
+	}
+	// 聚合任务只收集不告警，禁止开启告警开关
+	if task.DataType == entity.DataTypeAggregate && status == entity.MonitorAlertStatusOpen {
+		return errors.New("聚合任务不支持告警，无法开启告警开关")
+	}
 	if status == entity.MonitorAlertStatusOpen {
 		alert, err := app.repository.MonitorTaskAlertRepository.GetByTaskId(id)
 		if err != nil {
@@ -468,6 +540,10 @@ func (app *MonitorTaskApplication) ModifySampled(ctx context.Context, id int64, 
 	if task == nil {
 		return errors.New("任务不存在")
 	}
+	// 聚合任务不生成样本面板，切换样本开关无意义，直接返回
+	if task.DataType == entity.DataTypeAggregate {
+		return nil
+	}
 	if err := app.repository.MonitorTaskRepository.UpdateSampledById(id, status); err != nil {
 		return err
 	}
@@ -477,11 +553,13 @@ func (app *MonitorTaskApplication) ModifySampled(ctx context.Context, id int64, 
 			return err
 		}
 		sampled := status == entity.MonitorSampledStatusOpen
+		// 关联任务 ID 为任务一级字段，切换样本开关时需一并解析以重建面板
+		related := app.resolveRelatedMetrics(ctx, task.RelatedTaskIds)
 		for _, d := range dashboards {
 			if strings.TrimSpace(d.Uid) == "" {
 				return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
 			}
-			if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, false, false, true); err != nil {
+			if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, false, true); err != nil {
 				logger.Error(ctx, "Grafana ModifyDashBoardPanel(sampled) failed", err)
 				return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
 			}
@@ -497,4 +575,58 @@ func (app *MonitorTaskApplication) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return *c, nil
+}
+
+// PreviewAggregate 聚合预览：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度。
+// 不落库、不影响采集；复用 CommandHandler.ExecuteMultiRows 透传当前填写的数据源/SQL/URL。
+func (app *MonitorTaskApplication) PreviewAggregate(ctx context.Context, req *types.MonitorTaskPreviewRequest) (*types.MonitorTaskPreviewResponse, error) {
+	var taskType int32
+	if req.TaskType != nil {
+		taskType = int32(*req.TaskType)
+	}
+	cmd, ok := app.commonMap.GetCommandHandler(ctx, taskType)
+	if !ok {
+		return nil, fmt.Errorf("未找到任务类型 %d 对应的数据源处理器", taskType)
+	}
+	execBytes, err := json.Marshal(req.ExecParams)
+	if err != nil {
+		return nil, err
+	}
+	// 构造临时任务：仅注入多行取数所需字段（Command + ExecParams）
+	tmp := entity.MonitorTask{
+		Command:    req.Command,
+		ExecParams: string(execBytes),
+	}
+	// 预览查询加超时保护，防止慢 SQL 长时间占住连接（D-003）
+	previewCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	rows, err := cmd.ExecuteMultiRows(previewCtx, tmp)
+	if err != nil {
+		return nil, fmt.Errorf("预览查询失败: %w", err)
+	}
+	if len(rows) == 0 {
+		return &types.MonitorTaskPreviewResponse{Columns: []string{}}, nil
+	}
+	// 取首行列名；不同行列名应一致，取并集
+	colSet := make(map[string]bool)
+	columns := make([]string, 0)
+	for _, row := range rows {
+		for col := range row.Columns {
+			if !colSet[col] {
+				colSet[col] = true
+				columns = append(columns, col)
+			}
+		}
+	}
+
+	// 聚合查询要求每列都有明确别名：无别名聚合函数（COUNT(*)/SUM(x) 等）或空列名
+	// 会导致 tag/metric 命名错乱，提前拦截并提示用户用 AS 取别名
+	if badCols := common.FindUnnamedAggColumns(columns); len(badCols) > 0 {
+		return nil, fmt.Errorf(
+			"预览列名不规范：%s 缺少别名，聚合函数/表达式列必须用 AS 取别名（如 COUNT(*) AS cnt）",
+			strings.Join(badCols, "、"),
+		)
+	}
+
+	return &types.MonitorTaskPreviewResponse{Columns: columns}, nil
 }

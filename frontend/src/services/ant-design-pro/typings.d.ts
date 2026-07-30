@@ -102,6 +102,8 @@ declare namespace API {
     stepSpan?: number;
     command?: string;
     taskType?: number;
+    /** 数据类型：1 正常查询(单值) 2 聚合查询(分组多行) */
+    dataType?: number;
     execParams?: string;
     taskStatus?: number;
     /** 告警开关：0关闭 1开启 */
@@ -116,6 +118,8 @@ declare namespace API {
     sampled?: number;
     monitorGroup?: string;
     labels?: string;
+    /** 关联任务 ID（逗号分隔），叠加实时/样本曲线到本任务面板 */
+    relatedTaskIds?: string;
     collectErrMsg?: string;
     sampleErrMsg?: string;
     preExecuteTime?: string;
@@ -125,6 +129,11 @@ declare namespace API {
     taskExecParams?: Record<string, any>;
     dashboards?: string[];
     taskAlert?: Record<string, any>;
+  };
+
+  // 聚合预览响应：结果列名列表
+  type MonitorTaskPreviewResponse = {
+    columns?: string[];
   };
 
   // 告警规则比较项

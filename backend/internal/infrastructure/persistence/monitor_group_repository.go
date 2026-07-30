@@ -83,10 +83,9 @@ func (repo *MonitorGroupRepositoryImpl) Save(group *entity.MonitorGroup) error {
 func (repo *MonitorGroupRepositoryImpl) Modify(id int64, oldRoute string, group *entity.MonitorGroup) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		// 级联更新子节点 route：REPLACE(route, oldRoute, newRoute)
-		err := tx.Model(&entity.MonitorGroup{}).
+		if err := tx.Model(&entity.MonitorGroup{}).
 			Where("route like ?", oldRoute+"%").
-			UpdateColumn("route", gorm.Expr("REPLACE(route, ?, ?)", oldRoute, group.Route)).Error
-		if err != nil {
+			UpdateColumn("route", gorm.Expr("REPLACE(route, ?, ?)", oldRoute, group.Route)).Error; err != nil {
 			return err
 		}
 		return tx.Model(&entity.MonitorGroup{}).

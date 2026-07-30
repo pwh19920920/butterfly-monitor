@@ -102,12 +102,11 @@ func (job *MonitorDataSamplingJob) sampleOne(ctx context.Context, task entity.Mo
 	span := time.Duration(spanSec) * time.Second
 
 	// metric 名计算下沉到循环外，单次构建复用
+	// 注：realtimeMetric 不再需要 —— realtime 回退已移除，基线只来源于 *_sampling 历史原料
 	sampleRawMetric := task.TaskKey + "_sampling"
-	realtimeMetric := task.TaskKey
 	smooth := task.TaskKey + "_sample"
 	if job.metricQuery != nil {
 		sampleRawMetric = job.metricQuery.SampleRawMetric(task.TaskKey)
-		realtimeMetric = job.metricQuery.RealtimeMetric(task.TaskKey)
 		smooth = job.metricQuery.SmoothMetric(task.TaskKey)
 	}
 
@@ -122,33 +121,27 @@ func (job *MonitorDataSamplingJob) sampleOne(ctx context.Context, task entity.Mo
 		}
 	}
 
-	// 逐格补点直到追到现在：end = begin + span，end <= now 即可产出
-	for end := begin.Add(span); !end.After(now); end = begin.Add(span) {
-		// 优先用历史原料 *_sampling（未来 1~8 天滚动进来的点）
+	// 逐格补点直到 now 之后一天：end <= now+1day 才可产出。
+	// 不再保留安全间距：realtime 回退已移除，基线不会混入当前实时值，无需避让它；
+	// 配合 _sampling 的"未来 1~8 天预填"机制，可提前把未来一天的格子也生成出来。
+	cutoff := now.Add(24 * time.Hour)
+	for end := begin.Add(span); !end.After(cutoff); end = begin.Add(span) {
+		// 优先用历史原料 *_sampling（未来 1~8 天滚动预填的点）
 		vals, err := job.timeSeries.QueryRangeValues(ctx, sampleRawMetric, begin, end)
 		if err != nil {
+			// 查询失败：跳过该格，不写基线（避免用不可信数据污染历史）
 			logger.ErrorFormat(ctx, "query sample range fail task=%s: %v", task.TaskKey, err)
-		}
-		// 历史/新任务无点时，用实时序列临时兜底。
-		// 只写 *_sample，不回写 *_sampling，避免当天实时值污染历史基线
-		if err != nil || len(vals) == 0 {
-			rVals, rErr := job.timeSeries.QueryRangeValues(ctx, realtimeMetric, begin, end)
-			if rErr != nil {
-				logger.ErrorFormat(ctx, "query realtime fallback fail task=%s: %v", task.TaskKey, rErr)
-			}
-			vals = rVals
-		}
-		// 有数据则聚合写点：<5 点取平均，>=5 点去最大最小后再平均
-		if len(vals) > 0 {
+		} else if len(vals) > 0 {
+			// 仅在有样本时聚合写点；无样本跳过该格（告警端 sampleVal==nil 会安全降级）
 			avg := averageSampleValues(vals)
-			if err := job.timeSeries.WritePoints(ctx, []domainHandler.TimeSeriesPoint{{
+			if wErr := job.timeSeries.WritePoints(ctx, []domainHandler.TimeSeriesPoint{{
 				Metric: smooth, Value: avg, Timestamp: end,
-			}}); err != nil {
+			}}); wErr != nil {
 				// 平滑基线写入失败：begin 仍推进，后续告警判定基于缺失基线可能误报/漏报
-				logger.ErrorFormat(ctx, "write smooth baseline fail task=%s: %v", task.TaskKey, err)
+				logger.ErrorFormat(ctx, "write smooth baseline fail task=%s: %v", task.TaskKey, wErr)
 			}
 		}
-		// 无数据格也推进 begin，避免在「任务一直采样」模式下无数据造成新积压
+		// 无论是否写入，均推进 begin，避免在「任务一直采样」模式下无数据造成新积压
 		begin = end
 		// 安全阀：本轮追不动部分留到下一轮，不丢段
 		if maxLoop--; maxLoop <= 0 {

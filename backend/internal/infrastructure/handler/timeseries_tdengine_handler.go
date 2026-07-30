@@ -23,6 +23,7 @@ const tdStableName = "ts_points"
 // TimeSeriesTDengineHandler TDengine 实现：TimeSeriesStore + MetricQueryDialect
 // 通过 REST /rest/sql 写入与查询；Grafana 数据源类型 tdengine-datasource
 type TimeSeriesTDengineHandler struct {
+	MetricNamer
 	addr     string
 	username string
 	password string
@@ -90,22 +91,7 @@ func (h *TimeSeriesTDengineHandler) WritePoints(ctx context.Context, points []do
 }
 
 func (h *TimeSeriesTDengineHandler) BatchWrite(ctx context.Context, points []domainHandler.TimeSeriesPoint, chunkSize int) error {
-	if chunkSize <= 0 {
-		chunkSize = 3000
-	}
-	for i := 0; i < len(points); i += chunkSize {
-		end := i + chunkSize
-		if end > len(points) {
-			end = len(points)
-		}
-		if err := h.WritePoints(ctx, points[i:end]); err != nil {
-			return err
-		}
-		if end < len(points) {
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
-	return nil
+	return batchWriteChunked(ctx, points, chunkSize, h.WritePoints)
 }
 
 func (h *TimeSeriesTDengineHandler) QueryMean(ctx context.Context, metric string, start, end time.Time) (*float64, error) {
@@ -144,19 +130,21 @@ func (h *TimeSeriesTDengineHandler) QueryRangeValues(ctx context.Context, metric
 	return h.queryFloatColumn(ctx, sql)
 }
 
+// QueryRangeWithTags TDengine 实现：当前超级表仅按 metric 列存储，不支持任意动态标签维度，
+// 故忽略 tagFilters，按 metric 查询区间内全部值并以空 Labels 返回单个 SeriesData。
+// 多维度分组下钻在 TDengine 后端暂不支持，仅 VictoriaMetrics 后端提供完整能力。
+func (h *TimeSeriesTDengineHandler) QueryRangeWithTags(ctx context.Context, metric string, start, end time.Time, tagFilters map[string][]string) ([]domainHandler.SeriesData, error) {
+	vals, err := h.QueryRangeValues(ctx, metric, start, end)
+	if err != nil {
+		return nil, err
+	}
+	if len(vals) == 0 {
+		return nil, nil
+	}
+	return []domainHandler.SeriesData{{Labels: map[string]string{}, Values: vals}}, nil
+}
+
 // ---------------- MetricQueryDialect ----------------
-
-func (h *TimeSeriesTDengineHandler) RealtimeMetric(taskKey string) string {
-	return taskKey
-}
-
-func (h *TimeSeriesTDengineHandler) SampleRawMetric(taskKey string) string {
-	return fmt.Sprintf("%s_sampling", taskKey)
-}
-
-func (h *TimeSeriesTDengineHandler) SmoothMetric(taskKey string) string {
-	return fmt.Sprintf("%s_sample", taskKey)
-}
 
 func (h *TimeSeriesTDengineHandler) DatasourceType() string {
 	// Grafana 官方/常用插件 id
