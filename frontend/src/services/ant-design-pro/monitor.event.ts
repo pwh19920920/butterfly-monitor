@@ -7,21 +7,21 @@ export async function monitorTaskEventQuery(params: API.PageParams & Record<stri
   });
 }
 
-export async function monitorTaskEventDeal(id: string | number, data?: { content?: string }) {
+export async function monitorTaskEventDeal(id: string, data?: { content?: string }) {
   return request<API.Resp<string>>(`/api/monitor/task/event/deal/${id}`, {
     method: 'POST',
     data: data || {},
   });
 }
 
-export async function monitorTaskEventComplete(id: string | number, data?: { content?: string }) {
+export async function monitorTaskEventComplete(id: string, data?: { content?: string }) {
   return request<API.Resp<string>>(`/api/monitor/task/event/complete/${id}`, {
     method: 'POST',
     data: data || {},
   });
 }
 
-export async function monitorTaskEventIgnore(id: string | number) {
+export async function monitorTaskEventIgnore(id: string) {
   return request<API.Resp<string>>(`/api/monitor/task/event/ignore/${id}`, {
     method: 'POST',
     data: {},

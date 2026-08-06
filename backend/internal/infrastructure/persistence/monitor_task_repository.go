@@ -20,7 +20,10 @@ func NewMonitorTaskRepositoryImpl(db *gorm.DB) *MonitorTaskRepositoryImpl {
 	return &MonitorTaskRepositoryImpl{db: db}
 }
 
-// FindJobBySharding 分片查询待采集任务（不分页）
+// FindJobBySharding 分片查询待采集任务（不分页）。
+// 条件 date_add(now(), -time_span) >= pre_execute_time 只决定「是否到期可采」；
+// 真正的采集窗口始终锚定 now（见 data_collect_job.renderCommandTemplate），
+// 落后多个周期也不会按 pre_execute_time 回溯补历史空窗。
 func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
 	if shardTotal <= 0 {
 		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
@@ -30,12 +33,18 @@ func (repo *MonitorTaskRepositoryImpl) FindJobBySharding(shardIndex, shardTotal 
 		Model(&entity.MonitorTask{}).
 		Where("mod(id, ?) = ? "+
 			"and task_status = ? "+
-			"and date_add(now(), interval -time_span second) >= pre_execute_time", shardTotal, shardIndex, entity.MonitorTaskStatusOpen).
+			"and date_add(now(), interval - time_span second) >= pre_execute_time", shardTotal, shardIndex, entity.MonitorTaskStatusOpen).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
 }
 
-// FindSamplingJobBySharding 分片查询待采样任务
+// FindSamplingJobBySharding 分片查询待采样任务。
+// 排除聚合任务（DataType=Aggregate）：聚合只收集多维点，不生成样本基线。
+//
+// 到期条件对齐 sampleOne 的 cutoff=now+1d：只要 pre_sample_time 还没追到
+// 「now+1 天 - time_span」就继续捞，允许提前生成未来一天的 *_sample 基线。
+// 若仍按 now 判断，pre_sample_time 一超过当前时刻就不再入选，+1d 预生成形同虚设。
 func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastId, shardIndex, shardTotal int64) ([]entity.MonitorTask, error) {
 	if shardTotal <= 0 {
 		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
@@ -46,8 +55,12 @@ func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastI
 		Where("id > ? "+
 			"and mod(id, ?) = ? "+
 			"and task_status = ? "+
-			"and date_add(now(), interval -time_span second) >= pre_sample_time "+
-			"limit 0, ?", lastId, shardTotal, shardIndex, entity.MonitorTaskStatusOpen, pageSize).
+			"and data_type <> ? "+
+			"and date_add(date_add(now(), interval 1 day), interval -time_span second) >= pre_sample_time",
+			lastId, shardTotal, shardIndex, entity.MonitorTaskStatusOpen, entity.DataTypeAggregate).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Order("id asc").
+		Limit(int(pageSize)).
 		Find(&data).Error
 	return data, err
 }
@@ -55,8 +68,10 @@ func (repo *MonitorTaskRepositoryImpl) FindSamplingJobBySharding(pageSize, lastI
 // Save 保存任务、面板关联与告警规则（告警规则为可选，alert 为 nil 时跳过）
 func (repo *MonitorTaskRepositoryImpl) Save(monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, taskAlert *entity.MonitorTaskAlert) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
-			return err
+		if len(dashboardTasks) > 0 {
+			if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
+				return err
+			}
 		}
 		if err := tx.Model(&entity.MonitorTask{}).Create(&monitorTask).Error; err != nil {
 			return err
@@ -79,13 +94,14 @@ func (repo *MonitorTaskRepositoryImpl) UpdateById(id int64, monitorTask *entity.
 // taskAlert 语义：nil=清空（软删除）该任务原有告警；非 nil=存在（含已软删除）则恢复并更新，不存在则新增
 func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id int64, monitorTask *entity.MonitorTask, dashboardTasks []entity.MonitorDashboardTask, taskAlert *entity.MonitorTaskAlert) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		if dashboardTasks != nil {
-			// 软删除旧关联
-			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorDashboardTask{
-				BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
-			}).Error; err != nil {
-				return err
-			}
+		// 软删除旧关联
+		if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorDashboardTask{
+			BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+		}).Error; err != nil {
+			return err
+		}
+
+		if dashboardTasks != nil && len(dashboardTasks) > 0 {
 			if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
 				return err
 			}
@@ -113,20 +129,12 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 				}
 			} else {
 				taskAlert.Id = exist.Id
-				// Updates 忽略零值字段，需强制覆盖可能为空的通道/分组，并恢复 deleted
+				taskAlert.Deleted = common.DeletedFalse
+				// 只更新业务字段，保留运行态字段（PreCheckTime、FirstFlagTime）
 				if err := tx.Model(&entity.MonitorTaskAlert{}).
 					Where("id = ?", exist.Id).
+					Select("task_id", "alert_channels", "alert_groups", "time_span", "duration", "params", "alert_status", "deal_status", "deleted").
 					Updates(taskAlert).Error; err != nil {
-					return err
-				}
-				// 空字符串零值不会被 Updates 写入，需强制覆盖（如纯 Webhook 清空分组）
-				if err := tx.Model(&entity.MonitorTaskAlert{}).
-					Where("id = ?", exist.Id).
-					UpdateColumns(map[string]interface{}{
-						"alert_channels": taskAlert.AlertChannels,
-						"alert_groups":   taskAlert.AlertGroups,
-						"deleted":        common.DeletedFalse,
-					}).Error; err != nil {
 					return err
 				}
 			}
@@ -137,15 +145,6 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 			Updates(&monitorTask).Error; err != nil {
 			return err
 		}
-		// TaskType 为指针且 Drilldown=0 是合法值，Updates 会跳过零值指针字段，
-		// 导致任务类型改为下钻时 task_type 不更新。显式补写（D-010）。
-		if monitorTask.TaskType != nil {
-			if err := tx.Model(&entity.MonitorTask{}).
-				Where("id = ?", id).
-				UpdateColumn("task_type", *monitorTask.TaskType).Error; err != nil {
-				return err
-			}
-		}
 		return nil
 	})
 }
@@ -154,24 +153,28 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 func (repo *MonitorTaskRepositoryImpl) UpdateAlertStatusById(id int64, status entity.MonitorAlertStatus) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
 		if status == entity.MonitorAlertStatusClose {
-			// 关闭告警：恢复规则状态并忽略未完成事件
+			// 关闭告警：恢复规则状态，仅忽略未完成事件（Pending/Processing），不污染历史 Complete
 			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskAlert{
 				AlertStatus: entity.MonitorTaskAlertStatusNormal,
 			}).Error; err != nil {
 				return err
 			}
-			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskEvent{
-				CompleteTime: &common.LocalTime{Time: time.Now()},
-				DealStatus:   entity.MonitorTaskEventDealStatusIgnore,
-			}).Error; err != nil {
+			if err := tx.Where("task_id = ? and deal_status in (?, ?)",
+				id, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).
+				Updates(&entity.MonitorTaskEvent{
+					CompleteTime: &common.LocalTime{Time: time.Now()},
+					DealStatus:   entity.MonitorTaskEventDealStatusIgnore,
+				}).Error; err != nil {
 				return err
 			}
 		}
 
 		if status == entity.MonitorAlertStatusOpen {
-			// 开启告警：刷新首次异常时间
+			// 开启告警：刷新首次异常时间与上次检查时间，避免冷启动
+			now := time.Now()
 			if err := tx.Where("task_id = ?", id).Updates(&entity.MonitorTaskAlert{
-				FirstFlagTime: &common.LocalTime{Time: time.Now()},
+				FirstFlagTime: &common.LocalTime{Time: now},
+				PreCheckTime:  &common.LocalTime{Time: now},
 			}).Error; err != nil {
 				return err
 			}
@@ -256,6 +259,24 @@ func (repo *MonitorTaskRepositoryImpl) SelectByTaskKey(taskKey string) (*entity.
 	return &data, err
 }
 
+// CountDrilldownBySourceTaskId 统计依赖指定聚合任务的下钻任务数。
+// onlyOpen=true 时仅统计处于开启状态的下钻；onlyOpen=false 时不区分开关。
+func (repo *MonitorTaskRepositoryImpl) CountDrilldownBySourceTaskId(sourceTaskId int64, onlyOpen bool) (int64, error) {
+	var count int64
+	idStr := fmt.Sprintf("%d", sourceTaskId)
+	db := repo.db.Model(&entity.MonitorTask{}).
+		Where("task_type = ? "+
+			"and (JSON_UNQUOTE(JSON_EXTRACT(exec_params, '$.sourceTaskId')) = ? "+
+			"or JSON_EXTRACT(exec_params, '$.sourceTaskId') = ?)",
+			entity.TaskTypeDrilldown, idStr, sourceTaskId).
+		Not(&entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}})
+	if onlyOpen {
+		db = db.Where("task_status = ?", entity.MonitorTaskStatusOpen)
+	}
+	err := db.Count(&count).Error
+	return count, err
+}
+
 // Count 统计总数
 func (repo *MonitorTaskRepositoryImpl) Count() (*int64, error) {
 	var count int64
@@ -268,45 +289,35 @@ func (repo *MonitorTaskRepositoryImpl) Count() (*int64, error) {
 
 // Select 分页查询
 func (repo *MonitorTaskRepositoryImpl) Select(req *types.MonitorTaskQueryRequest) (int64, []entity.MonitorTask, error) {
-	var count int64 = 0
 	whereArg := make([]interface{}, 0)
 	whereSql := "1 = 1 "
 	if req.TaskName != "" {
-		whereSql += "and task_name like ?"
+		whereSql += " and task_name like ?"
 		whereArg = append(whereArg, "%"+req.TaskName+"%")
 	}
 	if req.TaskKey != "" {
-		whereSql += "and task_key like ?"
+		whereSql += " and task_key like ?"
 		whereArg = append(whereArg, "%"+req.TaskKey+"%")
 	}
 	if req.TaskType != nil {
-		whereSql += "and task_type = ?"
+		whereSql += " and task_type = ?"
 		whereArg = append(whereArg, req.TaskType)
 	}
 	if req.TaskStatus != nil {
-		whereSql += "and task_status = ?"
+		whereSql += " and task_status = ?"
 		whereArg = append(whereArg, req.TaskStatus)
 	}
 	if req.AlertStatus != nil {
-		whereSql += "and alert_status = ?"
+		whereSql += " and alert_status = ?"
 		whereArg = append(whereArg, req.AlertStatus)
+	}
+	if req.DataType != nil {
+		whereSql += " and data_type = ?"
+		whereArg = append(whereArg, req.DataType)
 	}
 
 	notCase := &entity.MonitorTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
-	repo.db.Model(&entity.MonitorTask{}).
-		Where(whereSql, whereArg...).
-		Not(notCase).
-		Count(&count)
-
-	var data []entity.MonitorTask
-	err := repo.db.
-		Model(&entity.MonitorTask{}).
-		Where(whereSql, whereArg...).
-		Not(notCase).
-		Order("id desc").
-		Limit(req.PageSize).Offset(req.Offset()).
-		Find(&data).Error
-	return count, data, err
+	return paginate[entity.MonitorTask](repo.db, &entity.MonitorTask{}, whereSql, whereArg, notCase, req.PageSize, req.Offset(), "id desc")
 }
 
 // SelectAll 查询全部

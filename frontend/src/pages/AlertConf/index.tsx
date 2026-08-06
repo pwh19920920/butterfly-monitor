@@ -1,21 +1,32 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { ModalForm, PageContainer, ProFormSelect, ProFormText, ProFormTextArea, ProTable } from '@ant-design/pro-components';
+import {
+  ModalForm,
+  PageContainer,
+  ProFormSelect,
+  ProFormText,
+  ProFormTextArea,
+  ProTable,
+} from '@ant-design/pro-components';
 import { Button, message } from 'antd';
 import React, { useRef, useState } from 'react';
-import { alertConfCreate, alertConfQuery, alertConfUpdate } from '@/services/ant-design-pro/alert.conf';
+import {
+  alertConfCreate,
+  alertConfQuery,
+  alertConfUpdate,
+} from '@/services/ant-design-pro/alert.conf';
 import { AlertConfTypeEnum } from '@/services/ant-design-pro/enum';
 
 const AlertConfPage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [modifyVisible, setModifyVisible] = useState(false);
   const [current, setCurrent] = useState<API.AlertConf>();
 
   const columns: ProColumns<API.AlertConf>[] = [
-    { title: 'Key', dataIndex: 'confKey' },
+    { title: 'Key', dataIndex: 'confKey', width: 320, ellipsis: true },
     { title: 'Value', dataIndex: 'confVal', search: false, ellipsis: true },
-    { title: '描述', dataIndex: 'confDesc', search: false },
+    { title: '描述', dataIndex: 'confDesc', search: false, ellipsis: true },
     {
       title: '类型',
       dataIndex: 'confType',
@@ -47,7 +58,11 @@ const AlertConfPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         toolBarRender={() => [
-          <Button type="primary" key="add" onClick={() => setCreateVisible(true)}>
+          <Button
+            type="primary"
+            key="add"
+            onClick={() => setCreateVisible(true)}
+          >
             <PlusOutlined /> 新建
           </Button>,
         ]}
@@ -59,7 +74,10 @@ const AlertConfPage: React.FC = () => {
       <ModalForm
         title="新建配置"
         open={createVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCreateVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setCreateVisible(false),
+        }}
         onFinish={async (values) => {
           try {
             await alertConfCreate(values as API.AlertConf);
@@ -74,7 +92,11 @@ const AlertConfPage: React.FC = () => {
         }}
       >
         <ProFormText name="confKey" label="Key" rules={[{ required: true }]} />
-        <ProFormTextArea name="confVal" label="Value" rules={[{ required: true }]} />
+        <ProFormTextArea
+          name="confVal"
+          label="Value"
+          rules={[{ required: true }]}
+        />
         <ProFormText name="confDesc" label="描述" />
         <ProFormSelect
           name="confType"
@@ -90,7 +112,10 @@ const AlertConfPage: React.FC = () => {
         title="编辑配置"
         open={modifyVisible}
         initialValues={current}
-        modalProps={{ destroyOnClose: true, onCancel: () => setModifyVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setModifyVisible(false),
+        }}
         onFinish={async (values) => {
           try {
             await alertConfUpdate({ ...current, ...values } as API.AlertConf);
@@ -105,7 +130,11 @@ const AlertConfPage: React.FC = () => {
         }}
       >
         <ProFormText name="confKey" label="Key" disabled />
-        <ProFormTextArea name="confVal" label="Value" rules={[{ required: true }]} />
+        <ProFormTextArea
+          name="confVal"
+          label="Value"
+          rules={[{ required: true }]}
+        />
         <ProFormText name="confDesc" label="描述" />
       </ModalForm>
     </PageContainer>

@@ -35,13 +35,11 @@ func NewCommonMapApplication(repository *persistence.Repository) *CommonMapAppli
 	}
 }
 
-// GetAlertChannelHandlerNameMap 返回可用通道处理器名称
+// GetAlertChannelHandlerNameMap 返回已注册的通道处理器名称集合
 func (app *CommonMapApplication) GetAlertChannelHandlerNameMap(ctx context.Context) map[string]bool {
 	app.mu.RLock()
 	defer app.mu.RUnlock()
-	result := make(map[string]bool, len(app.channelHandlerMap)+2)
-	result["ChannelEmailHandler"] = true
-	result["ChannelWechatHandler"] = true
+	result := make(map[string]bool, len(app.channelHandlerMap))
 	for name := range app.channelHandlerMap {
 		result[name] = true
 	}
@@ -49,10 +47,11 @@ func (app *CommonMapApplication) GetAlertChannelHandlerNameMap(ctx context.Conte
 }
 
 // GetAlertChannelHandlerMap 返回通道类型与可用处理器的绑定关系，供前端下拉联动使用。
-// 与 starter.registerHandlers 注册保持一致：邮件(1)→ChannelEmailHandler，Webhook(2)→ChannelWechatHandler。
+// 与 starter.registerHandlers 注册保持一致：
+// 邮件(1)→ChannelEmailHandler；Webhook(2)→ChannelWechatHandler/ChannelDingtalkHandler/ChannelFeishuHandler。
 func (app *CommonMapApplication) GetAlertChannelHandlerMap(ctx context.Context) []types.AlertChannelHandlerVO {
 	return []types.AlertChannelHandlerVO{
-		{ChannelType: int32(entity.AlertChannelTypeWebhook), Handlers: []string{"ChannelWechatHandler"}},
+		{ChannelType: int32(entity.AlertChannelTypeWebhook), Handlers: []string{"ChannelWechatHandler", "ChannelDingtalkHandler", "ChannelFeishuHandler"}},
 		{ChannelType: int32(entity.AlertChannelTypeEmail), Handlers: []string{"ChannelEmailHandler"}},
 	}
 }

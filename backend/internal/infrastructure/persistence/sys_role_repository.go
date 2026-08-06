@@ -61,15 +61,8 @@ func (repo *SysRoleRepositoryImpl) Delete(id int64) error {
 
 // Select 查询全部
 func (repo *SysRoleRepositoryImpl) Select(req *types.SysRoleQueryRequest) (int64, []entity.SysRole, error) {
-	var count int64 = 0
 	notCase := &entity.SysRole{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
-	repo.db.Model(&entity.SysRole{}).Not(notCase).Count(&count)
-
-	var data []entity.SysRole
-	err := repo.db.Model(&entity.SysRole{}).
-		Not(notCase).
-		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
-	return count, data, err
+	return paginate[entity.SysRole](repo.db, &entity.SysRole{}, "1 = 1", nil, notCase, req.PageSize, req.Offset(), "id desc")
 }
 
 func (repo *SysRoleRepositoryImpl) SelectAll() ([]entity.SysRole, error) {

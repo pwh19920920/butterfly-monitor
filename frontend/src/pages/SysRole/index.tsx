@@ -27,7 +27,7 @@ const handleCreate = async (fields: API.SysRole) => {
     hide();
     message.success('保存角色成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('保存角色失败!');
     return false;
@@ -46,7 +46,7 @@ const handleUpdate = async (fields: API.SysRole) => {
     hide();
     message.success('更新角色成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('更新角色失败!');
     return false;
@@ -57,14 +57,14 @@ const handleUpdate = async (fields: API.SysRole) => {
  * 删除
  * @param id
  */
-const handleDelete = async (id: number | string) => {
+const handleDelete = async (id: string) => {
   const hide = message.loading('正在删除');
   try {
     await sysRoleDelete(id);
     hide();
     message.success('删除角色成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('删除角色失败!');
     return false;
@@ -82,7 +82,7 @@ const TableList: React.FC = () => {
 
   const [showDetail, setShowDetail] = useState<boolean>(false);
 
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [currentRow, setCurrentRow] = useState<API.SysRole>();
 
   const columns: ProColumns<API.SysRole>[] = [
@@ -214,9 +214,7 @@ const TableList: React.FC = () => {
             }
           }}
         />
-      ) : (
-        <></>
-      )}
+      ) : null}
 
       {modifyModalVisible && currentRow ? (
         <CreateOrUpdateForm
@@ -242,9 +240,7 @@ const TableList: React.FC = () => {
             }
           }}
         />
-      ) : (
-        <></>
-      )}
+      ) : null}
     </PageContainer>
   );
 };

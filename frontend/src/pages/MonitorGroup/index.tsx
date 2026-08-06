@@ -1,6 +1,12 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { ModalForm, PageContainer, ProFormSelect, ProFormText, ProTable } from '@ant-design/pro-components';
+import {
+  ModalForm,
+  PageContainer,
+  ProFormSelect,
+  ProFormText,
+  ProTable,
+} from '@ant-design/pro-components';
 import { Button, message } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -11,11 +17,13 @@ import {
 } from '@/services/ant-design-pro/monitor.group';
 
 const MonitorGroupPage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [modifyVisible, setModifyVisible] = useState(false);
   const [current, setCurrent] = useState<API.MonitorGroup>();
-  const [parents, setParents] = useState<{ label: string; value: string }[]>([]);
+  const [parents, setParents] = useState<{ label: string; value: string }[]>(
+    [],
+  );
   const [groupMap, setGroupMap] = useState<Record<string, string>>({});
 
   const loadParents = () => {
@@ -58,7 +66,12 @@ const MonitorGroupPage: React.FC = () => {
       dataIndex: 'parent',
       search: false,
       render: (_, record) => {
-        if (record.parent === undefined || record.parent === null || record.parent === '') return '-';
+        if (
+          record.parent === undefined ||
+          record.parent === null ||
+          record.parent === ''
+        )
+          return '-';
         return groupMap[String(record.parent)] || String(record.parent);
       },
     },
@@ -87,7 +100,11 @@ const MonitorGroupPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         toolBarRender={() => [
-          <Button type="primary" key="add" onClick={() => setCreateVisible(true)}>
+          <Button
+            type="primary"
+            key="add"
+            onClick={() => setCreateVisible(true)}
+          >
             <PlusOutlined /> 新建
           </Button>,
         ]}
@@ -99,7 +116,10 @@ const MonitorGroupPage: React.FC = () => {
       <ModalForm
         title="新建分组"
         open={createVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCreateVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setCreateVisible(false),
+        }}
         onFinish={async (values) => {
           try {
             await monitorGroupCreate(values as API.MonitorGroup);
@@ -115,16 +135,27 @@ const MonitorGroupPage: React.FC = () => {
         }}
       >
         <ProFormText name="name" label="名称" rules={[{ required: true }]} />
-        <ProFormSelect name="parent" label="上级分组" options={parents} initialValue="0" />
+        <ProFormSelect
+          name="parent"
+          label="上级分组"
+          options={parents}
+          initialValue="0"
+        />
       </ModalForm>
       <ModalForm
         title="编辑分组"
         open={modifyVisible}
         initialValues={current}
-        modalProps={{ destroyOnClose: true, onCancel: () => setModifyVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setModifyVisible(false),
+        }}
         onFinish={async (values) => {
           try {
-            await monitorGroupUpdate({ ...current, ...values } as API.MonitorGroup);
+            await monitorGroupUpdate({
+              ...current,
+              ...values,
+            } as API.MonitorGroup);
             message.success('更新成功');
             setModifyVisible(false);
             loadParents();

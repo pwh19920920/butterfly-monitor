@@ -15,7 +15,7 @@ export async function sysMenuQueryWithOption() {
 }
 
 /** 获取列表 GET /api/sys/menu/:id/option */
-export async function sysMenuOptionQuery(menuId: number) {
+export async function sysMenuOptionQuery(menuId: string) {
   return request<API.Resp<API.SysMenuOption[]>>(`/api/sys/menu/option/${menuId}`, {
     method: 'GET',
   });
@@ -25,12 +25,12 @@ export async function sysMenuOptionQuery(menuId: number) {
 export async function sysMenuCreate(data: API.SysMenu) {
   return request<API.Resp<string>>('/api/sys/menu', {
     method: 'POST',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }
 
 /** 删除 DELETE /api/sys/menu/:id */
-export async function sysMenuDelete(id: number) {
+export async function sysMenuDelete(id: string) {
   return request<API.Resp<string>>(`/api/sys/menu/${id}`, {
     method: 'DELETE',
   });
@@ -40,6 +40,6 @@ export async function sysMenuDelete(id: number) {
 export async function sysMenuUpdate(data: API.SysMenu) {
   return request<API.Resp<string>>('/api/sys/menu', {
     method: 'PUT',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }

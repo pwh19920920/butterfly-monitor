@@ -35,6 +35,7 @@ func (s *SysMenuRepositoryImpl) GetById(id int64) (*entity.SysMenu, error) {
 	var data entity.SysMenu
 	err := s.db.Model(&entity.SysMenu{}).
 		Where(&entity.SysMenu{BaseEntity: common.BaseEntity{Id: id}}).
+		Not(&entity.SysMenu{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		First(&data).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
@@ -133,21 +134,8 @@ func (s *SysMenuRepositoryImpl) Delete(id int64) error {
 
 // Select 查询分页
 func (s *SysMenuRepositoryImpl) Select(req *types.SysMenuQueryRequest) (int64, []entity.SysMenu, error) {
-	var count int64 = 0
-	notCase := &entity.SysMenu{
-		BaseEntity: common.BaseEntity{
-			Deleted: common.DeletedTrue,
-		},
-	}
-	s.db.Model(&entity.SysMenu{}).
-		Not(notCase).
-		Count(&count)
-
-	var data []entity.SysMenu
-	err := s.db.Model(&entity.SysMenu{}).
-		Not(notCase).
-		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
-	return count, data, err
+	notCase := &entity.SysMenu{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
+	return paginate[entity.SysMenu](s.db, &entity.SysMenu{}, "1 = 1", nil, notCase, req.PageSize, req.Offset(), "id desc")
 }
 
 // SelectAll 查询全部

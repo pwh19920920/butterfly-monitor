@@ -25,6 +25,7 @@ func (repo *MonitorTaskEventRepositoryImpl) FindEventJob() ([]entity.MonitorTask
 	err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Where("deal_status = ? and now() >= next_alert_time", entity.MonitorTaskEventDealStatusPending).
+		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
 }
@@ -35,6 +36,7 @@ func (repo *MonitorTaskEventRepositoryImpl) FindPendingEventAll() ([]entity.Moni
 	err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Where("deal_status = ?", entity.MonitorTaskEventDealStatusPending).
+		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
 }
@@ -110,21 +112,7 @@ func (repo *MonitorTaskEventRepositoryImpl) Select(req *types.MonitorTaskEventQu
 	}
 
 	notCase := &entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
-	var count int64 = 0
-	repo.db.Model(&entity.MonitorTaskEvent{}).
-		Where(whereCase, whereValue...).
-		Not(notCase).
-		Count(&count)
-
-	var data []entity.MonitorTaskEvent
-	err := repo.db.
-		Model(&entity.MonitorTaskEvent{}).
-		Where(whereCase, whereValue...).
-		Not(notCase).
-		Order("id desc").
-		Limit(req.PageSize).Offset(req.Offset()).
-		Find(&data).Error
-	return count, data, err
+	return paginate[entity.MonitorTaskEvent](repo.db, &entity.MonitorTaskEvent{}, whereCase, whereValue, notCase, req.PageSize, req.Offset(), "id desc")
 }
 
 // GetById 按主键查询

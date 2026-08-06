@@ -39,8 +39,8 @@ type MonitorAlertCheckParamsLevelType int32
 const (
 	// MonitorAlertCheckParamsValueTypePercent 比较值类型
 	// 1 样本差阈值百分比：(实时-样本)/样本*100
-	// 2 样本差阈值比较：实时-样本
-	// 3 实时数值比较：直接用实时值
+	// 2 实时数值比较：直接用实时值（唯一不需要样本的类型）
+	// 3 样本差阈值比较：实时-样本
 	MonitorAlertCheckParamsValueTypePercent       MonitorAlertCheckParamsValueType = 1
 	MonitorAlertCheckParamsValueTypeAbsoluteValue MonitorAlertCheckParamsValueType = 2
 	MonitorAlertCheckParamsValueTypeValue         MonitorAlertCheckParamsValueType = 3
@@ -91,9 +91,9 @@ func (valueType MonitorAlertCheckParamsValueType) GetTransferMsg() string {
 	case MonitorAlertCheckParamsValueTypePercent:
 		return "样本差阈值百分比"
 	case MonitorAlertCheckParamsValueTypeAbsoluteValue:
-		return "样本差阈值比较"
-	case MonitorAlertCheckParamsValueTypeValue:
 		return "实时数值比较"
+	case MonitorAlertCheckParamsValueTypeValue:
+		return "样本差阈值比较"
 	}
 	return ""
 }

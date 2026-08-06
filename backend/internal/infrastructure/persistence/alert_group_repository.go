@@ -29,7 +29,6 @@ func (repo *AlertGroupRepositoryImpl) SelectAll() ([]entity.AlertGroup, error) {
 
 // Select 分页查询
 func (repo *AlertGroupRepositoryImpl) Select(req *types.AlertGroupQueryRequest) (int64, []entity.AlertGroup, error) {
-	var count int64 = 0
 	notCase := &entity.AlertGroup{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}
 	whereSql := "1 = 1"
 	whereArg := make([]interface{}, 0)
@@ -37,15 +36,7 @@ func (repo *AlertGroupRepositoryImpl) Select(req *types.AlertGroupQueryRequest) 
 		whereSql += " and name like ?"
 		whereArg = append(whereArg, "%"+req.Name+"%")
 	}
-	_ = repo.db.Model(&entity.AlertGroup{}).Where(whereSql, whereArg...).Not(notCase).Count(&count)
-
-	var data []entity.AlertGroup
-	err := repo.db.Model(&entity.AlertGroup{}).
-		Order("id desc").
-		Where(whereSql, whereArg...).
-		Not(notCase).
-		Limit(req.PageSize).Offset(req.Offset()).Find(&data).Error
-	return count, data, err
+	return paginate[entity.AlertGroup](repo.db, &entity.AlertGroup{}, whereSql, whereArg, notCase, req.PageSize, req.Offset(), "id desc")
 }
 
 // GetById 按主键查询

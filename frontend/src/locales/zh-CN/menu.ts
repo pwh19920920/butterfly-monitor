@@ -50,18 +50,22 @@ export default {
   'menu.editor.mind': '脑图编辑器',
   'menu.editor.koni': '拓扑编辑器',
   'menu.chatbot': 'AI 助手',
+
   'menu.sys': '系统管理',
   'menu.sys.sysMenu': '菜单管理',
   'menu.sys.sysRole': '角色管理',
   'menu.sys.sysUser': '用户管理',
+
   'menu.monitor': '监控管理',
   'menu.monitor.monitorTask': '任务管理',
-  'menu.monitor.monitorDashboard': '面板管理',
   'menu.monitor.monitorTaskEvent': '异常事件',
   'menu.monitor.monitorGroup': '监控分组',
-  'menu.alert': '报警管理',
-  'menu.alert.alertConf': '报警配置',
+
+  'menu.alert': '基础配置',
+  'menu.alert.alertConf': '通用配置',
   'menu.alert.alertGroup': '报警组管理',
   'menu.alert.alertChannel': '报警通道',
+  'menu.alert.monitorVolatilityDay': '波动日管理',
   'menu.alert.monitorDatabase': '数据源管理',
+  'menu.alert.monitorDashboard': '面板管理',
 };

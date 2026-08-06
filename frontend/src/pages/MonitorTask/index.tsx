@@ -1,10 +1,22 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { ModalForm, PageContainer, ProDescriptions, ProTable } from '@ant-design/pro-components';
-import { Button, Drawer, message, Switch, Tag } from 'antd';
-import React, { useEffect, useRef, useState } from 'react';
+import {
+  ModalForm,
+  PageContainer,
+  ProDescriptions,
+  ProTable,
+} from '@ant-design/pro-components';
+import { Button, Drawer, Form, message, Space, Spin, Switch, Tag } from 'antd';
 import dayjs from 'dayjs';
+import React, { useRef, useState } from 'react';
 import CreateOrUpdateForm from '@/pages/MonitorTask/components/UpdateForm';
+import {
+  DataTypeEnum,
+  MonitorTaskAlertStatusEnum,
+  TaskStatusEnum,
+} from '@/services/ant-design-pro/enum';
+const DATA_TYPE_AGGREGATE = 2;
+
 import {
   monitorTaskCreate,
   monitorTaskGetById,
@@ -14,7 +26,6 @@ import {
   monitorTaskQuery,
   monitorTaskUpdate,
 } from '@/services/ant-design-pro/monitor.task';
-import { MonitorTaskAlertStatusEnum, DataTypeEnum, TaskStatusEnum, TaskTypeEnum } from '@/services/ant-design-pro/enum';
 
 // 生效时间统一格式化为 HH:mm:ss；兼容 dayjs / 字符串 / Date
 const formatOneEffectTime = (v: any, fallback: string): string => {
@@ -62,17 +73,23 @@ const validateAlertConfig = (values: any): string | null => {
   const alert = values?.taskAlert || {};
   const checkParams = alert.checkParams || [];
 
-  const hasChannels = Array.isArray(alert.alertChannels) && alert.alertChannels.length > 0;
-  const hasGroups = Array.isArray(alert.alertGroups) && alert.alertGroups.length > 0;
+  const hasChannels =
+    Array.isArray(alert.alertChannels) && alert.alertChannels.length > 0;
+  const hasGroups =
+    Array.isArray(alert.alertGroups) && alert.alertGroups.length > 0;
   const hasTimeSpan = Number(alert.timeSpan) > 0;
   const hasDuration = Number(alert.duration) > 0;
   // UpdateForm 根据通道类型写入；缺省按需要分组处理
   const needAlertGroups = alert.needAlertGroups !== false;
   // 报警检查配置：任一字段非空即视为「填了」
-  const hasAnyCheckConfig = hasChannels || hasGroups || hasTimeSpan || hasDuration;
+  const hasAnyCheckConfig =
+    hasChannels || hasGroups || hasTimeSpan || hasDuration;
   // 完整：通道 + 间隔 + 持续；非 Webhook 场景还要分组
   const hasCompleteCheckConfig =
-    hasChannels && hasTimeSpan && hasDuration && (!needAlertGroups || hasGroups);
+    hasChannels &&
+    hasTimeSpan &&
+    hasDuration &&
+    (!needAlertGroups || hasGroups);
   const hasCheckParams = checkParams.length > 0;
 
   // 两侧都空：允许（纯采集任务）
@@ -111,12 +128,19 @@ const buildPayload = (values: any): API.MonitorTaskCreate => {
 
   const labelParams = values.labelParams || [];
   const labels = labelParams.length
-    ? JSON.stringify(labelParams.reduce((acc: any, cur: any) => ({ ...acc, [cur.label]: cur.value }), {}))
+    ? JSON.stringify(
+        labelParams.reduce((acc: any, cur: any) => {
+          acc[cur.label] = cur.value;
+          return acc;
+        }, {}),
+      )
     : '';
 
   const monitorGroup = (values.monitorGroups || []).join(',');
   // 关联任务：数组 → 逗号分隔串（与后端实体字段 related_task_ids 对齐）
   const relatedTaskIds = (values.relatedTaskIds || []).join(',');
+  // 大促敏感：下拉值 1=否 2=是；聚合任务强制 1
+  const promoSensitive = values.dataType === DATA_TYPE_AGGREGATE ? 1 : values.promoSensitive || 1;
 
   return {
     taskKey: values.taskKey,
@@ -129,6 +153,7 @@ const buildPayload = (values: any): API.MonitorTaskCreate => {
     monitorGroup,
     labels,
     relatedTaskIds,
+    promoSensitive,
     taskExecParams: values.taskExecParams || {},
     dashboards: values.dashboards || [],
     taskAlert: {
@@ -151,14 +176,21 @@ const toFormValues = (row: API.MonitorTaskQueryResponse): any => {
   if (row.labels) {
     try {
       const obj = JSON.parse(row.labels);
-      labelParams = Object.entries(obj).map(([label, value]) => ({ label, value: String(value) }));
+      labelParams = Object.entries(obj).map(([label, value]) => ({
+        label,
+        value: String(value),
+      }));
     } catch {
       labelParams = [];
     }
   }
-  const monitorGroups = row.monitorGroup ? row.monitorGroup.split(',').filter(Boolean) : [];
+  const monitorGroups = row.monitorGroup
+    ? row.monitorGroup.split(',').filter(Boolean)
+    : [];
   // 关联任务：逗号分隔串 → 数组（供表单多选回显）
-  const relatedTaskIds = row.relatedTaskIds ? row.relatedTaskIds.split(',').filter(Boolean) : [];
+  const relatedTaskIds = row.relatedTaskIds
+    ? row.relatedTaskIds.split(',').filter(Boolean)
+    : [];
   const checkParams = (row.taskAlert?.checkParams || []).map((item) => {
     let effectTimes = [dayjs().startOf('day'), dayjs().endOf('day')];
     if (item.effectTimes && item.effectTimes.length === 2) {
@@ -179,10 +211,15 @@ const toFormValues = (row: API.MonitorTaskQueryResponse): any => {
     labelParams,
     monitorGroups,
     relatedTaskIds,
+    // 下拉值 1=否 2=是（无值回退 1）
+    promoSensitive: row.promoSensitive || 1,
     dashboards: row.dashboards || [],
     taskExecParams: row.taskExecParams || {},
     taskAlert: {
       ...(row.taskAlert || {}),
+      // 无告警配置时后端返回零值对象（timeSpan/duration=0），回显前清掉，避免编辑界面显示 0
+      timeSpan: row.taskAlert?.timeSpan || undefined,
+      duration: row.taskAlert?.duration || undefined,
       alertChannels: row.taskAlert?.alertChannels || [],
       alertGroups: row.taskAlert?.alertGroups || [],
       checkParams,
@@ -192,10 +229,17 @@ const toFormValues = (row: API.MonitorTaskQueryResponse): any => {
 
 const MonitorTaskPage: React.FC = () => {
   const actionRef = useRef<ActionType>(undefined);
+  // 创建/拷贝弹窗表单实例：拷贝数据到位后用 setFieldsValue 显式填充
+  // （ModalForm 的 initialValues 只在表单 mount 时应用一次，拷贝时开窗瞬间值未到位，须显式填充）
+  const [createForm] = Form.useForm();
   const [createVisible, setCreateVisible] = useState(false);
   const [modifyVisible, setModifyVisible] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [current, setCurrent] = useState<API.MonitorTaskQueryResponse>();
+  // 拷贝来源：点击「拷贝」时暂存被拷贝任务详情，打开创建弹窗并预填
+  const [copySource, setCopySource] = useState<API.MonitorTaskQueryResponse>();
+  // 拷贝弹窗加载态：先开窗显示加载中，详情到位后再渲染预填表单
+  const [copyLoading, setCopyLoading] = useState(false);
   // 行级编辑加载态：仅对应行显示「加载中...」，避免全局共享导致所有行同时变文案（D-023）
   const [loadingId, setLoadingId] = useState<string | number | null>(null);
   // 提交锁：防止双击提交按钮重复创建/更新任务（D-022）
@@ -206,7 +250,7 @@ const MonitorTaskPage: React.FC = () => {
       title: '任务名称',
       dataIndex: 'taskName',
       ellipsis: true,
-      width: 240,
+      width: 200,
       render: (dom, entity) => (
         <a
           onClick={() => {
@@ -218,20 +262,21 @@ const MonitorTaskPage: React.FC = () => {
         </a>
       ),
     },
-    { title: 'TaskKey', dataIndex: 'taskKey', copyable: true, ellipsis: true },
     {
-      title: '任务类型',
-      dataIndex: 'taskType',
-      valueType: 'select',
-      responsive: ['md'],
-      valueEnum: TaskTypeEnum as any,
+      title: 'TaskKey',
+      dataIndex: 'taskKey',
+      copyable: true,
+      ellipsis: true,
+      hideInTable: true,
     },
+
     {
       title: '数据类型',
       dataIndex: 'dataType',
-      search: false,
       responsive: ['md'],
+      valueType: 'select',
       valueEnum: DataTypeEnum as any,
+      fieldProps: { allowClear: true, placeholder: '全部' },
       render: (_, r) => {
         const dt = r.dataType ?? 1;
         return <span>{DataTypeEnum[dt] || '正常查询'}</span>;
@@ -246,7 +291,8 @@ const MonitorTaskPage: React.FC = () => {
         <Switch
           checked={r.taskStatus === 1}
           onChange={async (checked) => {
-            await monitorTaskModifyTaskStatus(r.id!, checked ? 1 : 0);
+            if (r.id == null) return;
+            await monitorTaskModifyTaskStatus(r.id, checked ? 1 : 0);
             actionRef.current?.reload();
           }}
         />
@@ -258,18 +304,21 @@ const MonitorTaskPage: React.FC = () => {
       search: false,
       responsive: ['md'],
       render: (_, r) =>
-        r.dataType === 2 ? (
+        r.dataType === DATA_TYPE_AGGREGATE ? (
           <span>-</span>
         ) : (
           <Switch
             checked={r.alertStatus === 1}
             onChange={async (checked) => {
               try {
-                await monitorTaskModifyAlertStatus(r.id!, checked ? 1 : 0);
+                if (r.id == null) return;
+                await monitorTaskModifyAlertStatus(r.id, checked ? 1 : 0);
                 message.success(checked ? '告警已开启' : '告警已关闭');
                 actionRef.current?.reload();
               } catch (e: any) {
-                message.error(e?.info?.errorMessage || e?.message || '更新告警开关失败');
+                message.error(
+                  e?.info?.errorMessage || e?.message || '更新告警开关失败',
+                );
                 actionRef.current?.reload();
               }
             }}
@@ -289,7 +338,8 @@ const MonitorTaskPage: React.FC = () => {
       },
       render: (_, r) => {
         const status = r.taskAlertStatus ?? 1;
-        const color = status === 3 ? 'error' : status === 2 ? 'warning' : 'success';
+        const color =
+          status === 3 ? 'error' : status === 2 ? 'warning' : 'success';
         const text = MonitorTaskAlertStatusEnum[status] || '正常';
         return <Tag color={color}>{text}</Tag>;
       },
@@ -300,45 +350,103 @@ const MonitorTaskPage: React.FC = () => {
       search: false,
       responsive: ['md'],
       render: (_, r) =>
-        r.dataType === 2 ? (
+        r.dataType === DATA_TYPE_AGGREGATE ? (
           <span>-</span>
         ) : (
           <Switch
             checked={r.sampled === 1}
             onChange={async (checked) => {
-              await monitorTaskModifySampled(r.id!, checked ? 1 : 0);
+              if (r.id == null) return;
+              await monitorTaskModifySampled(r.id, checked ? 1 : 0);
               actionRef.current?.reload();
             }}
           />
         ),
     },
-    { title: '上次执行', dataIndex: 'preExecuteTime', search: false, width: 160, responsive: ['xxl'] },
-    { title: '首次异常', dataIndex: 'firstFlagTime', search: false, width: 160, valueType: 'dateTime', responsive: ['xxl'] },
-    { title: '采集错误', dataIndex: 'collectErrMsg', search: false, ellipsis: true, responsive: ['lg'] },
+    {
+      title: '波动敏感',
+      dataIndex: 'promoSensitive',
+      search: false,
+      responsive: ['lg'],
+      width: 90,
+      render: (_, r) =>
+        r.dataType === DATA_TYPE_AGGREGATE ? (
+          <span>-</span>
+        ) : (
+          <Tag color={r.promoSensitive === 2 ? 'orange' : 'default'}>
+            {r.promoSensitive === 2 ? '是' : '否'}
+          </Tag>
+        ),
+    },
+    {
+      title: '上次执行',
+      dataIndex: 'preExecuteTime',
+      search: false,
+      width: 160,
+      responsive: ['xxl'],
+    },
+    {
+      title: '采集错误',
+      dataIndex: 'collectErrMsg',
+      search: false,
+      ellipsis: true,
+      responsive: ['lg'],
+    },
     {
       title: '操作',
       valueType: 'option',
-      width: 80,
+      width: 120,
       render: (_, record) => (
-        <a
-          onClick={async () => {
-            setLoadingId(record.id!);
-            try {
-              const resp = await monitorTaskGetById(record.id!);
-              if (resp.data) {
-                setCurrent(resp.data);
-                setModifyVisible(true);
-              } else {
+        <Space>
+          <a
+            onClick={async () => {
+              if (record.id == null) return;
+              setLoadingId(record.id);
+              try {
+                const resp = await monitorTaskGetById(record.id);
+                if (resp.data) {
+                  setCurrent(resp.data);
+                  setModifyVisible(true);
+                } else {
+                  message.error('任务详情加载失败');
+                }
+              } catch {
                 message.error('任务详情加载失败');
               }
-            } catch {
-              message.error('任务详情加载失败');
-            }
-            setLoadingId(null);
-          }}
-        >
-          {loadingId === record.id ? '加载中...' : '编辑'}
-        </a>
+              setLoadingId(null);
+            }}
+          >
+            {loadingId === record.id ? '加载中...' : '编辑'}
+          </a>
+          <a
+            onClick={async () => {
+              if (record.id == null) return;
+              // 先打开弹窗并显示加载中，详情到位后再渲染预填表单
+              setCopyLoading(true);
+              setCreateVisible(true);
+              try {
+                const resp = await monitorTaskGetById(record.id);
+                if (resp.data) {
+                  setCopySource(resp.data);
+                  // 拷贝预填：任务名与 key 末尾追加 _copy，避免直接创建时 key 冲突
+                  const copyValues = toFormValues(resp.data);
+                  copyValues.taskName = `${copyValues.taskName}_copy`;
+                  copyValues.taskKey = `${copyValues.taskKey}_copy`;
+                  createForm.setFieldsValue(copyValues);
+                } else {
+                  setCreateVisible(false);
+                  message.error('任务详情加载失败');
+                }
+              } catch {
+                setCreateVisible(false);
+                message.error('任务详情加载失败');
+              }
+              setCopyLoading(false);
+            }}
+          >
+            拷贝
+          </a>
+        </Space>
       ),
     },
   ];
@@ -357,6 +465,9 @@ const MonitorTaskPage: React.FC = () => {
             key="add"
             onClick={() => {
               setCurrent(undefined);
+              setCopySource(undefined);
+              createForm.resetFields();
+              setCopyLoading(false);
               setCreateVisible(true);
             }}
           >
@@ -390,10 +501,19 @@ const MonitorTaskPage: React.FC = () => {
       </Drawer>
 
       <ModalForm
-        title="新建任务"
+        title={copySource ? '拷贝任务' : '新建任务'}
         width="1100px"
         open={createVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCreateVisible(false) }}
+        form={createForm}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => {
+            createForm.resetFields();
+            setCopySource(undefined);
+            setCopyLoading(false);
+            setCreateVisible(false);
+          },
+        }}
         submitter={{ submitButtonProps: { loading: submitting } }}
         onFinish={async (values: any) => {
           if (submitting) return false;
@@ -406,6 +526,8 @@ const MonitorTaskPage: React.FC = () => {
           try {
             await monitorTaskCreate(buildPayload(values));
             message.success('创建成功');
+            setCopySource(undefined);
+            setCopyLoading(false);
             setCreateVisible(false);
             actionRef.current?.reload();
             return true;
@@ -417,7 +539,16 @@ const MonitorTaskPage: React.FC = () => {
           }
         }}
       >
-        <CreateOrUpdateForm taskType={-1} />
+        {copyLoading ? (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <Spin size="large" tip="加载任务详情..." />
+          </div>
+        ) : (
+          <CreateOrUpdateForm
+            taskType={copySource?.taskType ?? -1}
+            isCreateView={copySource ? true : undefined}
+          />
+        )}
       </ModalForm>
 
       <ModalForm
@@ -425,7 +556,10 @@ const MonitorTaskPage: React.FC = () => {
         width="1100px"
         open={modifyVisible}
         initialValues={current ? toFormValues(current) : undefined}
-        modalProps={{ destroyOnClose: true, onCancel: () => setModifyVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setModifyVisible(false),
+        }}
         submitter={{ submitButtonProps: { loading: submitting } }}
         onFinish={async (values: any) => {
           if (submitting) return false;
@@ -436,7 +570,10 @@ const MonitorTaskPage: React.FC = () => {
           }
           setSubmitting(true);
           try {
-            await monitorTaskUpdate({ id: current?.id, ...buildPayload(values) } as any);
+            await monitorTaskUpdate({
+              id: current?.id,
+              ...buildPayload(values),
+            } as any);
             message.success('更新成功');
             setModifyVisible(false);
             actionRef.current?.reload();
@@ -449,7 +586,10 @@ const MonitorTaskPage: React.FC = () => {
           }
         }}
       >
-        <CreateOrUpdateForm taskType={current?.taskType ?? -1} taskId={current?.id ? String(current.id) : undefined} />
+        <CreateOrUpdateForm
+          taskType={current?.taskType ?? -1}
+          taskId={current?.id ? String(current.id) : undefined}
+        />
       </ModalForm>
     </PageContainer>
   );

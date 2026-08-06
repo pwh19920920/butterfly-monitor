@@ -13,7 +13,7 @@ declare namespace API {
   };
 
   type SysUser = {
-    id: string | number;
+    id: string;
     name?: string;
     avatar?: string;
     username?: string;
@@ -43,7 +43,7 @@ declare namespace API {
   };
 
   type SysMenuOption = {
-    id: number;
+    id: string;
     name: string;
     value: string;
     method: string;
@@ -51,7 +51,7 @@ declare namespace API {
   };
 
   type SysMenu = {
-    id: number;
+    id: string;
     code: string;
     name: string;
     path: string;
@@ -59,20 +59,20 @@ declare namespace API {
     component?: string;
     sort?: number;
     options: SysMenuOption[];
-    parent?: number;
+    parent?: string;
     children?: SysMenu[];
     routes: SysMenu[];
   };
 
   type SysRole = {
-    id: number | string;
+    id: string;
     name: string;
     permissions: SysPermission[];
   };
 
   interface SysPermission {
-    roleId?: string | number;
-    menuId: string | number;
+    roleId?: string;
+    menuId: string;
     option: string;
     independent: boolean;
     half: boolean;
@@ -84,7 +84,7 @@ declare namespace API {
   }
 
   type MonitorDatabase = {
-    id?: string | number;
+    id?: string;
     name?: string;
     database?: string;
     username?: string;
@@ -92,10 +92,15 @@ declare namespace API {
     url?: string;
     type?: number;
     params?: string;
+    /** 0未知 1正常 2异常 */
+    healthStatus?: number;
+    lastCheckTime?: string;
+    lastError?: string;
+    consecutiveFail?: number;
   };
 
   type MonitorTask = {
-    id?: string | number;
+    id?: string;
     taskKey?: string;
     taskName?: string;
     timeSpan?: number;
@@ -116,6 +121,11 @@ declare namespace API {
     /** 首次出现异常的时间（taskAlert.firstFlagTime）；从未异常不返回 */
     firstFlagTime?: string;
     sampled?: number;
+    /**
+     * 大促敏感：1 否 2 是。
+     * 仅敏感任务在特殊日做原料剔除 / 冻结基线 / 告警比例放大。
+     */
+    promoSensitive?: number;
     monitorGroup?: string;
     labels?: string;
     /** 关联任务 ID（逗号分隔），叠加实时/样本曲线到本任务面板 */
@@ -168,36 +178,36 @@ declare namespace API {
   };
 
   type MonitorDashboard = {
-    id?: string | number;
+    id?: string;
     name?: string;
     slug?: string;
     url?: string;
     uid?: string;
-    boardId?: string | number;
+    boardId?: string;
   };
 
   type MonitorDashboardTask = {
-    id?: string | number;
-    taskId?: string | number;
-    dashboardId?: string | number;
+    id?: string;
+    taskId?: string;
+    dashboardId?: string;
     sort?: number;
     taskName?: string;
   };
 
   type MonitorGroup = {
-    id?: string | number;
+    id?: string;
     name?: string;
     route?: string;
-    parent?: string | number;
+    parent?: string;
   };
 
   type MonitorTaskEvent = {
-    id?: string | number;
-    alertId?: string | number;
-    taskId?: string | number;
+    id?: string;
+    alertId?: string;
+    taskId?: string;
     alertMsg?: string;
     dealStatus?: number;
-    dealUser?: string | number;
+    dealUser?: string;
     dealUserName?: string;
     taskName?: string;
     content?: string;
@@ -209,7 +219,7 @@ declare namespace API {
   };
 
   type AlertConf = {
-    id?: string | number;
+    id?: string;
     confKey?: string;
     confVal?: string;
     confDesc?: string;
@@ -217,12 +227,12 @@ declare namespace API {
   };
 
   type AlertGroup = {
-    id?: string | number;
+    id?: string;
     name?: string;
   };
 
   type AlertChannel = {
-    id?: string | number;
+    id?: string;
     name?: string;
     type?: number;
     params?: string;
@@ -270,5 +280,22 @@ declare namespace API {
       eventLevel?: number;
       createTime?: string;
     }>;
+  };
+
+  // 波动日管理
+  type MonitorVolatilityDay = {
+    id?: string;
+    name?: string;
+    startTime?: string;
+    endTime?: string;
+    /** 1=高峰 2=低谷 */
+    type?: number;
+  };
+
+  type MonitorVolatilityDayBatchCreateRequest = {
+    name?: string;
+    /** 1=高峰 2=低谷 */
+    type?: number;
+    items?: MonitorVolatilityDay[];
   };
 }

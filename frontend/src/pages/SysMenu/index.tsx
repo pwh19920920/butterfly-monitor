@@ -29,7 +29,7 @@ const handleCreate = async (fields: API.SysMenu) => {
     hide();
     message.success('保存菜单成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('保存菜单失败!');
     return false;
@@ -48,7 +48,7 @@ const handleUpdate = async (fields: API.SysMenu) => {
     hide();
     message.success('更新菜单成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('更新菜单失败!');
     return false;
@@ -59,14 +59,14 @@ const handleUpdate = async (fields: API.SysMenu) => {
  * 删除
  * @param id
  */
-const handleDelete = async (id: number) => {
+const handleDelete = async (id: string) => {
   const hide = message.loading('正在删除');
   try {
     await sysMenuDelete(id);
     hide();
     message.success('删除菜单成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('删除菜单失败!');
     return false;
@@ -84,7 +84,7 @@ const TableList: React.FC = () => {
 
   const [showDetail, setShowDetail] = useState<boolean>(false);
 
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [currentRow, setCurrentRow] = useState<API.SysMenu>();
 
   const columns: ProColumns<API.SysMenu>[] = [
@@ -119,17 +119,17 @@ const TableList: React.FC = () => {
     {
       title: '组件',
       dataIndex: 'component',
-      hideInSearch: true,
+      search: false,
     },
     {
       title: '排序',
       dataIndex: 'sort',
-      hideInSearch: true,
+      search: false,
     },
     {
       title: '菜单操作',
       dataIndex: 'options',
-      hideInSearch: true,
+      search: false,
       hideInTable: true,
       render: (_, record) =>
         record.options?.map((item) => item.name).join(', '),
@@ -283,9 +283,7 @@ const TableList: React.FC = () => {
         >
           <CreateOrUpdateForm initOptionsValues={currentRow.options || []} />
         </ModalForm>
-      ) : (
-        <></>
-      )}
+      ) : null}
     </PageContainer>
   );
 };

@@ -35,7 +35,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
     checkedKeysValue: string[],
     info: {
       event: 'check';
-      node: EventDataNode;
+      node: EventDataNode<DataNode>;
       checked: boolean;
       nativeEvent: MouseEvent;
       checkedNodes: DataNode[];
@@ -85,7 +85,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
     // 加入空操作的菜单
     info.halfCheckedKeys?.forEach((value) => {
       permission.push({
-        menuId: value,
+        menuId: String(value),
         option: '',
         roleId: props.initValues?.id,
         independent: true,
@@ -96,7 +96,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
     setSelectPermission(permission);
   };
 
-  const reloadPermission = async (roleId: string | number) => {
+  const reloadPermission = async (roleId: string) => {
     const resp = await sysRolePermissionQuery(roleId);
     if (!resp.data) {
       setCheckedKeys([]);
@@ -178,60 +178,58 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
   }, [props.initValues]);
 
   return (
-    <>
-      <Modal
-        title={props.title}
-        width={props.width}
-        open={props.open}
-        onOk={async () => {
-          const values = await form.validateFields();
-          return props.onSubmit(values, selectPermission);
-        }}
-        onCancel={() => {
-          props.onOpenChange(false);
-          if (props.onCancel) {
-            props.onCancel();
-          }
-        }}
-      >
-        {treeData.length === 0 ? (
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-        ) : (
-          <Form form={form} initialValues={props.initValues}>
-            <Row gutter={24}>
-              <Col span={12}>
-                <Form.Item name="name">
-                  <ProFormText
-                    label="名称"
-                    width="md"
-                    rules={[
-                      {
-                        required: true,
-                        message: '名称不能为空',
-                      },
-                    ]}
-                    placeholder="请输入名称"
-                    name="name"
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col span={12}>
-                <Tree
-                  checkable
-                  autoExpandParent={true}
-                  // @ts-expect-error
-                  onCheck={onCheck}
-                  defaultExpandAll={true}
-                  checkedKeys={checkedKeys}
-                  treeData={treeData}
+    <Modal
+      title={props.title}
+      width={props.width}
+      open={props.open}
+      onOk={async () => {
+        const values = await form.validateFields();
+        return props.onSubmit(values, selectPermission);
+      }}
+      onCancel={() => {
+        props.onOpenChange(false);
+        if (props.onCancel) {
+          props.onCancel();
+        }
+      }}
+    >
+      {treeData.length === 0 ? (
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
+      ) : (
+        <Form form={form} initialValues={props.initValues}>
+          <Row gutter={24}>
+            <Col span={12}>
+              <Form.Item name="name">
+                <ProFormText
+                  label="名称"
+                  width="md"
+                  rules={[
+                    {
+                      required: true,
+                      message: '名称不能为空',
+                    },
+                  ]}
+                  placeholder="请输入名称"
+                  name="name"
                 />
-              </Col>
-            </Row>
-          </Form>
-        )}
-      </Modal>
-    </>
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Tree
+                checkable
+                autoExpandParent={true}
+                // @ts-expect-error
+                onCheck={onCheck}
+                defaultExpandAll={true}
+                checkedKeys={checkedKeys}
+                treeData={treeData}
+              />
+            </Col>
+          </Row>
+        </Form>
+      )}
+    </Modal>
   );
 };
 

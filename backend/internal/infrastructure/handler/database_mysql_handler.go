@@ -125,8 +125,14 @@ func (h *DatabaseMysqlHandler) ExecuteQuery(ctx context.Context, db interface{},
 		logrus.Warnf("set session read-only fail, fallback to static guard only: %v", execErr)
 	}
 
+	// 单行查询：row.Scan 在无返回行时返回 sql.ErrNoRows，据此区分"无数据"与真实错误
 	var result float64
-	queryErr := gdb.Raw(command).Scan(&result).Error
+	row := gdb.Raw(command).Row()
+	queryErr := row.Scan(&result)
+	// 查询成功但无返回行：以 gorm.ErrRecordNotFound 哨兵表示"无数据"，由上层回落默认值
+	if errors.Is(queryErr, sql.ErrNoRows) {
+		queryErr = gorm.ErrRecordNotFound
+	}
 
 	// 无论查询成功与否，都尝试恢复会话为可写，避免影响连接池中该连接的后续复用
 	if resetErr := gdb.Exec("SET SESSION TRANSACTION READ WRITE").Error; resetErr != nil && execErr == nil {

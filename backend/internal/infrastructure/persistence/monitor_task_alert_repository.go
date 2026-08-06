@@ -19,7 +19,8 @@ func NewMonitorTaskAlertRepositoryImpl(db *gorm.DB) *MonitorTaskAlertRepositoryI
 	return &MonitorTaskAlertRepositoryImpl{db: db}
 }
 
-// FindCheckJob 分片查询待检测的告警规则
+// FindCheckJob 分片查询待检测的告警规则（单表）。
+// 任务关停/告警关闭的跳过在 execCheck 内 advancePreCheckTime 处理，不在此 join。
 func (repo *MonitorTaskAlertRepositoryImpl) FindCheckJob(shardIndex, shardTotal int64) ([]entity.MonitorTaskAlert, error) {
 	if shardTotal <= 0 {
 		return nil, fmt.Errorf("shardTotal 必须为正数，当前为 %d（请检查 XXL-JOB 广播路由配置）", shardTotal)
@@ -30,6 +31,7 @@ func (repo *MonitorTaskAlertRepositoryImpl) FindCheckJob(shardIndex, shardTotal 
 		Where("mod(id, ?) = ? "+
 			"and deal_status = ? "+
 			"and date_add(now(), interval -time_span second) >= pre_check_time", shardTotal, shardIndex, entity.MonitorTaskAlertDealStatusNormal).
+		Not(&entity.MonitorTaskAlert{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
 }
@@ -95,9 +97,11 @@ func (repo *MonitorTaskAlertRepositoryImpl) ModifyByPending(id int64, currentTim
 		if res.RowsAffected > 0 {
 			return nil
 		}
-		// 已在异常中：只推进检查时间与状态，保留 FirstFlagTime
+		// 已在异常中：只推进检查时间，保留 FirstFlagTime。
+		// 仅限 Pending 刷新；Firing 是"已触发"终态，不因暂时缺数据被降级回 Pending
 		return tx.Model(&entity.MonitorTaskAlert{}).
-			Where("id = ? and deal_status = ?", id, entity.MonitorTaskAlertDealStatusNormal).
+			Where("id = ? and deal_status = ? and alert_status = ?",
+				id, entity.MonitorTaskAlertDealStatusNormal, entity.MonitorTaskAlertStatusPending).
 			Updates(map[string]interface{}{
 				"pre_check_time": currentTime,
 				"alert_status":   entity.MonitorTaskAlertStatusPending,
@@ -128,33 +132,67 @@ func (repo *MonitorTaskAlertRepositoryImpl) ModifyForNormal(id int64, currentTim
 	})
 }
 
-// ModifyByFiring 标记为触发：存在 pending/processing 事件则更新消息与等级，否则创建事件
+// ModifyByFiring 标记为触发：存在 pending/processing 事件则更新消息与等级，否则创建事件。
+// 不加显式行锁，用状态机条件更新串行化「首次进入 Firing」：
+//  1. Normal/Pending → Firing：本事务赢得首次触发权，无未完成事件则 Create
+//  2. 已是 Firing：只刷新 pre_check_time + 更新已有事件消息，不再 Create
+//  3. DealStatus=Processing：整单跳过
+//
+// InnoDB 同行 UPDATE 会排队；第二事务重评 WHERE 时 status 已是 Firing，RowsAffected=0，不会双建。
 func (repo *MonitorTaskAlertRepositoryImpl) ModifyByFiring(id int64, currentTime time.Time, monitorTaskEvent *entity.MonitorTaskEvent) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where(&entity.MonitorTaskAlert{
-			BaseEntity: common.BaseEntity{Id: id},
-			DealStatus: entity.MonitorTaskAlertDealStatusNormal,
-		}).Updates(&entity.MonitorTaskAlert{
-			PreCheckTime: &common.LocalTime{Time: currentTime},
-			AlertStatus:  entity.MonitorTaskAlertStatusFiring,
-		}).Error; err != nil {
-			return err
+		// 首次进入 Firing（Normal/Pending → Firing）
+		first := tx.Model(&entity.MonitorTaskAlert{}).
+			Where("id = ? and deal_status = ? and alert_status in (?, ?)",
+				id, entity.MonitorTaskAlertDealStatusNormal,
+				entity.MonitorTaskAlertStatusNormal, entity.MonitorTaskAlertStatusPending).
+			Updates(map[string]interface{}{
+				"pre_check_time": currentTime,
+				"alert_status":   entity.MonitorTaskAlertStatusFiring,
+			})
+		if first.Error != nil {
+			return first.Error
 		}
 
-		var count int64 = 0
-		tx.Model(&entity.MonitorTaskEvent{}).Where("alert_id = ? "+
-			"and deal_status in (?, ?)", id, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).Count(&count)
-
-		if count != 0 {
-			return tx.Model(&entity.MonitorTaskEvent{}).
-				Where("alert_id = ? and deal_status in (?, ?)", id, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).
-				Updates(&entity.MonitorTaskEvent{
-					AlertMsg:   monitorTaskEvent.AlertMsg,
-					EventLevel: monitorTaskEvent.EventLevel,
-				}).Error
+		if first.RowsAffected > 0 {
+			// 赢得首次触发：有未完成事件则只更新消息，否则 Create
+			return repo.upsertFiringEvent(tx, id, monitorTaskEvent, true)
 		}
-		return tx.Create(&monitorTaskEvent).Error
+
+		// 已是 Firing：只推进检查时间并刷新事件文案，不允许再 Create 新事件
+		again := tx.Model(&entity.MonitorTaskAlert{}).
+			Where("id = ? and deal_status = ? and alert_status = ?",
+				id, entity.MonitorTaskAlertDealStatusNormal, entity.MonitorTaskAlertStatusFiring).
+			Updates(map[string]interface{}{
+				"pre_check_time": currentTime,
+			})
+		if again.Error != nil {
+			return again.Error
+		}
+		if again.RowsAffected == 0 {
+			// 处理中或不存在
+			return nil
+		}
+		return repo.upsertFiringEvent(tx, id, monitorTaskEvent, false)
 	})
+}
+
+// upsertFiringEvent 更新未完成事件的消息/等级；allowCreate 时若无未完成事件则新建。
+func (repo *MonitorTaskAlertRepositoryImpl) upsertFiringEvent(tx *gorm.DB, alertId int64, event *entity.MonitorTaskEvent, allowCreate bool) error {
+	evtRes := tx.Model(&entity.MonitorTaskEvent{}).
+		Where("alert_id = ? and deal_status in (?, ?)",
+			alertId, entity.MonitorTaskEventDealStatusPending, entity.MonitorTaskEventDealStatusProcessing).
+		Updates(map[string]interface{}{
+			"alert_msg":   event.AlertMsg,
+			"event_level": event.EventLevel,
+		})
+	if evtRes.Error != nil {
+		return evtRes.Error
+	}
+	if evtRes.RowsAffected > 0 || !allowCreate {
+		return nil
+	}
+	return tx.Create(&event).Error
 }
 
 // GetByTaskId 按任务 id 查询告警规则
@@ -168,4 +206,28 @@ func (repo *MonitorTaskAlertRepositoryImpl) GetByTaskId(taskId int64) (*entity.M
 		return nil, nil
 	}
 	return &data, err
+}
+
+// SoftDeleteAlert 软删除告警规则并忽略关联 Pending 事件。
+// 用于任务已删除后清理孤儿规则，避免 FindCheckJob 每轮空捞。
+func (repo *MonitorTaskAlertRepositoryImpl) SoftDeleteAlert(id int64) error {
+	return repo.db.Transaction(func(tx *gorm.DB) error {
+		// 软删除告警规则
+		if err := tx.Model(&entity.MonitorTaskAlert{}).
+			Where(&entity.MonitorTaskAlert{BaseEntity: common.BaseEntity{Id: id}}).
+			Updates(&entity.MonitorTaskAlert{
+				BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue},
+			}).Error; err != nil {
+			return err
+		}
+		// 忽略关联的 Pending 事件
+		now := time.Now()
+		return tx.Where(&entity.MonitorTaskEvent{
+			DealStatus: entity.MonitorTaskEventDealStatusPending,
+			AlertId:    id,
+		}).Updates(&entity.MonitorTaskEvent{
+			CompleteTime: &common.LocalTime{Time: now},
+			DealStatus:   entity.MonitorTaskEventDealStatusIgnore,
+		}).Error
+	})
 }

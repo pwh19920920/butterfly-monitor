@@ -6,9 +6,10 @@ Go 监控告警后台，基于 butterfly-admin DDD 架构二开。
 
 - Go 1.26 + Gin (butterfly) + GORM + MySQL
 - JWT 鉴权 + 菜单权限
-- VictoriaMetrics 时序
+- 时序可插拔：VictoriaMetrics（默认）/ TDengine
 - Grafana 面板同步（当前 stub 可接 SDK）
 - XXL-JOB 调度四个任务
+- 被监控数据源：MongoDB / PostgreSQL / ClickHouse / Prometheus·VictoriaMetrics（只读 PromQL/MetricsQL，共用 handler）/ TDengine（只读 REST SQL）/ OpenSearch·Elasticsearch（只读查询，共用 handler）/ MySQL 协议族（Mysql、MariaDB、TiDB、OceanBase MySQL 模式、Doris、StarRocks）
 
 ## 分层
 

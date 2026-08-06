@@ -1,11 +1,12 @@
 package persistence
 
 import (
+	"errors"
+
 	"dragonfly-monitor/internal/common"
 	"dragonfly-monitor/internal/domain/entity"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type MonitorDashboardTaskRepositoryImpl struct {
@@ -61,18 +62,35 @@ func (repo *MonitorDashboardTaskRepositoryImpl) FindMonitorDashBoardsByTaskId(ta
 	return data, err
 }
 
-// BatchModifySort 批量修改排序（insert on duplicate key update）
-func (repo *MonitorDashboardTaskRepositoryImpl) BatchModifySort(items []entity.MonitorDashboardTask) error {
-	return repo.db.Model(&entity.MonitorDashboardTask{}).Clauses(clause.OnConflict{
-		DoUpdates: clause.AssignmentColumns([]string{"sort"}),
-	}).Create(items).Error
+// GetById 按主键查询关联
+func (repo *MonitorDashboardTaskRepositoryImpl) GetById(id int64) (*entity.MonitorDashboardTask, error) {
+	var data entity.MonitorDashboardTask
+	err := repo.db.Model(&entity.MonitorDashboardTask{}).
+		Where("id = ?", id).
+		Not(&entity.MonitorDashboardTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		First(&data).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &data, err
 }
 
-// SelectAll 查询全部关联
-func (repo *MonitorDashboardTaskRepositoryImpl) SelectAll() ([]entity.MonitorDashboardTask, error) {
-	var data []entity.MonitorDashboardTask
-	err := repo.db.Model(&entity.MonitorDashboardTask{}).
-		Not(&entity.MonitorDashboardTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
-		Find(&data).Error
-	return data, err
+// BatchModifySort 批量更新排序。
+// 仅更新已存在的关联：用 CASE WHEN 按 id 一次 UPDATE，避免 OnConflict 对已删/无效 id 插入脏行。
+func (repo *MonitorDashboardTaskRepositoryImpl) BatchModifySort(items []entity.MonitorDashboardTask) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(items))
+	caseSQL := "CASE id "
+	args := make([]interface{}, 0, len(items)*2)
+	for _, it := range items {
+		ids = append(ids, it.Id)
+		caseSQL += "WHEN ? THEN ? "
+		args = append(args, it.Id, it.Sort)
+	}
+	caseSQL += "ELSE sort END"
+	return repo.db.Model(&entity.MonitorDashboardTask{}).
+		Where("id in ?", ids).
+		Update("sort", gorm.Expr(caseSQL, args...)).Error
 }

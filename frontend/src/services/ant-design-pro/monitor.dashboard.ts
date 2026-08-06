@@ -27,13 +27,13 @@ export async function monitorDashboardUpdate(data: API.MonitorDashboard) {
   });
 }
 
-export async function monitorDashboardTask(id: string | number) {
+export async function monitorDashboardTask(id: string | undefined) {
   return request<API.Resp<API.MonitorDashboardTask[]>>(`/api/monitor/dashboard/task/${id}`, {
     method: 'GET',
   });
 }
 
-export async function monitorDashboardTaskSort(items: { id: string | number; sort: number }[]) {
+export async function monitorDashboardTaskSort(items: { id: string; sort: number }[]) {
   return request<API.Resp<string>>('/api/monitor/dashboard/taskSort', {
     method: 'PUT',
     data: { items },

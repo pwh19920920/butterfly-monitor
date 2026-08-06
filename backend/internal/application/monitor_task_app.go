@@ -208,21 +208,8 @@ func (app *MonitorTaskApplication) resolveRelatedMetrics(ctx context.Context, re
 
 // Create 创建任务：校验 TaskKey 唯一 + Grafana 加 panel + 事务保存
 func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.MonitorTaskCreateRequest) error {
-	if err := req.ValidateForCreate(); err != nil {
+	if err := app.validateTaskInput(ctx, req); err != nil {
 		return err
-	}
-	// 报警检查配置 / 异常检测规则：非必填，填一侧则另一侧必须完整；
-	// 所选通道全为 Webhook 时不要求报警分组
-	needGroups, err := app.needAlertGroups(req.TaskAlert.AlertChannels)
-	if err != nil {
-		return err
-	}
-	if err := req.TaskAlert.ValidateOptional(needGroups); err != nil {
-		return err
-	}
-	// 纯 Webhook：清空分组，避免脏数据入库
-	if !needGroups {
-		req.TaskAlert.AlertGroups = nil
 	}
 
 	exist, err := app.repository.MonitorTaskRepository.SelectByTaskKey(req.TaskKey)
@@ -240,20 +227,8 @@ func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.Monito
 	task.Id = taskId
 	task.PreExecuteTime = now
 	task.PreSampleTime = now
-	execBytes, err := json.Marshal(req.TaskExecParams)
-	if err != nil {
+	if err := app.marshalExecParamsAndNormalizeTask(&task, &req.TaskExecParams); err != nil {
 		return err
-	}
-	task.ExecParams = string(execBytes)
-	// dataType 兜底：仅聚合任务需显式置为 Aggregate(2)；其余（正常/下钻/Push）
-	// 统一归为 Normal(1)，避免零值 0 写入污染语义（下钻逻辑仅依赖 TaskType，不读 DataType）
-	if task.DataType != entity.DataTypeAggregate {
-		task.DataType = entity.DataTypeNormal
-	} else {
-		// 聚合任务只收集不告警不采样，强制关闭；且不支持关联任务
-		task.AlertStatus = entity.MonitorAlertStatusClose
-		task.Sampled = entity.MonitorSampledStatusClose
-		task.RelatedTaskIds = ""
 	}
 
 	dashboardIds, err := req.GetDashboardIds()
@@ -270,28 +245,11 @@ func (app *MonitorTaskApplication) Create(ctx context.Context, req *types.Monito
 		})
 	}
 
-	// 告警配置为可选项：未填写时不创建告警规则，并关闭任务的告警开关
-	var taskAlert *entity.MonitorTaskAlert
-	if req.TaskAlert.HasAlertConfig() {
-		alert := req.TaskAlert.MonitorTaskAlert
-		alert.Id = app.sequence.Generate().Int64()
-		alert.TaskId = taskId
-		alert.AlertStatus = entity.MonitorTaskAlertStatusNormal
-		alert.DealStatus = entity.MonitorTaskAlertDealStatusNormal
-		alert.FirstFlagTime = now
-		alert.PreCheckTime = now
-		if len(req.TaskAlert.CheckParams) > 0 {
-			paramsBytes, err := json.Marshal(req.TaskAlert.CheckParams)
-			if err != nil {
-				return err
-			}
-			alert.Params = string(paramsBytes)
-		}
-		// 始终覆盖通道/分组；纯 Webhook 时 AlertGroups 为空，可清掉历史分组
-		alert.AlertChannels = strings.Join(req.TaskAlert.AlertChannels, ",")
-		alert.AlertGroups = strings.Join(req.TaskAlert.AlertGroups, ",")
-		taskAlert = &alert
-	} else {
+	taskAlert, err := app.buildAlertForTask(req, taskId, task.DataType, true)
+	if err != nil {
+		return err
+	}
+	if taskAlert == nil {
 		task.AlertStatus = entity.MonitorAlertStatusClose
 	}
 
@@ -324,18 +282,8 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 	if req.Id == 0 {
 		return errors.New("id 不能为空")
 	}
-	// 报警检查配置 / 异常检测规则：非必填，填一侧则另一侧必须完整；
-	// 所选通道全为 Webhook 时不要求报警分组
-	needGroups, err := app.needAlertGroups(req.TaskAlert.AlertChannels)
-	if err != nil {
+	if err := app.validateTaskInput(ctx, req); err != nil {
 		return err
-	}
-	if err := req.TaskAlert.ValidateOptional(needGroups); err != nil {
-		return err
-	}
-	// 纯 Webhook：清空分组，避免脏数据入库
-	if !needGroups {
-		req.TaskAlert.AlertGroups = nil
 	}
 	old, err := app.repository.MonitorTaskRepository.GetById(req.Id)
 	if err != nil {
@@ -345,20 +293,29 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 		return errors.New("任务不存在")
 	}
 
-	task := req.MonitorTask
-	execBytes, err := json.Marshal(req.TaskExecParams)
-	if err != nil {
-		return err
+	// 聚合任务被下钻依赖时，只允许修改任务名称，其余字段保持原样，不碰 dashboard/alert/Grafana
+	if old.DataType == entity.DataTypeAggregate {
+		n, err := app.repository.MonitorTaskRepository.CountDrilldownBySourceTaskId(req.Id, false)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return app.repository.MonitorTaskRepository.UpdateById(req.Id, &entity.MonitorTask{
+				TaskName: req.MonitorTask.TaskName,
+			})
+		}
 	}
-	task.ExecParams = string(execBytes)
-	// dataType 兜底：同 Create，仅聚合任务置 Aggregate(2)，其余归 Normal(1)
-	if task.DataType != entity.DataTypeAggregate {
-		task.DataType = entity.DataTypeNormal
-	} else {
-		// 聚合任务只收集不告警不采样，强制关闭；且不支持关联任务
-		task.AlertStatus = entity.MonitorAlertStatusClose
-		task.Sampled = entity.MonitorSampledStatusClose
-		task.RelatedTaskIds = ""
+
+	// 聚合 → 非聚合：若仍有下钻依赖，禁止改类型，避免下钻悬空
+	if old.DataType == entity.DataTypeAggregate && req.DataType != entity.DataTypeAggregate {
+		if err := app.ensureNoDrilldownDependents(ctx, req.Id); err != nil {
+			return err
+		}
+	}
+
+	task := req.MonitorTask
+	if err := app.marshalExecParamsAndNormalizeTask(&task, &req.TaskExecParams); err != nil {
+		return err
 	}
 
 	oldDashboards, err := app.repository.MonitorDashboardTaskRepository.FindByTaskId(req.Id)
@@ -386,108 +343,180 @@ func (app *MonitorTaskApplication) Modify(ctx context.Context, req *types.Monito
 		})
 	}
 
-	if app.grafanaHandler != nil {
-		// 聚合任务的数据写入 taskKey_valueCol（多维度多 metric），不适合单一 realtime panel，跳过同步
-		if task.DataType != entity.DataTypeAggregate {
-			allIds := make([]int64, 0)
-			for id := range oldSet {
-				allIds = append(allIds, id)
-			}
-			for id := range newSet {
-				if !oldSet[id] {
-					allIds = append(allIds, id)
-				}
-			}
-			dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(allIds)
-			if err != nil {
-				return err
-			}
-			dashboardMap := make(map[int64]entity.MonitorDashboard)
-			for _, d := range dashboards {
-				dashboardMap[d.Id] = d
-			}
-			// 编辑表单不管理 sampled，请求体里 Sampled 恒为 0；
-			// Grafana 同步须以数据库旧值为准，否则保存任务会把面板的样本展示误关
-			sampled := old.Sampled == entity.MonitorSampledStatusOpen
-			related := app.resolveRelatedMetrics(ctx, task.RelatedTaskIds)
-			for id := range oldSet {
-				d, ok := dashboardMap[id]
-				if !ok {
-					continue
-				}
-				if strings.TrimSpace(d.Uid) == "" {
-					return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
-				}
-				if newSet[id] {
-					if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, false, true); err != nil {
-						logger.Error(ctx, "Grafana ModifyDashBoardPanel(update) failed", err)
-						return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
-					}
-				} else {
-					if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, true, false); err != nil {
-						logger.Error(ctx, "Grafana ModifyDashBoardPanel(delete) failed", err)
-						return fmt.Errorf("删除 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
-					}
-				}
-			}
-			for id := range newSet {
-				if oldSet[id] {
-					continue
-				}
-				d, ok := dashboardMap[id]
-				if !ok {
-					continue
-				}
-				if strings.TrimSpace(d.Uid) == "" {
-					return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
-				}
-				if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, true, false, false); err != nil {
-					logger.Error(ctx, "Grafana ModifyDashBoardPanel(add) failed", err)
-					return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
-				}
-			}
-		}
+	if err := app.syncGrafanaPanels(ctx, &task, old.Sampled, oldSet, newSet); err != nil {
+		return err
 	}
 
-	// 告警配置为可选项：未填写时传 nil，由 repository 软删除原有告警并关闭任务告警开关
-	var taskAlert *entity.MonitorTaskAlert
-	if req.TaskAlert.HasAlertConfig() {
-		alert := common.Ptr(req.TaskAlert.MonitorTaskAlert)
-		alert.TaskId = req.Id
-		// 首次补告警配置时 repository 会 Create，表 id 无自增，必须预分配雪花 id
-		if alert.Id == 0 {
-			alert.Id = app.sequence.Generate().Int64()
-		}
-		// 新建告警时补齐状态字段；已存在记录由 repository 按 task_id 覆盖 id 后 Updates
-		if alert.AlertStatus == 0 {
-			alert.AlertStatus = entity.MonitorTaskAlertStatusNormal
-		}
-		if alert.DealStatus == 0 {
-			alert.DealStatus = entity.MonitorTaskAlertDealStatusNormal
-		}
-		now := &common.LocalTime{Time: time.Now()}
-		if alert.FirstFlagTime == nil {
-			alert.FirstFlagTime = now
-		}
-		if alert.PreCheckTime == nil {
-			alert.PreCheckTime = now
-		}
-		if len(req.TaskAlert.CheckParams) > 0 {
-			paramsBytes, err := json.Marshal(req.TaskAlert.CheckParams)
-			if err != nil {
-				return err
-			}
-			alert.Params = string(paramsBytes)
-		}
-		// 始终覆盖通道/分组；纯 Webhook 时 AlertGroups 为空，可清掉历史分组
-		alert.AlertChannels = strings.Join(req.TaskAlert.AlertChannels, ",")
-		alert.AlertGroups = strings.Join(req.TaskAlert.AlertGroups, ",")
-		taskAlert = alert
-	} else {
+	taskAlert, err := app.buildAlertForTask(req, req.Id, task.DataType, false)
+	if err != nil {
+		return err
+	}
+	if taskAlert == nil {
 		task.AlertStatus = entity.MonitorAlertStatusClose
 	}
 
 	return app.repository.MonitorTaskRepository.UpdateTaskAndDashboardTaskAndAlertById(req.Id, &task, dashboardTasks, taskAlert)
+}
+
+// marshalExecParamsAndNormalizeTask 将 ExecParams JSON 序列化写入 task，
+// 同时完成 dataType 兜底与聚合任务的强制字段清空。Create 与 Modify 共用。
+func (app *MonitorTaskApplication) marshalExecParamsAndNormalizeTask(task *entity.MonitorTask, execParams *types.MonitorTaskExecParams) error {
+	execBytes, err := json.Marshal(execParams)
+	if err != nil {
+		return err
+	}
+	task.ExecParams = string(execBytes)
+	// dataType 兜底：仅聚合任务需显式置为 Aggregate(2)；其余归 Normal(1)
+	if task.DataType != entity.DataTypeAggregate {
+		task.DataType = entity.DataTypeNormal
+	} else {
+		// 聚合任务只收集不告警不采样，强制关闭；且不支持关联任务/监控分组
+		task.AlertStatus = entity.MonitorAlertStatusClose
+		task.Sampled = entity.MonitorSampledStatusClose
+		task.RelatedTaskIds = ""
+		task.MonitorGroup = ""
+		task.PromoSensitive = entity.PromoSensitiveOff
+	}
+	return nil
+}
+
+// syncGrafanaPanels 根据编辑前后面板集合的差集，分别对 Grafana 面板做 新增/更新/删除。
+// 仅在 grafanaHandler 非 nil 且非聚合任务时执行，聚合任务无单一实时 panel，跳过同步。
+func (app *MonitorTaskApplication) syncGrafanaPanels(
+	ctx context.Context,
+	task *entity.MonitorTask,
+	oldSampled entity.MonitorSampledStatus,
+	oldSet, newSet map[int64]bool,
+) error {
+	if app.grafanaHandler == nil {
+		return nil
+	}
+	// 聚合任务的数据写入 taskKey_valueCol（多维度多 metric），不适合单一 realtime panel，跳过同步
+	if task.DataType == entity.DataTypeAggregate {
+		return nil
+	}
+
+	allIds := make([]int64, 0)
+	for id := range oldSet {
+		allIds = append(allIds, id)
+	}
+	for id := range newSet {
+		if !oldSet[id] {
+			allIds = append(allIds, id)
+		}
+	}
+	dashboards, err := app.repository.MonitorDashboardRepository.SelectByIds(allIds)
+	if err != nil {
+		return err
+	}
+	dashboardMap := make(map[int64]entity.MonitorDashboard)
+	for _, d := range dashboards {
+		dashboardMap[d.Id] = d
+	}
+	// 编辑表单不管理 sampled，请求体里 Sampled 恒为 0；
+	// Grafana 同步须以数据库旧值为准，否则保存任务会把面板的样本展示误关
+	sampled := oldSampled == entity.MonitorSampledStatusOpen
+	related := app.resolveRelatedMetrics(ctx, task.RelatedTaskIds)
+
+	// 处理旧面板：仍在面板集合内则更新，已移除则删除
+	for id := range oldSet {
+		d, ok := dashboardMap[id]
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(d.Uid) == "" {
+			return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+		}
+		if newSet[id] {
+			if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, false, true); err != nil {
+				logger.Error(ctx, "Grafana ModifyDashBoardPanel(update) failed", err)
+				return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+			}
+		} else {
+			if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, false, true, false); err != nil {
+				logger.Error(ctx, "Grafana ModifyDashBoardPanel(delete) failed", err)
+				return fmt.Errorf("删除 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+			}
+		}
+	}
+	// 处理新增面板
+	for id := range newSet {
+		if oldSet[id] {
+			continue
+		}
+		d, ok := dashboardMap[id]
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(d.Uid) == "" {
+			return fmt.Errorf("大盘[%s]缺少 Grafana uid，无法同步 panel", d.Name)
+		}
+		if err := app.grafanaHandler.ModifyDashBoardPanel(d.Uid, task.TaskKey, task.TaskName, sampled, related, true, false, false); err != nil {
+			logger.Error(ctx, "Grafana ModifyDashBoardPanel(add) failed", err)
+			return fmt.Errorf("同步 Grafana panel 失败(dashboard=%s, taskKey=%s): %w", d.Name, task.TaskKey, err)
+		}
+	}
+	return nil
+}
+
+// validateTaskInput 创建/修改共用的前置校验：
+// 结构校验 + 下钻引用 + 报警配置可选对称校验 + Webhook 清分组。
+func (app *MonitorTaskApplication) validateTaskInput(ctx context.Context, req *types.MonitorTaskCreateRequest) error {
+	if err := req.ValidateForCreate(); err != nil {
+		return err
+	}
+	if err := app.validateDrilldownSource(ctx, req); err != nil {
+		return err
+	}
+	needGroups, err := app.needAlertGroups(req.TaskAlert.AlertChannels)
+	if err != nil {
+		return err
+	}
+	if err := req.TaskAlert.ValidateOptional(needGroups); err != nil {
+		return err
+	}
+	if !needGroups {
+		req.TaskAlert.AlertGroups = nil
+	}
+	return nil
+}
+
+// buildAlertForTask 为任务构建/补全 Alarm 记录，返回 alert 或 nil。
+// isCreate=true 时所有字段强制赋值；=false 时仅补齐零值字段。
+// 聚合任务或未填写告警配置时返回 nil，由调用方关闭 task.AlertStatus。
+func (app *MonitorTaskApplication) buildAlertForTask(req *types.MonitorTaskCreateRequest, taskId int64, dataType entity.MonitorTaskDataType, isCreate bool) (*entity.MonitorTaskAlert, error) {
+	if dataType == entity.DataTypeAggregate || !req.TaskAlert.HasAlertConfig() {
+		return nil, nil
+	}
+	alert := common.Ptr(req.TaskAlert.MonitorTaskAlert)
+	alert.TaskId = taskId
+	if alert.Id == 0 {
+		alert.Id = app.sequence.Generate().Int64()
+	}
+	now := &common.LocalTime{Time: time.Now()}
+	if isCreate || alert.AlertStatus == 0 {
+		alert.AlertStatus = entity.MonitorTaskAlertStatusNormal
+	}
+	if isCreate || alert.DealStatus == 0 {
+		alert.DealStatus = entity.MonitorTaskAlertDealStatusNormal
+	}
+	if isCreate || alert.FirstFlagTime == nil {
+		alert.FirstFlagTime = now
+	}
+	if isCreate || alert.PreCheckTime == nil {
+		alert.PreCheckTime = now
+	}
+	if len(req.TaskAlert.CheckParams) > 0 {
+		paramsBytes, err := json.Marshal(req.TaskAlert.CheckParams)
+		if err != nil {
+			return nil, err
+		}
+		alert.Params = string(paramsBytes)
+	}
+	// 始终覆盖通道/分组；纯 Webhook 时 AlertGroups 为空，可清掉历史分组
+	alert.AlertChannels = strings.Join(req.TaskAlert.AlertChannels, ",")
+	alert.AlertGroups = strings.Join(req.TaskAlert.AlertGroups, ",")
+	return alert, nil
 }
 
 // ModifyAlertStatus 修改告警开关
@@ -527,8 +556,98 @@ func (app *MonitorTaskApplication) ModifyAlertStatus(ctx context.Context, id int
 }
 
 // ModifyTaskStatus 修改任务开关
+// 关闭聚合任务前检查是否仍有开启中的下钻依赖：关停后源 metric 不再更新，下钻会持续空值。
+// 开启下钻任务前检查源聚合任务必须已开启。
 func (app *MonitorTaskApplication) ModifyTaskStatus(ctx context.Context, id int64, status entity.MonitorTaskStatus) error {
+	task, err := app.repository.MonitorTaskRepository.GetById(id)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return errors.New("任务不存在")
+	}
+
+	if status == entity.MonitorTaskStatusClose {
+		if task.DataType == entity.DataTypeAggregate {
+			n, err := app.repository.MonitorTaskRepository.CountDrilldownBySourceTaskId(id, true)
+			if err != nil {
+				return err
+			}
+			if n > 0 {
+				return fmt.Errorf("无法关闭聚合任务：仍有 %d 个下钻任务处于开启状态，请先关闭下钻任务后再操作", n)
+			}
+		}
+	}
+
+	// 下钻任务开启前：源聚合任务必须处于开启状态
+	if status == entity.MonitorTaskStatusOpen && task.TaskType != nil && *task.TaskType == entity.TaskTypeDrilldown {
+		if err := app.verifyDrilldownSourceOpen(task, id); err != nil {
+			return fmt.Errorf("无法开启下钻任务：%w", err)
+		}
+	}
+
+	// 开启任务时重置上次采集时间与上次样本时间，避免冷启动
+	if status == entity.MonitorTaskStatusOpen {
+		now := time.Now()
+		return app.repository.MonitorTaskRepository.UpdateById(id, &entity.MonitorTask{
+			TaskStatus:     status,
+			PreExecuteTime: &common.LocalTime{Time: now},
+			PreSampleTime:  &common.LocalTime{Time: now},
+		})
+	}
+
 	return app.repository.MonitorTaskRepository.UpdateTaskStatusById(id, status)
+}
+
+// verifyDrilldownSourceOpen 下钻任务开启时验证源聚合任务必须处于开启状态。
+func (app *MonitorTaskApplication) verifyDrilldownSourceOpen(task *entity.MonitorTask, drilldownId int64) error {
+	var execParams types.MonitorTaskExecParams
+	if task.ExecParams != "" {
+		if err := json.Unmarshal([]byte(task.ExecParams), &execParams); err != nil {
+			return fmt.Errorf("解析下钻任务 %d 的 execParams 失败: %w", drilldownId, err)
+		}
+	}
+	if execParams.SourceTaskId == nil || *execParams.SourceTaskId == 0 {
+		return errors.New("下钻任务未配置 sourceTaskId，无法开启")
+	}
+	src, err := app.repository.MonitorTaskRepository.GetById(*execParams.SourceTaskId)
+	if err != nil {
+		return err
+	}
+	if src == nil {
+		return fmt.Errorf("下钻依赖的聚合任务 %d 不存在或已删除", *execParams.SourceTaskId)
+	}
+	if src.TaskStatus != entity.MonitorTaskStatusOpen {
+		return fmt.Errorf("下钻依赖的聚合任务「%s」未开启，请先开启聚合任务后再开启下钻任务", src.TaskName)
+	}
+	return nil
+}
+
+// Delete 软删除任务，同步清理关联告警规则。
+// 聚合任务若仍被下钻引用则拒绝，避免源消失后下钻静默取空。
+func (app *MonitorTaskApplication) Delete(ctx context.Context, id int64) error {
+	task, err := app.repository.MonitorTaskRepository.GetById(id)
+	if err != nil {
+		return err
+	}
+	if task == nil {
+		return errors.New("任务不存在")
+	}
+	if task.DataType == entity.DataTypeAggregate {
+		if err := app.ensureNoDrilldownDependents(ctx, id); err != nil {
+			return fmt.Errorf("无法删除聚合任务：%w", err)
+		}
+	}
+
+	// 同步软删除关联告警规则，避免产生孤儿记录
+	alert, _ := app.repository.MonitorTaskAlertRepository.GetByTaskId(id)
+	if alert != nil {
+		if err := app.repository.MonitorTaskAlertRepository.SoftDeleteAlert(alert.Id); err != nil {
+			logger.ErrorFormat(ctx, "删除任务时清理告警规则失败 taskId=%d alertId=%d: %v", id, alert.Id, err)
+		}
+	}
+
+	return app.repository.MonitorTaskRepository.Delete(id)
 }
 
 // ModifySampled 修改样本展示开关
@@ -575,6 +694,65 @@ func (app *MonitorTaskApplication) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return *c, nil
+}
+
+// validateDrilldownSource 校验下钻任务的源聚合引用：
+// sourceTaskId 必须存在、未删除，且 DataType=Aggregate；
+// 若指定 queryMetric，须落在源任务 valueColumns 中。
+func (app *MonitorTaskApplication) validateDrilldownSource(ctx context.Context, req *types.MonitorTaskCreateRequest) error {
+	if req.TaskType == nil || *req.TaskType != entity.TaskTypeDrilldown {
+		return nil
+	}
+	srcId := req.TaskExecParams.SourceTaskId
+	if srcId == nil || *srcId == 0 {
+		// ValidateTypedParams 已拦，这里兜底
+		return errors.New("下钻任务必须指定 sourceTaskId")
+	}
+	// 禁止自引用（修改场景下 id 已有值）
+	if req.Id != 0 && req.Id == *srcId {
+		return errors.New("下钻任务不能依赖自身")
+	}
+	src, err := app.repository.MonitorTaskRepository.GetById(*srcId)
+	if err != nil {
+		return err
+	}
+	if src == nil {
+		return fmt.Errorf("下钻依赖的聚合任务 %d 不存在或已删除", *srcId)
+	}
+	if src.DataType != entity.DataTypeAggregate {
+		return fmt.Errorf("下钻依赖的任务「%s」不是聚合任务，无法作为源", src.TaskName)
+	}
+
+	// queryMetric 可选；指定时校验落在源 valueColumns
+	qm := strings.TrimSpace(req.TaskExecParams.QueryMetric)
+	if qm == "" {
+		return nil
+	}
+	var srcParams types.MonitorTaskExecParams
+	if src.ExecParams != "" {
+		if err := json.Unmarshal([]byte(src.ExecParams), &srcParams); err != nil {
+			return fmt.Errorf("解析源聚合任务 execParams 失败: %w", err)
+		}
+	}
+	for _, col := range srcParams.ValueColumns {
+		if col == qm {
+			return nil
+		}
+	}
+	return fmt.Errorf("queryMetric=%s 不在源聚合任务「%s」的 valueColumns 中", qm, src.TaskName)
+}
+
+// ensureNoDrilldownDependents 确认没有下钻依赖指定聚合任务。
+// 用于：改类型 / 关停 / 删除 聚合任务前的统一反查。
+func (app *MonitorTaskApplication) ensureNoDrilldownDependents(ctx context.Context, sourceTaskId int64) error {
+	n, err := app.repository.MonitorTaskRepository.CountDrilldownBySourceTaskId(sourceTaskId, false)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return fmt.Errorf("仍有 %d 个下钻任务依赖此聚合任务，请先删除或改挂下钻任务后再操作", n)
+	}
+	return nil
 }
 
 // PreviewAggregate 聚合预览：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度。

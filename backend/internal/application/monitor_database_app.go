@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 
+	"dragonfly-monitor/internal/common"
 	"dragonfly-monitor/internal/domain/entity"
 	"dragonfly-monitor/internal/infrastructure/persistence"
 	"dragonfly-monitor/internal/types"
@@ -61,7 +63,7 @@ func (app *MonitorDatabaseApplication) testConnect(ctx context.Context, db *enti
 	return nil
 }
 
-// Create 创建数据源：加密密码 → 测试连通 → 保存
+// Create 创建数据源：加密密码 → 测试连通 → 保存（创建成功即视为健康）
 func (app *MonitorDatabaseApplication) Create(ctx context.Context, db *entity.MonitorDatabase) error {
 	if db.Password == "" {
 		return errors.New("密码不能为空")
@@ -73,6 +75,11 @@ func (app *MonitorDatabaseApplication) Create(ctx context.Context, db *entity.Mo
 		return err
 	}
 	db.Id = app.sequence.Generate().Int64()
+	now := &common.LocalTime{Time: time.Now()}
+	db.HealthStatus = entity.DatabaseHealthOK
+	db.LastCheckTime = now
+	db.LastError = " "
+	db.ConsecutiveFail = 0
 	return app.repository.MonitorDatabaseRepository.Save(db)
 }
 
@@ -106,6 +113,12 @@ func (app *MonitorDatabaseApplication) Modify(ctx context.Context, db *entity.Mo
 
 	if err := app.repository.MonitorDatabaseRepository.UpdateById(db.Id, db); err != nil {
 		return err
+	}
+
+	// 修改成功即视为探活通过；健康字段用 map 写，避免 consecutive_fail=0 被 GORM Updates 跳过
+	now := &common.LocalTime{Time: time.Now()}
+	if err := app.repository.MonitorDatabaseRepository.UpdateHealth(db.Id, entity.DatabaseHealthOK, now, " ", 0); err != nil {
+		logger.WarnFormat(ctx, "update database health after modify id=%d fail: %v", db.Id, err)
 	}
 
 	// 数据源配置可能已变更（类型/地址/账号密码等），移除旧连接让 refreshDatabaseConnections

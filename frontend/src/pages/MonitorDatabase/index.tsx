@@ -11,14 +11,18 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, Divider, Drawer, message } from 'antd';
+import { Button, Divider, Drawer, message, Tag, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
+import {
+  DatabaseHealthStatusEnum,
+  DatabaseTypeEnum,
+  getDatabaseParamsHint,
+} from '@/services/ant-design-pro/enum';
 import {
   monitorDatabaseCreate,
   monitorDatabaseQuery,
   monitorDatabaseUpdate,
 } from '@/services/ant-design-pro/monitor.database';
-import { DatabaseTypeEnum } from '@/services/ant-design-pro/enum';
 
 const typeOptions = Object.keys(DatabaseTypeEnum).map((item) => ({
   label: DatabaseTypeEnum[Number(item)],
@@ -34,7 +38,9 @@ const handleCreate = async (fields: API.MonitorDatabase) => {
     return true;
   } catch (error: any) {
     hide();
-    message.error('测试连接失败: ' + (error?.message || '请检查连接信息与后端服务'));
+    message.error(
+      `测试连接失败: ${error?.message || '请检查连接信息与后端服务'}`,
+    );
     return false;
   }
 };
@@ -48,7 +54,9 @@ const handleUpdate = async (fields: API.MonitorDatabase) => {
     return true;
   } catch (error: any) {
     hide();
-    message.error('测试连接失败: ' + (error?.message || '请检查连接信息与后端服务'));
+    message.error(
+      `测试连接失败: ${error?.message || '请检查连接信息与后端服务'}`,
+    );
     return false;
   }
 };
@@ -85,6 +93,40 @@ const MonitorDatabasePage: React.FC = () => {
     },
     { title: '地址', dataIndex: 'url', search: false, ellipsis: true },
     { title: '账号', dataIndex: 'username', search: false },
+    {
+      title: '状态',
+      dataIndex: 'healthStatus',
+      width: 90,
+      search: false,
+      valueEnum: DatabaseHealthStatusEnum as any,
+      render: (_, record) => {
+        const status = Number(record.healthStatus ?? 0);
+        const color =
+          status === 1 ? 'success' : status === 2 ? 'error' : 'default';
+        const label = DatabaseHealthStatusEnum[status] || '未知';
+        const err = (record.lastError || '').trim();
+        const tipParts = [
+          record.lastCheckTime ? `最近探活: ${record.lastCheckTime}` : '',
+          err ? `错误: ${err}` : '',
+          record.consecutiveFail
+            ? `连续失败: ${record.consecutiveFail}`
+            : '',
+        ].filter(Boolean);
+        const tag = <Tag color={color}>{label}</Tag>;
+        return tipParts.length ? (
+          <Tooltip title={tipParts.join('；')}>{tag}</Tooltip>
+        ) : (
+          tag
+        );
+      },
+    },
+    {
+      title: '最近探活',
+      dataIndex: 'lastCheckTime',
+      search: false,
+      width: 170,
+      ellipsis: true,
+    },
     {
       title: '操作',
       valueType: 'option',
@@ -132,11 +174,21 @@ const MonitorDatabasePage: React.FC = () => {
           placeholder="例如 127.0.0.1:3306"
           rules={[{ required: true, message: '连接地址不能为空' }]}
         />
-        <ProFormText name="database" width="md" label="库名/DB索引" placeholder="请输入库名" />
+        <ProFormText
+          name="database"
+          width="md"
+          label="库名/DB索引"
+          placeholder="请输入库名"
+        />
       </ProForm.Group>
 
       <ProForm.Group>
-        <ProFormText name="username" width="md" label="账号" placeholder="请输入账号" />
+        <ProFormText
+          name="username"
+          width="md"
+          label="账号"
+          placeholder="请输入账号"
+        />
         <ProFormText.Password
           name="password"
           width="md"
@@ -144,9 +196,7 @@ const MonitorDatabasePage: React.FC = () => {
           placeholder={isEdit ? '留空则保留原密码' : '请输入密码'}
           extra={isEdit ? '不修改密码请留空，将继续使用原密码' : undefined}
           rules={
-            isEdit
-              ? undefined
-              : [{ required: true, message: '密码不能为空' }]
+            isEdit ? undefined : [{ required: true, message: '密码不能为空' }]
           }
           fieldProps={{
             autoComplete: 'new-password',
@@ -158,23 +208,15 @@ const MonitorDatabasePage: React.FC = () => {
       {/* 不放进 ProForm.Group，单独整行展示 */}
       <ProFormDependency name={['type']}>
         {({ type }) => {
-          const isMongo = Number(type) === 1;
+          const { placeholder, tooltip } = getDatabaseParamsHint(Number(type));
           return (
             <ProFormTextArea
               name="params"
               label="附加参数"
               // 对齐上方两列 md（328*2 + gap），占满一整行
               width={688}
-              placeholder={
-                isMongo
-                  ? 'mongo URI 查询串，例如 collection=log&connectTimeoutMS=5000'
-                  : 'mysql DSN 查询串，例如 charset=utf8mb4&parseTime=True&loc=Local'
-              }
-              tooltip={
-                isMongo
-                  ? '拼接为 mongo URI 的 ? 后查询参数；可含 collection=xxx'
-                  : '拼接为 mysql DSN 的 ? 后查询参数；留空时默认 charset=utf8mb4&parseTime=True&loc=Local'
-              }
+              placeholder={placeholder}
+              tooltip={tooltip}
               fieldProps={{
                 autoSize: { minRows: 2, maxRows: 6 },
               }}
@@ -193,7 +235,11 @@ const MonitorDatabasePage: React.FC = () => {
         rowKey="id"
         columns={columns}
         toolBarRender={() => [
-          <Button type="primary" key="add" onClick={() => setCreateVisible(true)}>
+          <Button
+            type="primary"
+            key="add"
+            onClick={() => setCreateVisible(true)}
+          >
             <PlusOutlined /> 新建
           </Button>,
         ]}
@@ -236,7 +282,10 @@ const MonitorDatabasePage: React.FC = () => {
         title="新建数据源"
         width="740px"
         open={createVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCreateVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setCreateVisible(false),
+        }}
         submitter={{
           searchConfig: {
             submitText: '测试并保存',
@@ -259,7 +308,10 @@ const MonitorDatabasePage: React.FC = () => {
         width="740px"
         open={modifyVisible}
         initialValues={{ ...current, password: undefined }}
-        modalProps={{ destroyOnClose: true, onCancel: () => setModifyVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setModifyVisible(false),
+        }}
         submitter={{
           searchConfig: {
             submitText: '测试并保存',

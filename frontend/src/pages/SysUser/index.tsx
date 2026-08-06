@@ -28,7 +28,7 @@ const handleCreate = async (fields: API.SysUser) => {
     hide();
     message.success('保存用户成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('保存用户失败!');
     return false;
@@ -47,7 +47,7 @@ const handleUpdate = async (fields: API.SysUser) => {
     hide();
     message.success('更新愈合成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('更新用户失败!');
     return false;
@@ -58,14 +58,14 @@ const handleUpdate = async (fields: API.SysUser) => {
  * 删除
  * @param id
  */
-const handleDelete = async (id: string | number) => {
+const handleDelete = async (id: string) => {
   const hide = message.loading('正在删除');
   try {
     await sysUserDelete(id);
     hide();
     message.success('删除用户成功');
     return true;
-  } catch (error) {
+  } catch (_error) {
     hide();
     message.error('删除用户失败!');
     return false;
@@ -78,7 +78,7 @@ const TableList: React.FC = () => {
     useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
 
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [currentRow, setCurrentRow] = useState<API.SysUser>();
 
   const columns: ProColumns<API.SysUser>[] = [
@@ -115,7 +115,7 @@ const TableList: React.FC = () => {
     {
       title: '头像',
       dataIndex: 'avatar',
-      hideInSearch: true,
+      search: false,
       render: (_, entity) => {
         return <Image width={20} src={entity.avatar} />;
       },
@@ -245,9 +245,7 @@ const TableList: React.FC = () => {
         >
           <CreateOrUpdateForm isCreate={false} />
         </ModalForm>
-      ) : (
-        <></>
-      )}
+      ) : null}
     </PageContainer>
   );
 };

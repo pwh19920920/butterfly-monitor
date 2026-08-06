@@ -20,14 +20,14 @@ export async function alertGroupCreate(data: { name: string; userIds: string[] }
   });
 }
 
-export async function alertGroupUpdate(data: { id: string | number; name: string; userIds: string[] }) {
+export async function alertGroupUpdate(data: { id: string; name: string; userIds: string[] }) {
   return request<API.Resp<string>>('/api/alert/group', {
     method: 'PUT',
     data,
   });
 }
 
-export async function alertGroupUsers(id: string | number) {
+export async function alertGroupUsers(id: string) {
   return request<API.Resp<string[]>>(`/api/alert/group/groupUser/${id}`, {
     method: 'GET',
   });

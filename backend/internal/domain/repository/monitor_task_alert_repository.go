@@ -16,4 +16,6 @@ type MonitorTaskAlertRepository interface {
 	ModifyByFiring(id int64, currentTime time.Time, monitorTaskEvent *entity.MonitorTaskEvent) error
 	ModifyByAlert(whereCase *entity.MonitorTaskAlert, monitorTaskAlert *entity.MonitorTaskAlert) error
 	GetByTaskId(taskId int64) (*entity.MonitorTaskAlert, error)
+	// SoftDeleteAlert 软删除告警规则并忽略关联 Pending 事件，用于任务被删除后清理孤儿规则。
+	SoftDeleteAlert(id int64) error
 }

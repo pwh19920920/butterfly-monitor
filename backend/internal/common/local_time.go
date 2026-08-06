@@ -3,6 +3,7 @@ package common
 import (
 	"database/sql/driver"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -22,9 +23,26 @@ func (t *LocalTime) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	tt, err := time.ParseInLocation(fmt.Sprintf("\"%s\"", "2006-01-02 15:04:05"), string(data), time.Local)
-	*t = LocalTime{tt}
-	return err
+	s := strings.Trim(string(data), `"`)
+	if s == "" || s == "null" {
+		*t = LocalTime{time.Time{}}
+		return nil
+	}
+
+	// 兼容多种时间格式：标准年月日时分秒、ISO/RFC3339、纯日期
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		if tt, err := time.ParseInLocation(layout, s, time.Local); err == nil {
+			*t = LocalTime{tt}
+			return nil
+		}
+	}
+	return fmt.Errorf("can not parse %q to LocalTime", s)
 }
 
 func (t *LocalTime) Value() (driver.Value, error) {

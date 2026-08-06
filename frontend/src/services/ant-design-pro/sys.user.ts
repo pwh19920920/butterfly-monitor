@@ -22,12 +22,12 @@ export async function sysUserQueryAll() {
 export async function sysUserCreate(data: API.SysUser) {
   return request<API.Resp<string>>('/api/sys/user', {
     method: 'POST',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }
 
 /** 删除 DELETE /api/sys/user/:id */
-export async function sysUserDelete(id: number | string) {
+export async function sysUserDelete(id: string) {
   return request<API.Resp<string>>(`/api/sys/user/${id}`, {
     method: 'DELETE',
   });
@@ -37,6 +37,6 @@ export async function sysUserDelete(id: number | string) {
 export async function sysUserUpdate(data: API.SysUser) {
   return request<API.Resp<string>>('/api/sys/user', {
     method: 'PUT',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }

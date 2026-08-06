@@ -51,6 +51,22 @@ func (repo *MonitorDatabaseRepositoryImpl) UpdateById(id int64, jobDatabase *ent
 		Updates(&jobDatabase).Error
 }
 
+// UpdateHealth 仅更新探活字段；用 map 写入，确保 last_error 清空、consecutive_fail=0 等也能落库
+func (repo *MonitorDatabaseRepositoryImpl) UpdateHealth(id int64, healthStatus int32, lastCheck *common.LocalTime, lastError string, consecutiveFail int32) error {
+	fields := map[string]interface{}{
+		"health_status":    healthStatus,
+		"last_error":       lastError,
+		"consecutive_fail": consecutiveFail,
+	}
+	if lastCheck != nil {
+		fields["last_check_time"] = lastCheck
+	}
+	return repo.db.Model(&entity.MonitorDatabase{}).
+		Where("id = ?", id).
+		Not(&entity.MonitorDatabase{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Updates(fields).Error
+}
+
 // Delete 软删除
 func (repo *MonitorDatabaseRepositoryImpl) Delete(id int64) error {
 	return repo.db.Model(&entity.MonitorDatabase{}).
@@ -69,8 +85,8 @@ func (repo *MonitorDatabaseRepositoryImpl) Select(req *types.MonitorDatabaseQuer
 	repo.db.Model(&entity.MonitorDatabase{}).Where(whereCase).Not(notCase).Count(&count)
 
 	var data []entity.MonitorDatabase
+	// 全量查；password/salt 由 application.Query 清空后再返回前端
 	err := repo.db.Model(&entity.MonitorDatabase{}).
-		Select("id", "name", "database", "type", "username", "url", "created_at", "updated_at", "params").
 		Order("id desc").
 		Where(whereCase).
 		Not(notCase).

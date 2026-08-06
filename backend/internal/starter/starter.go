@@ -69,6 +69,7 @@ func InitButterflyAdmin() (config.Config, *application.Application) {
 	interfaces.InitAlertGroupHandler(app)
 	interfaces.InitAlertChannelHandler(app)
 	interfaces.InitMonitorTaskEventHandler(app)
+	interfaces.InitMonitorVolatilityDayHandler(app)
 	interfaces.InitMonitorHomeHandler(app)
 	interfaces.InitMonitorHealthHandler(app)
 	interfaces.InitMonitorSystemHandler(app)
@@ -106,6 +107,33 @@ func registerHandlers(app *application.Application, repository *persistence.Repo
 	// DatabaseMongoHandler：type 1
 	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeMongo), &infraHandler.DatabaseMongoHandler{})
 
+	// DatabasePostgresHandler：type 3
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypePostgres), &infraHandler.DatabasePostgresHandler{})
+
+	// DatabaseClickHouseHandler：type 9（独立方言）
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeClickHouse), &infraHandler.DatabaseClickHouseHandler{})
+
+	// DatabasePrometheusHandler：type 10（只读 PromQL，无写）；type 13 VictoriaMetrics 复用（默认端口 8428）
+	promHandler := &infraHandler.DatabasePrometheusHandler{}
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypePrometheus), promHandler)
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeVictoriaMetrics), &infraHandler.DatabasePrometheusHandler{DefaultPort: "8428"})
+
+	// OpenSearch / Elasticsearch：只读 _search/_count/SQL，无写；共用同一 handler
+	osHandler := &infraHandler.DatabaseOpenSearchHandler{}
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeOpenSearch), osHandler)    // 11
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeElasticsearch), osHandler) // 12
+
+	// DatabaseTdEngineHandler：type 14（只读 REST SQL，无写）
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeTDengine), &infraHandler.DatabaseTdEngineHandler{})
+
+	// MySQL 协议兼容族：共用 DatabaseMysqlHandler
+	mysqlCompat := &infraHandler.DatabaseMysqlHandler{}
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeMariaDB), mysqlCompat)   // 4
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeTiDB), mysqlCompat)      // 5
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeOceanBase), mysqlCompat) // 6 MySQL 模式
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeDoris), mysqlCompat)     // 7
+	app.CommonMap.RegisterDatabaseHandler(ctx, int32(entity.DataSourceTypeStarRocks), mysqlCompat) // 8
+
 	// CommandUrlHandler：TaskTypeURL
 	app.CommonMap.RegisterCommandHandler(ctx, int32(entity.TaskTypeURL), &infraHandler.CommandUrlHandler{})
 
@@ -132,7 +160,7 @@ func registerHandlers(app *application.Application, repository *persistence.Repo
 		},
 	})
 
-	// DatabaseTimeseriesHandler：TaskTypeDrilldown（=0，特殊值）。
+	// DatabaseTimeseriesHandler：TaskTypeDrilldown（=4，特殊值值）。
 	// 下钻任务以它为 CommandHandler，executeCollect 复用 cmd.ExecuteCommand → buildCollectPoints 主流程，
 	// 无需单独分支。它从依赖的聚合任务 VM 中按标签过滤取 float64，其余采样/告警与正常任务完全一致。
 	app.CommonMap.RegisterCommandHandler(ctx, int32(entity.TaskTypeDrilldown), &infraHandler.DatabaseTimeseriesHandler{
@@ -145,9 +173,17 @@ func registerHandlers(app *application.Application, repository *persistence.Repo
 	// 通道
 	app.CommonMap.RegisterChannelHandler(ctx, &infraHandler.ChannelEmailHandler{})
 	app.CommonMap.RegisterChannelHandler(ctx, &infraHandler.ChannelWechatHandler{})
+	app.CommonMap.RegisterChannelHandler(ctx, &infraHandler.ChannelDingtalkHandler{})
+	app.CommonMap.RegisterChannelHandler(ctx, &infraHandler.ChannelFeishuHandler{})
 }
 
-// refreshDatabaseConnections 每分钟扫数据源建连
+// databaseHealthFailThreshold 连续探活失败达到此次数才标异常并摘连接（防网络抖动误杀）。
+// 周期为 1 分钟时，默认 3 次 ≈ 连续 3 分钟失败才摘。
+const databaseHealthFailThreshold int32 = 3
+
+// refreshDatabaseConnections 每分钟扫数据源：建连 + 周期验活。
+// - 无连接：NewInstance 建连，成功放 map 并记健康，失败累加 consecutive_fail
+// - 有连接：TestConnect 轻量探活；成功归零；失败只计数，连续达阈值才摘连接并标异常
 // 循环骨架（双层 recover + 周期执行）由 common.RunSafeLoop 提供
 func refreshDatabaseConnections(app *application.Application, repository *persistence.Repository) {
 	common.RunSafeLoop("refreshDatabaseConnections", time.Minute, func() {
@@ -158,21 +194,68 @@ func refreshDatabaseConnections(app *application.Application, repository *persis
 			return
 		}
 		for _, item := range list {
-			if _, ok := app.CommonMap.GetDatabaseConn(ctx, item.Id); ok {
-				continue
-			}
-			h, ok := app.CommonMap.GetDatabaseHandler(ctx, int32(item.Type))
-			if !ok {
-				continue
-			}
-			// NewInstance 内部会 GetDecodePassword，勿提前改写 Password
-			conn, err := h.NewInstance(item)
-			if err != nil {
-				logger.WarnFormat(ctx, "connect database %d fail: %v", item.Id, err)
-				continue
-			}
-			app.CommonMap.PutDatabaseConn(ctx, item.Id, conn)
-			logger.InfoFormat(ctx, "database conn ready id=%d name=%s", item.Id, item.Name)
+			refreshOneDatabase(ctx, app, repository, item)
 		}
 	})
+}
+
+// refreshOneDatabase 对单个数据源做建连/探活，并回写健康字段
+func refreshOneDatabase(ctx context.Context, app *application.Application, repository *persistence.Repository, item entity.MonitorDatabase) {
+	h, ok := app.CommonMap.GetDatabaseHandler(ctx, int32(item.Type))
+	if !ok {
+		return
+	}
+
+	now := &common.LocalTime{Time: time.Now()}
+	_, hasConn := app.CommonMap.GetDatabaseConn(ctx, item.Id)
+
+	if !hasConn {
+		// 无连接：尝试建连（NewInstance 内部会 GetDecodePassword，勿提前改写 Password）
+		conn, err := h.NewInstance(item)
+		if err != nil {
+			failCount := item.ConsecutiveFail + 1
+			logger.WarnFormat(ctx, "connect database %d fail count=%d: %v", item.Id, failCount, err)
+			// 建连失败本身已无连接可摘；达阈值才标红，未达则保持未知（避免抖动刷异常）
+			status := entity.DatabaseHealthUnknown
+			if failCount >= databaseHealthFailThreshold {
+				status = entity.DatabaseHealthBad
+			}
+			markDatabaseHealth(ctx, repository, item, status, now, err.Error(), failCount)
+			return
+		}
+		app.CommonMap.PutDatabaseConn(ctx, item.Id, conn)
+		logger.InfoFormat(ctx, "database conn ready id=%d name=%s", item.Id, item.Name)
+		markDatabaseHealth(ctx, repository, item, entity.DatabaseHealthOK, now, " ", 0)
+		return
+	}
+
+	// 有连接：轻量探活（TestConnect 独立建短连/Ping，不污染业务连接池）
+	if err := h.TestConnect(item); err != nil {
+		failCount := item.ConsecutiveFail + 1
+		logger.WarnFormat(ctx, "probe database %d fail count=%d: %v", item.Id, failCount, err)
+		if failCount >= databaseHealthFailThreshold {
+			// 连续失败达阈值：摘掉死连接，下一轮走建连路径重建
+			app.CommonMap.RemoveDatabaseConn(ctx, item.Id, int32(item.Type))
+			markDatabaseHealth(ctx, repository, item, entity.DatabaseHealthBad, now, err.Error(), failCount)
+			return
+		}
+		// 未达阈值：保留连接，只累加失败计数与错误信息，状态仍视为正常（防抖）
+		markDatabaseHealth(ctx, repository, item, entity.DatabaseHealthOK, now, err.Error(), failCount)
+		return
+	}
+	markDatabaseHealth(ctx, repository, item, entity.DatabaseHealthOK, now, " ", 0)
+}
+
+// markDatabaseHealth 回写探活结果；写库失败只打日志，不影响下一轮
+func markDatabaseHealth(ctx context.Context, repository *persistence.Repository, item entity.MonitorDatabase, status int32, checkTime *common.LocalTime, lastError string, consecutiveFail int32) {
+	if lastError == "" {
+		lastError = " "
+	}
+	const maxErrLen = 900
+	if len(lastError) > maxErrLen {
+		lastError = lastError[:maxErrLen] + "..."
+	}
+	if err := repository.MonitorDatabaseRepository.UpdateHealth(item.Id, status, checkTime, lastError, consecutiveFail); err != nil {
+		logger.WarnFormat(ctx, "update database health id=%d fail: %v", item.Id, err)
+	}
 }

@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"sort"
 	"strconv"
@@ -51,128 +52,153 @@ func evaluateRules(params []entity.MonitorAlertCheckParams, sample *float64, rea
 		return false, 0, ""
 	}
 
-	overallHit := false
-	msgParts := make([]string, 0)
+	cur := now.Format("15:04:05")
+	var msgParts []string
 	level := int32(0)
 
 	for _, group := range params {
-		// 生效时段
-		if len(group.EffectTimes) == 2 {
-			cur := now.Format("15:04:05")
-			if cur < group.EffectTimes[0] || cur > group.EffectTimes[1] {
-				continue
-			}
+		if len(group.EffectTimes) == 2 && (cur < group.EffectTimes[0] || cur > group.EffectTimes[1]) {
+			continue
 		}
 		if len(group.Rules) == 0 {
 			continue
 		}
 
-		// 组内：按 relation 聚合（默认 Or）
+		// 收集每条规则的判定结果，再按 And/Or 聚合
 		groupAnd := group.Relation == entity.MonitorAlertCheckParamsRelationAnd
-		groupHit := groupAnd // And 初始 true，任一失败变 false；Or 初始 false，任一成功变 true
-		groupMsgs := make([]string, 0, len(group.Rules))
-		anyEvaluated := false
+		var hasSkip, hasFail, hasPass bool
+		groupMses := make([]string, 0, len(group.Rules))
 
 		for _, rule := range group.Rules {
-			// 三种比较：
-			// 1 样本差阈值百分比：diff=(实时-样本)/样本*100
-			// 2 样本差阈值比较：diff=实时-样本
-			// 3 实时数值比较：diff=实时
-			var diff float64
-			needSample := rule.ValueType == entity.MonitorAlertCheckParamsValueTypePercent ||
-				rule.ValueType == entity.MonitorAlertCheckParamsValueTypeAbsoluteValue
-			if needSample && sample == nil {
-				// 缺样本：该条无法判定
-				// And 组：视为本条未通过；Or 组：跳过
-				if groupAnd {
-					groupHit = false
+			verdict, diff := evalRuleVerdict(rule, sample, real)
+			switch verdict {
+			case verdictSkip:
+				hasSkip = true
+			case verdictFail:
+				hasFail = true
+			case verdictPass:
+				hasPass = true
+				msg := formatHitRule(rule, real, sample, diff, durationSec)
+				if !containsStr(groupMses, msg) {
+					groupMses = append(groupMses, msg)
 				}
-				continue
-			}
-			switch rule.ValueType {
-			case entity.MonitorAlertCheckParamsValueTypePercent:
-				if *sample == 0 {
-					if groupAnd {
-						groupHit = false
-					}
-					continue
-				}
-				diff = (real - *sample) * 100 / *sample
-			case entity.MonitorAlertCheckParamsValueTypeAbsoluteValue:
-				diff = real - *sample
-			case entity.MonitorAlertCheckParamsValueTypeValue:
-				diff = real
-			default:
-				diff = real
-			}
-			// 样本差类型：低于/低于或等于 与阈值取负方向比较（波动幅度）
-			// 实时数值：直接 real 与阈值比较
-			absoluteMode := rule.ValueType == entity.MonitorAlertCheckParamsValueTypeValue
-			ok := compare(rule.CompareType, diff, rule.Value, absoluteMode)
-			anyEvaluated = true
-			if ok {
-				part := formatHitRule(rule, real, sample, diff, durationSec)
-				if !containsStr(groupMsgs, part) {
-					groupMsgs = append(groupMsgs, part)
-				}
-				if !groupAnd {
-					groupHit = true
-				}
-			} else if groupAnd {
-				groupHit = false
 			}
 		}
 
-		// 组内没有任何可评估规则时，不视为命中
-		if !anyEvaluated {
-			groupHit = false
+		// And：全部评估且全部命中才算命中；Or：任一命中即命中
+		groupHit := false
+		if groupAnd {
+			groupHit = !hasSkip && !hasFail && hasPass
+		} else {
+			groupHit = hasPass
 		}
+		if !groupHit {
+			continue
+		}
+
 		if group.Level != nil {
-			// 命中组才采纳其 level；组间 OR 一旦命中即打断，故只取首个命中组的 level
-			if groupHit {
-				level = int32(*group.Level)
+			level = int32(*group.Level)
+		}
+		for _, part := range groupMses {
+			if !containsStr(msgParts, part) {
+				msgParts = append(msgParts, part)
 			}
 		}
-		if groupHit {
-			overallHit = true
-			// 只拼本命中组的文案，避免未命中组污染
-			for _, part := range groupMsgs {
-				if !containsStr(msgParts, part) {
-					msgParts = append(msgParts, part)
-				}
-			}
-			// 组间 OR：首个命中组即打断，不再匹配后续组
-			break
-		}
+		break // 组间 OR：首个命中组即打断
 	}
 
-	return overallHit, level, strings.Join(msgParts, "；")
+	return len(msgParts) > 0, level, strings.Join(msgParts, "；")
+}
+
+// ruleVerdict 单条规则的评估结果
+type ruleVerdict int
+
+const (
+	verdictSkip ruleVerdict = iota // 无法评估（缺样本 / 样本为 0）
+	verdictFail                    // 评估完成但未命中阈值
+	verdictPass                    // 命中阈值
+)
+
+// evalRuleVerdict 评估单条规则，返回三态判定。
+// 依赖样本的类型在内部已做 nil / 零值守卫；实时数值类型不取 sample。
+func evalRuleVerdict(rule entity.MonitorAlertCheckParamsItem, sample *float64, real float64) (ruleVerdict, float64) {
+	needSample := rule.ValueType == entity.MonitorAlertCheckParamsValueTypePercent ||
+		rule.ValueType == entity.MonitorAlertCheckParamsValueTypeValue
+	if needSample && sample == nil {
+		return verdictSkip, 0
+	}
+
+	var diff float64
+	switch rule.ValueType {
+	case entity.MonitorAlertCheckParamsValueTypePercent:
+		if sample == nil {
+			return verdictSkip, 0
+		}
+		s := *sample
+		if s == 0 {
+			return verdictSkip, 0
+		}
+		diff = (real - s) * 100 / s
+	case entity.MonitorAlertCheckParamsValueTypeValue:
+		if sample == nil {
+			return verdictSkip, 0
+		}
+		diff = real - *sample
+	default:
+		diff = real
+	}
+
+	absoluteMode := rule.ValueType == entity.MonitorAlertCheckParamsValueTypeAbsoluteValue
+	if compare(rule.CompareType, diff, rule.Value, absoluteMode) {
+		return verdictPass, diff
+	}
+	return verdictFail, diff
+}
+
+// rulesNeedSample 判断规则中是否存在依赖样本基线的比较类型（样本差百分比/样本差阈值比较）。
+// 用于样本缺失时决定是否保守拦截：实时数值比较规则不需要样本，不受样本缺失影响。
+func rulesNeedSample(params []entity.MonitorAlertCheckParams) bool {
+	for _, g := range params {
+		for _, r := range g.Rules {
+			if r.ValueType == entity.MonitorAlertCheckParamsValueTypePercent ||
+				r.ValueType == entity.MonitorAlertCheckParamsValueTypeValue {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // formatHitRule 生成命中规则文案（hitRule）
-// 1 实时数值比较：实时数值xx，高于/低于阈值yy，已持续发生N秒
-// 2 样本差阈值百分比：实时数值x1，样本数值y1，样本差百分比xy%，高于/低于样本阈值xx%，已持续发生N秒
+// 1 样本差阈值百分比：实时数值x1，样本数值y1，样本差百分比xy%，高于/低于样本阈值xx%，已持续发生N秒
+// 2 实时数值比较：实时数值xx，高于/低于阈值yy，已持续发生N秒
 // 3 样本差阈值比较：实时数值x1，样本数值y1，样本差xy，高于/低于样本阈值差xx，已持续发生N秒
 func formatHitRule(rule entity.MonitorAlertCheckParamsItem, real float64, sample *float64, diff float64, durationSec int64) string {
 	cmp := rule.CompareType.GetTransferMsg()
 	switch rule.ValueType {
 	case entity.MonitorAlertCheckParamsValueTypePercent:
-		sampleVal := 0.0
-		if sample != nil {
-			sampleVal = *sample
+		if sample == nil {
+			// 防御：样本缺失时回退为实时数值比较格式
+			return fmt.Sprintf(
+				"实时数值%.4g，%s阈值%.4g%%，已持续发生%d秒",
+				real, cmp, rule.Value, durationSec,
+			)
 		}
 		return fmt.Sprintf(
 			"实时数值%.4g，样本数值%.4g，样本差百分比%.2f%%，%s样本阈值%.4g%%，已持续发生%d秒",
-			real, sampleVal, diff, cmp, rule.Value, durationSec,
+			real, *sample, diff, cmp, rule.Value, durationSec,
 		)
-	case entity.MonitorAlertCheckParamsValueTypeAbsoluteValue:
-		sampleVal := 0.0
-		if sample != nil {
-			sampleVal = *sample
+	case entity.MonitorAlertCheckParamsValueTypeValue:
+		if sample == nil {
+			// 防御：样本缺失时回退为实时数值比较格式
+			return fmt.Sprintf(
+				"实时数值%.4g，%s阈值%.4g，已持续发生%d秒",
+				real, cmp, rule.Value, durationSec,
+			)
 		}
 		return fmt.Sprintf(
 			"实时数值%.4g，样本数值%.4g，样本差%.4g，%s样本阈值差%.4g，已持续发生%d秒",
-			real, sampleVal, diff, cmp, rule.Value, durationSec,
+			real, *sample, diff, cmp, rule.Value, durationSec,
 		)
 	default:
 		// 实时数值比较
@@ -238,25 +264,173 @@ func parseInt64(s string) (int64, error) {
 	return v, err
 }
 
-// averageSampleValues 样本点聚合：
-// - 点数 < 5：直接算术平均
-// - 点数 >= 5：去掉最大最小后再平均
+// averageSampleValues 样本点聚合（抗系统抖动：天级同时段池中 1~2 天离群）。
+// 调用方已保证 len(vals)>0 才调用；本函数始终返回可写值，保证界面样本线连续，
+// 不会因「少样本」拒绝出数。
+//
+// 规则：
+//   - 先丢掉 NaN/Inf（不可用点）；保留 0/负值，交由中位数与 MAD 处理（0 常为抖动日）
+//   - 有效点 1 个：原样返回（单点也写，保证曲线不断）
+//   - 有效点 2~4：中位数（替代原裸均值，单点 0/尖刺不再直接拉偏）
+//   - 有效点 >=5：MAD 剔除离群后再中位数；剔除后过少则回退全量中位数（仍写出）
+//   - 若全部为 NaN/Inf：回退 0（极端脏数据）
 func averageSampleValues(vals []float64) float64 {
 	if len(vals) == 0 {
 		return 0
 	}
-	if len(vals) < 5 {
-		var sum float64
-		for _, v := range vals {
-			sum += v
+
+	clean := filterFinite(vals)
+	if len(clean) == 0 {
+		return 0
+	}
+	if len(clean) == 1 {
+		return clean[0]
+	}
+	// 少样本也写：中位数替代算术平均
+	if len(clean) < 5 {
+		return medianFloat64(clean)
+	}
+
+	inliers := madInliers(clean, 3.0)
+	// 剔除后过少：不放弃写点，回退全量中位数，界面仍有线
+	if len(inliers) < 3 {
+		return medianFloat64(clean)
+	}
+	return medianFloat64(inliers)
+}
+
+// filterFinite 仅去掉 NaN/Inf；保留 0 与负值，由 MAD/中位数处理离群。
+func filterFinite(vals []float64) []float64 {
+	out := make([]float64, 0, len(vals))
+	for _, v := range vals {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			continue
 		}
-		return sum / float64(len(vals))
+		out = append(out, v)
 	}
-	sort.Float64s(vals)
-	trimmed := vals[1 : len(vals)-1]
-	var sum float64
-	for _, v := range trimmed {
-		sum += v
+	return out
+}
+
+// medianFloat64 中位数；不修改入参。
+func medianFloat64(vals []float64) float64 {
+	if len(vals) == 0 {
+		return 0
 	}
-	return sum / float64(len(trimmed))
+	sorted := append([]float64(nil), vals...)
+	sort.Float64s(sorted)
+	n := len(sorted)
+	if n%2 == 1 {
+		return sorted[n/2]
+	}
+	return (sorted[n/2-1] + sorted[n/2]) / 2
+}
+
+// madInliers 用 MAD 保留非离群点。
+// 阈值 = k * 1.4826 * MAD（k=3 约等价 3σ）；MAD=0 表示几乎无离散，原样返回。
+func madInliers(vals []float64, k float64) []float64 {
+	if len(vals) < 3 {
+		return append([]float64(nil), vals...)
+	}
+	med := medianFloat64(vals)
+	devs := make([]float64, len(vals))
+	for i, v := range vals {
+		d := v - med
+		if d < 0 {
+			d = -d
+		}
+		devs[i] = d
+	}
+	mad := medianFloat64(devs)
+	if mad == 0 {
+		return append([]float64(nil), vals...)
+	}
+	threshold := k * 1.4826 * mad
+	inliers := make([]float64, 0, len(vals))
+	for _, v := range vals {
+		d := v - med
+		if d < 0 {
+			d = -d
+		}
+		if d <= threshold {
+			inliers = append(inliers, v)
+		}
+	}
+	return inliers
+}
+
+// samplePoint 带来源日偏移的样本原料点（day tag = 采集时投射的未来天数，默认 1~8）
+type samplePoint struct {
+	Value     float64
+	DayOffset int // 采集时投射的 day tag 偏移；0 表示未知
+}
+
+// filterSpecialSourceDays 丢掉「来源自然日」落在特殊日的原料点。
+// 来源日 = cellEnd 往前 DayOffset 天（与 buildCollectPoints 的 day tag 语义一致）。
+// isSpecial 为 nil 时原样返回。
+func filterSpecialSourceDays(points []samplePoint, cellEnd time.Time, isSpecial func(time.Time) bool) []float64 {
+	out := make([]float64, 0, len(points))
+	for _, p := range points {
+		if isSpecial != nil && p.DayOffset > 0 {
+			src := cellEnd.AddDate(0, 0, -p.DayOffset)
+			if isSpecial(src) {
+				continue
+			}
+		}
+		out = append(out, p.Value)
+	}
+	return out
+}
+
+// promoNeedSample 规则是否依赖样本基线（样本差百分比 / 样本差阈值比较）。
+// 实时数值比较（AbsoluteValue）不依赖样本。
+func promoNeedSample(rule entity.MonitorAlertCheckParamsItem) bool {
+	return rule.ValueType == entity.MonitorAlertCheckParamsValueTypePercent ||
+		rule.ValueType == entity.MonitorAlertCheckParamsValueTypeValue
+}
+
+// promoScaleFor 波动日下该条规则是否放大阈值，返回倍数（ok=false 表示不放大）。
+// 放大方向 = 波动日偏移方向：
+//   - peak（高峰）：上偏（Gt/Egt）放大，样本差/实时数值均可（量级整体抬高）
+//   - trough（低谷）：样本差类下偏（Lt/Elt）放大（幅度 ×troughRatio）；
+//     实时数值下偏不动——绝对值门槛表达不了「相对低谷的跌幅」，放大反而掩盖真故障
+func promoScaleFor(dayType entity.VolatilityDayType, rule entity.MonitorAlertCheckParamsItem, peakRatio, troughRatio float64) (float64, bool) {
+	switch dayType {
+	case entity.VolatilityDayTypePeak:
+		if rule.CompareType == entity.MonitorAlertCheckParamsCompareTypeGt ||
+			rule.CompareType == entity.MonitorAlertCheckParamsCompareTypeEgt {
+			return peakRatio, peakRatio > 1
+		}
+	case entity.VolatilityDayTypeTrough:
+		if promoNeedSample(rule) &&
+			(rule.CompareType == entity.MonitorAlertCheckParamsCompareTypeLt ||
+				rule.CompareType == entity.MonitorAlertCheckParamsCompareTypeElt) {
+			return troughRatio, troughRatio > 1
+		}
+	}
+	return 0, false
+}
+
+// applyPromoAlertRatio 对本轮判定用的规则副本按波动日类型放大阈值（不写回 DB）。
+// 触发前提：调用方已确认是敏感任务命中波动日。
+// peak 放大上偏（Gt/Egt）；trough 放大样本差类下偏（Lt/Elt）。倍数<=1 时不放大。
+func applyPromoAlertRatio(params []entity.MonitorAlertCheckParams, dayType entity.VolatilityDayType, peakRatio, troughRatio float64) []entity.MonitorAlertCheckParams {
+	if len(params) == 0 || (peakRatio <= 1 && troughRatio <= 1) {
+		return params
+	}
+	out := make([]entity.MonitorAlertCheckParams, len(params))
+	for i, g := range params {
+		out[i] = g
+		if len(g.Rules) == 0 {
+			continue
+		}
+		rules := make([]entity.MonitorAlertCheckParamsItem, len(g.Rules))
+		copy(rules, g.Rules)
+		for j := range rules {
+			if ratio, ok := promoScaleFor(dayType, rules[j], peakRatio, troughRatio); ok {
+				rules[j].Value = rules[j].Value * ratio
+			}
+		}
+		out[i].Rules = rules
+	}
+	return out
 }

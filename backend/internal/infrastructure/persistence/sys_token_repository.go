@@ -36,7 +36,10 @@ func (tokenRepository *SysTokenRepositoryImpl) Delete(subject string) error {
 
 func (tokenRepository *SysTokenRepositoryImpl) GetBySubject(subject string) (*entity.SysToken, error) {
 	var token entity.SysToken
-	err := tokenRepository.db.Model(&entity.SysToken{}).Where(&entity.SysToken{Subject: subject}).Last(&token).Error
+	err := tokenRepository.db.Model(&entity.SysToken{}).
+		Where(&entity.SysToken{Subject: subject}).
+		Not(&entity.SysToken{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Last(&token).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

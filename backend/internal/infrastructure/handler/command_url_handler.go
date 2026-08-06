@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -120,25 +119,24 @@ func (h *CommandUrlHandler) ExecuteCommand(ctx context.Context, task entity.Moni
 	}
 
 	if params.ResultFieldPath == "" {
-		// 整个 body 当数字
+		// 整个 body 当数字；正常响应但取不到数值时回落默认值（必填）
 		f, err := strconv.ParseFloat(strings.TrimSpace(string(body)), 64)
-		if err != nil && params.DefaultValue != nil {
+		if err != nil {
 			return *params.DefaultValue, nil
 		}
-		return f, err
+		return f, nil
 	}
 
 	var root interface{}
 	if err := json.Unmarshal(body, &root); err != nil {
-		if params.DefaultValue != nil {
-			return *params.DefaultValue, nil
-		}
-		return 0, err
+		// 正常响应但 JSON 非法：回落默认值（必填）
+		return *params.DefaultValue, nil
 	}
 
 	val := gojsonq.New().FromString(string(body)).Find(params.ResultFieldPath)
 	if nil == val {
-		return 0, errors.New("请求成功, 但取不到结果")
+		// 请求成功但目标路径无值：视为无数据，回落默认值（必填）
+		return *params.DefaultValue, nil
 	}
 
 	switch v := val.(type) {

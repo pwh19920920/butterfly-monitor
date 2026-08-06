@@ -1,7 +1,17 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { ModalForm, PageContainer, ProFormTextArea, ProTable } from '@ant-design/pro-components';
-import { message, Modal, Space, Tag } from 'antd';
+import {
+  ModalForm,
+  PageContainer,
+  ProFormTextArea,
+  ProTable,
+} from '@ant-design/pro-components';
+import { Modal, message, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
+import {
+  CheckParamsLevelTypeEnum,
+  MonitorTaskEventDealStatusEnum,
+  MonitorTaskEventLevelEnum,
+} from '@/services/ant-design-pro/enum';
 import {
   monitorTaskEventComplete,
   monitorTaskEventDeal,
@@ -9,11 +19,6 @@ import {
   monitorTaskEventQuery,
 } from '@/services/ant-design-pro/monitor.event';
 import { monitorTaskQuery } from '@/services/ant-design-pro/monitor.task';
-import {
-  CheckParamsLevelTypeEnum,
-  MonitorTaskEventDealStatusEnum,
-  MonitorTaskEventLevelEnum,
-} from '@/services/ant-design-pro/enum';
 
 const statusMap: Record<number, { text: string; color: string }> = {
   1: { text: MonitorTaskEventDealStatusEnum[1], color: 'orange' },
@@ -31,7 +36,7 @@ const levelMap: Record<number, { text: string; color: string }> = {
 };
 
 const MonitorTaskEventPage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [dealVisible, setDealVisible] = useState(false);
   const [completeVisible, setCompleteVisible] = useState(false);
   const [current, setCurrent] = useState<API.MonitorTaskEvent>();
@@ -45,9 +50,16 @@ const MonitorTaskEventPage: React.FC = () => {
       hideInTable: true,
       request: async () => {
         const res = await monitorTaskQuery({ current: 1, pageSize: 1000 });
-        return (res.data || []).map((t) => ({ label: t.taskName, value: String(t.id) }));
+        return (res.data || []).map((t) => ({
+          label: t.taskName,
+          value: String(t.id),
+        }));
       },
-      fieldProps: { showSearch: true, allowClear: true, placeholder: '选择任务' },
+      fieldProps: {
+        showSearch: true,
+        allowClear: true,
+        placeholder: '选择任务',
+      },
     },
     { title: '告警信息', dataIndex: 'alertMsg', search: false, ellipsis: true },
     {
@@ -69,18 +81,36 @@ const MonitorTaskEventPage: React.FC = () => {
       fieldProps: { allowClear: true },
       render: (_, r) => {
         const l = levelMap[r.eventLevel as unknown as number];
-        return l ? <Tag color={l.color}>{l.text}</Tag> : r.eventLevel != null ? String(r.eventLevel) : '-';
+        return l ? (
+          <Tag color={l.color}>{l.text}</Tag>
+        ) : r.eventLevel != null ? (
+          String(r.eventLevel)
+        ) : (
+          '-'
+        );
       },
     },
     { title: '告警次数', dataIndex: 'alertCount', search: false },
-    { title: '下次告警', dataIndex: 'nextAlertTime', search: false, valueType: 'dateTime' },
-    { title: '创建时间', dataIndex: 'createdAt', search: false, valueType: 'dateTime' },
+    {
+      title: '下次告警',
+      dataIndex: 'nextAlertTime',
+      search: false,
+      valueType: 'dateTime',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      search: false,
+      valueType: 'dateTime',
+    },
     {
       title: '创建时间',
       dataIndex: 'dateTimeRange',
       valueType: 'dateTimeRange',
       hideInTable: true,
-      search: { transform: (value) => ({ startTime: value[0], endTime: value[1] }) },
+      search: {
+        transform: (value) => ({ startTime: value[0], endTime: value[1] }),
+      },
     },
     {
       title: '操作',
@@ -102,13 +132,15 @@ const MonitorTaskEventPage: React.FC = () => {
               onClick={() => {
                 Modal.confirm({
                   title: '忽略告警',
-                  content: '确认忽略该告警？忽略后将不再对该事件告警，同任务其他待处理事件不受影响。',
+                  content:
+                    '确认忽略该告警？忽略后将不再对该事件告警，同任务其他待处理事件不受影响。',
                   okText: '忽略',
                   okButtonProps: { danger: true },
                   cancelText: '取消',
                   onOk: async () => {
                     try {
-                      await monitorTaskEventIgnore(record.id!);
+                      if (record.id == null) return;
+                      await monitorTaskEventIgnore(record.id);
                       message.success('已忽略');
                       actionRef.current?.reload();
                     } catch {
@@ -151,10 +183,14 @@ const MonitorTaskEventPage: React.FC = () => {
       <ModalForm
         title="处理事件"
         open={dealVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setDealVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setDealVisible(false),
+        }}
         onFinish={async () => {
           try {
-            await monitorTaskEventDeal(current!.id!);
+            if (!current?.id) return false;
+            await monitorTaskEventDeal(current.id);
             message.success('已处理');
             setDealVisible(false);
             actionRef.current?.reload();
@@ -170,10 +206,17 @@ const MonitorTaskEventPage: React.FC = () => {
       <ModalForm
         title="完成事件"
         open={completeVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCompleteVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setCompleteVisible(false),
+        }}
         onFinish={async (values) => {
+          const id = current?.id;
+          if (id == null) return;
           try {
-            await monitorTaskEventComplete(current!.id!, { content: values.content });
+            await monitorTaskEventComplete(id, {
+              content: values.content,
+            });
             message.success('已完成');
             setCompleteVisible(false);
             actionRef.current?.reload();

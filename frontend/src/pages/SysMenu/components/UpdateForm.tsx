@@ -9,8 +9,8 @@ import {
 import { Col, Form, Row, Spin, TreeSelect } from 'antd';
 import type { DataNode } from 'rc-tree-select/lib/interface';
 import React, { useEffect, useState } from 'react';
-import { sysMenuQuery } from '@/services/ant-design-pro/sys.menu';
 import { HttpMethodEnum } from '@/services/ant-design-pro/enum';
+import { sysMenuQuery } from '@/services/ant-design-pro/sys.menu';
 
 const columns: ProColumns<API.SysMenuOption>[] = [
   {
@@ -58,7 +58,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
     setTreeData(
       recursionAssignment([
         {
-          id: 0,
+          id: "0",
           name: '顶级菜单',
           code: '',
           path: '/',
@@ -83,7 +83,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
       }
       return {
         value: `${item.id}`,
-        title: item.name + ': ' + item.path,
+        title: `${item.name}: ${item.path}`,
         children,
       };
     });
@@ -200,7 +200,7 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
             type: 'multiple',
             editableKeys,
             onChange: setEditableRowKeys,
-            actionRender: (row, _, dom) => {
+            actionRender: (_row, _, dom) => {
               return [dom.delete];
             },
           }}

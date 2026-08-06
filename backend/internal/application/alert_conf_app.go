@@ -2,10 +2,6 @@ package application
 
 import (
 	"context"
-	"strconv"
-	"strings"
-
-	"github.com/pwh19920920/butterfly/pkg/logger"
 
 	"dragonfly-monitor/internal/domain/entity"
 	"dragonfly-monitor/internal/infrastructure/persistence"
@@ -30,7 +26,6 @@ func NewAlertConfApplication(sequence *snowflake.Node, repository *persistence.R
 func (app *AlertConfApplication) Query(ctx context.Context, req *types.AlertConfQueryRequest) (int64, []entity.AlertConf, error) {
 	total, data, err := app.repository.AlertConfRepository.Select(req)
 	if err != nil {
-		logger.Error(ctx, "AlertConfRepository.Select() happen error for", err)
 		return total, nil, err
 	}
 	return total, data, nil
@@ -47,52 +42,69 @@ func (app *AlertConfApplication) Modify(ctx context.Context, conf *entity.AlertC
 	return app.repository.AlertConfRepository.Modify(conf.Id, conf)
 }
 
-// Cover2AlertConf 用独立 viper 实例将 KV 配置装配为运行期对象
+// Cover2AlertConf 用独立 viper 实例将 KV 配置装配为运行期对象。
+// 常用项由 viper.Unmarshal 映射到字段；全部 KV（含模板等动态 key）通过 obj.Put 保留，供 Get/GetFloat 按 key 取。
 func (app *AlertConfApplication) Cover2AlertConf(ctx context.Context) (*types.AlertConfObject, error) {
 	data, err := app.repository.AlertConfRepository.SelectAll()
 	if err != nil {
 		return nil, err
 	}
 
-	v := viper.New()
-	// 默认值
-	v.SetDefault("alert.firstDelay", int64(60))
-	v.SetDefault("alert.alertSpan", int64(300))
-	v.SetDefault("alert.simplePageSize", int64(50))
-	v.SetDefault("alert.simpleMaxSecond", int64(600))
-	v.SetDefault("alert.collectMaxSecond", int64(25))
-
-	// 按 handler 维度收集默认模板：confKey 形如 template.ChannelEmailHandler
-	templates := make(map[string]string)
-	for _, item := range data {
-		key := "alert." + item.ConfKey
-		// 数字类型尝试转 int64
-		if item.ConfType == entity.AlertConfTypeNumber {
-			if n, err := strconv.ParseInt(item.ConfVal, 10, 64); err == nil {
-				v.Set(key, n)
-				continue
-			}
-		}
-		v.Set(key, item.ConfVal)
-
-		// template.<HandlerClassName> → Templates[HandlerClassName]
-		if strings.HasPrefix(item.ConfKey, "template.") {
-			handlerName := strings.TrimPrefix(item.ConfKey, "template.")
-			if handlerName != "" {
-				templates[handlerName] = item.ConfVal
-			}
-		}
-	}
+	conf := viper.New()
+	// 默认值（key 与 conf_key 一致，不带 alert. 前缀；取值见 types.Default* 常量）
+	conf.SetDefault("firstDelay", types.DefaultFirstDelay)
+	conf.SetDefault("alertSpan", types.DefaultAlertSpan)
+	conf.SetDefault("simplePageSize", types.DefaultSimplePageSize)
+	conf.SetDefault("simpleMaxSecond", types.DefaultSimpleMaxSecond)
+	conf.SetDefault("collectMaxSecond", types.DefaultCollectMaxSecond)
+	conf.SetDefault("freezeSampleLookBackDays", types.DefaultFreezeSampleLookBackDays)
+	conf.SetDefault("promoPeakRatio", types.DefaultPromoPeakRatio)
+	conf.SetDefault("promoTroughRatio", types.DefaultPromoTroughRatio)
+	conf.SetDefault("alertCheckConcurrency", types.DefaultAlertCheckConcurrency)
+	conf.SetDefault("samplingConcurrency", types.DefaultSamplingConcurrency)
+	conf.SetDefault("sampleRawDays", types.DefaultSampleRawDays)
+	conf.SetDefault("batchWriteChunkSize", types.DefaultBatchWriteChunkSize)
+	conf.SetDefault("maxAlertShift", types.DefaultMaxAlertShift)
 
 	obj := &types.AlertConfObject{}
-	// 手动读取，避免 mapstructure 依赖路径问题
-	obj.AlertSpan = v.GetInt64("alert.alertSpan")
-	obj.FirstDelay = v.GetInt64("alert.firstDelay")
-	// 兼容旧全局 key「template」
-	obj.Template = v.GetString("alert.template")
-	obj.Templates = templates
-	obj.SimplePageSize = v.GetInt64("alert.simplePageSize")
-	obj.SimpleMaxSecond = v.GetInt64("alert.simpleMaxSecond")
-	obj.CollectMaxSecond = v.GetInt64("alert.collectMaxSecond")
+	for _, item := range data {
+		obj.Put(item.ConfKey, item.ConfVal)
+		conf.Set(item.ConfKey, item.ConfVal)
+	}
+	// viper.Unmarshal 默认弱类型输入：配置表里存的字符串可自动转 int64
+	if err := conf.Unmarshal(obj); err != nil {
+		return nil, err
+	}
+
+	// 字段规范化：显式配 0/负等非法值回退默认，保证下游直接取字段即可，无需各自防御
+	obj.SimplePageSize = normalizeInt(obj.SimplePageSize, types.DefaultSimplePageSize)
+	obj.SimpleMaxSecond = normalizeInt(obj.SimpleMaxSecond, types.DefaultSimpleMaxSecond)
+	obj.CollectMaxSecond = normalizeInt(obj.CollectMaxSecond, types.DefaultCollectMaxSecond)
+	obj.AlertSpan = normalizeInt(obj.AlertSpan, types.DefaultAlertSpan)
+	obj.FirstDelay = normalizeInt(obj.FirstDelay, types.DefaultFirstDelay)
+	obj.FreezeSampleLookBackDays = normalizeInt(obj.FreezeSampleLookBackDays, types.DefaultFreezeSampleLookBackDays)
+	obj.PromoPeakRatio = normalizeFloat(obj.PromoPeakRatio, types.DefaultPromoPeakRatio)
+	obj.PromoTroughRatio = normalizeFloat(obj.PromoTroughRatio, types.DefaultPromoTroughRatio)
+	obj.AlertCheckConcurrency = normalizeInt(obj.AlertCheckConcurrency, types.DefaultAlertCheckConcurrency)
+	obj.SamplingConcurrency = normalizeInt(obj.SamplingConcurrency, types.DefaultSamplingConcurrency)
+	obj.SampleRawDays = normalizeInt(obj.SampleRawDays, types.DefaultSampleRawDays)
+	obj.BatchWriteChunkSize = normalizeInt(obj.BatchWriteChunkSize, types.DefaultBatchWriteChunkSize)
+	obj.MaxAlertShift = normalizeInt(obj.MaxAlertShift, types.DefaultMaxAlertShift)
 	return obj, nil
+}
+
+// normalizeInt 非正数回退默认值（配置项显式配 0/负视为非法，装配期统一规整）
+func normalizeInt(v, def int64) int64 {
+	if v <= 0 {
+		return def
+	}
+	return v
+}
+
+// normalizeFloat 非正数回退默认值（配置项显式配 0/负视为非法，装配期统一规整）
+func normalizeFloat(v, def float64) float64 {
+	if v <= 0 {
+		return def
+	}
+	return v
 }

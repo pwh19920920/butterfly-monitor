@@ -1,5 +1,9 @@
 import { PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
+import type {
+  ActionType,
+  ProColumns,
+  ProFormInstance,
+} from '@ant-design/pro-components';
 import {
   ModalForm,
   PageContainer,
@@ -15,7 +19,10 @@ import {
   alertChannelQuery,
   alertChannelUpdate,
 } from '@/services/ant-design-pro/alert.channel';
-import { AlertChannelFailRouteEnum, AlertChannelTypeEnum } from '@/services/ant-design-pro/enum';
+import {
+  AlertChannelFailRouteEnum,
+  AlertChannelTypeEnum,
+} from '@/services/ant-design-pro/enum';
 
 const handleCreate = async (fields: API.AlertChannelSaveRequest) => {
   const hide = message.loading('正在测试并保存');
@@ -26,7 +33,7 @@ const handleCreate = async (fields: API.AlertChannelSaveRequest) => {
     return true;
   } catch (error: any) {
     hide();
-    message.error('测试发送失败: ' + (error?.message || '请检查参数与连通性'));
+    message.error(`测试发送失败: ${error?.message || '请检查参数与连通性'}`);
     return false;
   }
 };
@@ -40,7 +47,7 @@ const handleUpdate = async (fields: API.AlertChannelSaveRequest) => {
     return true;
   } catch (error: any) {
     hide();
-    message.error('测试发送失败: ' + (error?.message || '请检查参数与连通性'));
+    message.error(`测试发送失败: ${error?.message || '请检查参数与连通性'}`);
     return false;
   }
 };
@@ -72,8 +79,10 @@ const parseParams = (params?: string): any => {
 };
 
 const TableList: React.FC = () => {
-  const [createModalVisible, handleCreateModalVisible] = useState<boolean>(false);
-  const [modifyModalVisible, handleModifyModalVisible] = useState<boolean>(false);
+  const [createModalVisible, handleCreateModalVisible] =
+    useState<boolean>(false);
+  const [modifyModalVisible, handleModifyModalVisible] =
+    useState<boolean>(false);
 
   const actionRef = useRef<ActionType>(undefined);
   const drawRef = useRef<ActionType>(undefined);
@@ -82,7 +91,9 @@ const TableList: React.FC = () => {
 
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const [currentRow, setCurrentRow] = useState<API.AlertChannel>();
-  const [channelHandlers, setChannelHandlers] = useState<API.AlertChannelHandler[]>([]);
+  const [channelHandlers, setChannelHandlers] = useState<
+    API.AlertChannelHandler[]
+  >([]);
 
   const loadHandlers = async () => {
     const resp = await alertChannelHandlers();
@@ -215,7 +226,11 @@ const TableList: React.FC = () => {
             return success;
           }}
         >
-          <CreateOrUpdateForm formRef={updateFormRef} channelHandlers={channelHandlers} channelType={-1} />
+          <CreateOrUpdateForm
+            formRef={updateFormRef}
+            channelHandlers={channelHandlers}
+            channelType={-1}
+          />
         </ModalForm>
       )}
 
@@ -225,7 +240,10 @@ const TableList: React.FC = () => {
           width="740px"
           open={modifyModalVisible}
           formRef={createFormRef}
-          initialValues={{ ...currentRow, paramsObj: parseParams(currentRow.params) }}
+          initialValues={{
+            ...currentRow,
+            paramsObj: parseParams(currentRow.params),
+          }}
           modalProps={{
             destroyOnClose: true,
             onCancel: () => handleModifyModalVisible(false),
@@ -246,11 +264,13 @@ const TableList: React.FC = () => {
             return success;
           }}
         >
-          <CreateOrUpdateForm formRef={createFormRef} channelHandlers={channelHandlers} channelType={currentRow.type ?? -1} />
+          <CreateOrUpdateForm
+            formRef={createFormRef}
+            channelHandlers={channelHandlers}
+            channelType={currentRow.type ?? -1}
+          />
         </ModalForm>
-      ) : (
-        <></>
-      )}
+      ) : null}
     </PageContainer>
   );
 };

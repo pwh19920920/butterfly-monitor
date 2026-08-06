@@ -9,7 +9,7 @@
 
  File Encoding         : UTF-8
 
- Date: 2026-07-27 20:02:45
+ Date: 2026-08-04 15:16:14
 */
 
 SET NAMES utf8mb4;
@@ -57,11 +57,20 @@ CREATE TABLE `t_alert_conf` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报警配置';
 
 INSERT INTO `t_alert_conf` VALUES (1462795963172130816,'2026-07-25 19:08:10','2026-07-26 13:31:52',0,'alertSpan','300','报警间隔',1);
-INSERT INTO `t_alert_conf` VALUES (1462797872809381888,'2026-07-25 19:08:10','2026-07-27 18:59:14',0,'template.ChannelWechatHandler','# 业务监控平台系统预警\n{{- range .items}}\n<font color=\"info\">{{.TaskName}}：<\/font><font color=\"comment\">{{.HitRule}}<\/font>\n{{- end}}\n\n{{ if .relationTaskNames }}\n <font color=\"warning\">关联告警：<\/font>\n{{- end}}\n{{- range .relationTaskNames}}\n    <font color=\"warning\">{{.}};<\/font>\n{{- end}}','企微(ChannelWechatHandler)默认告警模板',2);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381888,'2026-07-25 19:08:10','2026-08-01 22:32:54',0,'defaultChannelWechatHandlerTemplate','# 业务监控平台系统预警\n{{- range .items}}\n<font color=\"info\">{{.TaskName}}：<\/font><font color=\"comment\">{{.HitRule}}<\/font>\n{{- end}}\n\n{{ if .relationTaskNames }}\n <font color=\"warning\">关联告警：<\/font>\n{{- end}}\n{{- range .relationTaskNames}}\n    <font color=\"warning\">{{.}};<\/font>\n{{- end}}','企微(ChannelWechatHandler)默认告警模板',2);
 INSERT INTO `t_alert_conf` VALUES (1462797872809381889,'2026-07-25 19:08:10','2026-07-25 19:08:10',0,'firstDelay','60','首次报警延迟(秒)',1);
-INSERT INTO `t_alert_conf` VALUES (1462797872809381890,'2026-07-26 15:30:49','2026-07-27 18:59:01',0,'template.ChannelEmailHandler','<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>业务监控平台系统预警<\/title>\n    <style>\n        body {\n            margin: 0;\n            padding: 0;\n            background-color: #f5f5f5;\n            font-family: \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;\n            color: #333;\n        }\n        .container {\n            max-width: 600px;\n            margin: 0px auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            box-shadow: 0 4px 12px rgba(0,0,0,0.08);\n            overflow: hidden;\n        }\n        .header {\n            background-color: #2c3e50;\n            color: #ffffff;\n            padding: 20px;\n            text-align: center;\n            font-size: 24px;\n            font-weight: bold;\n            letter-spacing: 1px;\n        }\n        .content {\n            padding: 30px;\n        }\n        .alert-title {\n            font-size: 18px;\n            font-weight: bold;\n            margin-bottom: 20px;\n            color: #e74c3c;\n        }\n        .alert-item {\n            background-color: #f8f9fa;\n            border-left: 5px solid #e74c3c;\n            padding: 15px;\n            margin-bottom: 15px;\n            border-radius: 4px;\n            font-size: 16px;\n            line-height: 1.6;\n        }\n        .footer {\n            text-align: center;\n            padding: 20px;\n            font-size: 14px;\n            color: #7f8c8d;\n            border-top: 1px solid #ecf0f1;\n            background-color: #fafafa;\n        }\n        .highlight {\n            color: #e67e22;\n            font-weight: bold;\n        }\n    <\/style>\n<\/head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            业务监控平台系统预警\n        <\/div>\n        <div class=\"content\">\n            <div class=\"alert-title\">🚨 监控告警通知<\/div>\n<div class=\"alert-item\">\n{{- range .items}}\n<div> <span class=\"highlight\">{{.TaskName}}：<\/span>{{.HitRule}}<\/div>\n{{- end}}\n\n{{ if .relationTaskNames }}\n<\/br>\n <span class=\"highlight\">关联告警：<\/span>\n{{- end}}\n{{- range .relationTaskNames}}\n    <div class=\"highlight\">{{.}};<\/div>\n{{- end}}\n<\/div>\n            \n        <div class=\"footer\">\n            © 2026 业务监控平台\n        <\/div>\n    <\/div>\n<\/body>\n<\/html>','邮件(ChannelEmailHandler)默认告警模板',2);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381890,'2026-07-26 15:30:49','2026-08-01 22:32:54',0,'defaultChannelEmailHandlerTemplate','<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>业务监控平台系统预警<\/title>\n    <style>\n        body {\n            margin: 0;\n            padding: 0;\n            background-color: #f5f5f5;\n            font-family: \"Microsoft YaHei\", \"微软雅黑\", Arial, sans-serif;\n            color: #333;\n        }\n        .container {\n            max-width: 600px;\n            margin: 0px auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            box-shadow: 0 4px 12px rgba(0,0,0,0.08);\n            overflow: hidden;\n        }\n        .header {\n            background-color: #2c3e50;\n            color: #ffffff;\n            padding: 20px;\n            text-align: center;\n            font-size: 24px;\n            font-weight: bold;\n            letter-spacing: 1px;\n        }\n        .content {\n            padding: 30px;\n        }\n        .alert-title {\n            font-size: 18px;\n            font-weight: bold;\n            margin-bottom: 20px;\n            color: #e74c3c;\n        }\n        .alert-item {\n            background-color: #f8f9fa;\n            border-left: 5px solid #e74c3c;\n            padding: 15px;\n            margin-bottom: 15px;\n            border-radius: 4px;\n            font-size: 16px;\n            line-height: 1.6;\n        }\n        .footer {\n            text-align: center;\n            padding: 20px;\n            font-size: 14px;\n            color: #7f8c8d;\n            border-top: 1px solid #ecf0f1;\n            background-color: #fafafa;\n        }\n        .highlight {\n            color: #e67e22;\n            font-weight: bold;\n        }\n    <\/style>\n<\/head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            业务监控平台系统预警\n        <\/div>\n        <div class=\"content\">\n            <div class=\"alert-title\">🚨 监控告警通知<\/div>\n<div class=\"alert-item\">\n{{- range .items}}\n<div> <span class=\"highlight\">{{.TaskName}}：<\/span>{{.HitRule}}<\/div>\n{{- end}}\n\n{{ if .relationTaskNames }}\n<\/br>\n <span class=\"highlight\">关联告警：<\/span>\n{{- end}}\n{{- range .relationTaskNames}}\n    <div class=\"highlight\">{{.}};<\/div>\n{{- end}}\n<\/div>\n            \n        <div class=\"footer\">\n            © 2026 业务监控平台\n        <\/div>\n    <\/div>\n<\/body>\n<\/html>','邮件(ChannelEmailHandler)默认告警模板',2);
 INSERT INTO `t_alert_conf` VALUES (1462797872809381891,'2026-07-25 19:08:10','2026-07-25 19:08:10',0,'simplePageSize','50','样本生成每页任务数',1);
-INSERT INTO `t_alert_conf` VALUES (1462797872809381892,'2026-07-25 19:08:10','2026-07-25 19:08:10',0,'simpleMaxSecond','600','样本生成最大回溯秒数',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381892,'2026-07-25 19:08:10','2026-08-04 15:12:18',0,'simpleMaxSecond','600','样本生成最大回溯秒数',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381893,'2026-08-01 22:37:14','2026-08-01 22:37:22',0,'defaultTemplate','# 业务监控平台系统预警\n{{- range .items}}\n<font color=\"info\">{{.TaskName}}：<\/font><font color=\"comment\">{{.HitRule}}<\/font>\n{{- end}}\n\n{{ if .relationTaskNames }}\n <font color=\"warning\">关联告警：<\/font>\n{{- end}}\n{{- range .relationTaskNames}}\n    <font color=\"warning\">{{.}};<\/font>\n{{- end}}','默认告警模板',2);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381894,'2026-08-01 22:38:37','2026-08-01 22:40:39',0,'freezeSampleLookBackDays','3','大促冻结基线回溯普通日最大天数（从前一日起），默认3',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381895,'2026-07-31 21:51:29','2026-08-01 23:50:40',0,'promoPeakRatio','1.5','大促告警样本差比例放大系数，默认1（不放大），建议2~5',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381896,'2026-08-01 23:50:30','2026-08-01 23:50:30',0,'promoTroughRatio','1.5','低谷(trough)样本差下偏阈值放大系数，默认1（不放大），建议1.5~2',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381898,'2026-08-02 13:28:16','2026-08-02 13:28:16',0,'alertCheckConcurrency','100','告警检查单实例并发上限，默认100',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381899,'2026-08-02 13:28:16','2026-08-03 12:58:30',0,'samplingConcurrency','80','样本生成单实例并发上限，默认80',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381900,'2026-08-03 10:21:17','2026-08-03 10:22:41',0,'sampleRawDays','8','样本原料投射未来天数：每次采集写入未来 N 天的原料点',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381901,'2026-08-03 10:22:22','2026-08-03 10:22:41',0,'batchWriteChunkSize','3000','时序写入单批最大点数',1);
+INSERT INTO `t_alert_conf` VALUES (1462797872809381902,'2026-08-03 10:22:23','2026-08-03 10:22:41',0,'maxAlertShift','5','告警间隔翻倍最大位移 2^N',1);
 
 -- ----------------------------
 -- Table structure for t_alert_group
@@ -148,9 +157,14 @@ CREATE TABLE `t_monitor_database` (
   `url` varchar(255) NOT NULL,
   `type` tinyint(10) NOT NULL COMMENT '0=MysqlOld 1=Mongo 2=Mysql',
   `params` varchar(1000) NOT NULL DEFAULT '',
+  `health_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '0未知 1正常 2异常',
+  `last_check_time` datetime DEFAULT NULL COMMENT '最近探活时间',
+  `last_error` varchar(1000) NOT NULL DEFAULT '' COMMENT '最近探活错误',
+  `consecutive_fail` int(11) NOT NULL DEFAULT '0' COMMENT '连续探活失败次数',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监控数据源';
 
+INSERT INTO `t_monitor_database` VALUES (2081217690952798209,'2026-07-26 11:18:59','2026-08-04 15:15:29',0,'dragonfly_monitor','dragonfly_monitor','root','o6i8N8an1S8=','a55648d8','127.0.0.1:3306',2,'',1,'2026-08-04 15:15:29',' ',0);
 
 -- ----------------------------
 -- Table structure for t_monitor_group
@@ -167,7 +181,6 @@ CREATE TABLE `t_monitor_group` (
   PRIMARY KEY (`id`),
   KEY `idx_parent` (`parent`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监控依赖分组';
-
 
 -- ----------------------------
 -- Table structure for t_monitor_task
@@ -194,7 +207,9 @@ CREATE TABLE `t_monitor_task` (
   `sampled` tinyint(2) NOT NULL DEFAULT '1' COMMENT '样本展示开关(仅Grafana)',
   `monitor_group` varchar(255) NOT NULL DEFAULT '',
   `labels` varchar(2000) NOT NULL DEFAULT '',
-  `data_type` int(4) NOT NULL DEFAULT '1' COMMENT '1=单值采集 2=分组聚合采集',
+  `data_type` tinyint(4) DEFAULT '1' COMMENT '1正常，2聚合',
+  `related_task_ids` varchar(1024) DEFAULT NULL,
+  `promo_sensitive` tinyint(2) NOT NULL DEFAULT '1' COMMENT '大促敏感 1否 2是',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_task_key` (`task_key`),
   KEY `idx_task_status` (`task_status`),
@@ -258,6 +273,25 @@ CREATE TABLE `t_monitor_task_event` (
 
 
 -- ----------------------------
+-- Table structure for t_monitor_volatility_day
+-- ----------------------------
+DROP TABLE IF EXISTS `t_monitor_volatility_day`;
+CREATE TABLE `t_monitor_volatility_day` (
+  `id` bigint(20) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `name` varchar(100) NOT NULL COMMENT '波动日名称',
+  `start_time` datetime NOT NULL COMMENT '开始时间',
+  `end_time` datetime NOT NULL COMMENT '结束时间（含）',
+  `type` tinyint(2) NOT NULL DEFAULT '1' COMMENT '1=高峰 2=低谷',
+  PRIMARY KEY (`id`),
+  KEY `idx_start_time` (`start_time`),
+  KEY `idx_end_time` (`end_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='波动日管理';
+
+
+-- ----------------------------
 -- Table structure for t_sys_menu
 -- ----------------------------
 DROP TABLE IF EXISTS `t_sys_menu`;
@@ -283,15 +317,16 @@ INSERT INTO `t_sys_menu` VALUES (1332302770434215920,'2026-07-25 19:08:12','2026
 INSERT INTO `t_sys_menu` VALUES (1332302770434215922,'2026-07-25 19:08:12','2026-07-25 19:08:12','用户管理','\/sys\/sysUser','smile','.\/SysUser',2,'[]',1332302770434215918,0,'\/1332302770434215918\/1332302770434215922','sysUser');
 INSERT INTO `t_sys_menu` VALUES (1332302770434215924,'2026-07-25 19:08:12','2026-07-25 19:08:12','角色管理','\/sys\/sysRole','smile','.\/SysRole',1,'[]',1332302770434215918,0,'\/1332302770434215918\/1332302770434215924','sysRole');
 INSERT INTO `t_sys_menu` VALUES (1332302770434215926,'2026-07-25 19:08:12','2026-07-25 19:08:12','监控管理','\/monitor','dashboard','',100,'[]',0,0,'\/1332302770434215926','monitor');
-INSERT INTO `t_sys_menu` VALUES (1332302770434215928,'2026-07-25 19:08:12','2026-07-26 19:01:21','数据源管理','\/monitor\/database','database','.\/MonitorDatabase',2,'[]',1465652495161233408,0,'\/1465652495161233408\/1332302770434215928','monitorDatabase');
-INSERT INTO `t_sys_menu` VALUES (1332302770434215930,'2026-07-25 19:08:12','2026-07-25 22:30:36','任务管理','\/monitor\/task','table','.\/MonitorTask',1,'[]',1332302770434215926,0,'\/1332302770434215926\/1332302770434215930','monitorTask');
-INSERT INTO `t_sys_menu` VALUES (1452284009022230528,'2026-07-25 19:08:12','2026-07-25 19:08:12','面板管理','\/monitor\/dashboard','fund','.\/MonitorDashboard',3,'[]',1332302770434215926,0,'\/1332302770434215926\/1452284009022230528','monitorDashboard');
+INSERT INTO `t_sys_menu` VALUES (1332302770434215928,'2026-07-25 19:08:12','2026-07-31 16:39:20','数据源管理','\/alert\/database','database','.\/MonitorDatabase',2,'[]',1465652495161233408,0,'\/1465652495161233408\/1332302770434215928','monitorDatabase');
+INSERT INTO `t_sys_menu` VALUES (1332302770434215930,'2026-07-25 19:08:12','2026-07-28 17:14:26','任务管理','\/monitor\/task','table','.\/MonitorTask',1,'[]',1332302770434215926,0,'\/1332302770434215926\/1332302770434215930','monitorTask');
+INSERT INTO `t_sys_menu` VALUES (1452284009022230528,'2026-07-25 19:08:12','2026-07-31 17:04:54','面板管理','\/alert\/dashboard','fund','.\/MonitorDashboard',3,'[]',1465652495161233408,0,'\/1465652495161233408\/1452284009022230528','monitorDashboard');
 INSERT INTO `t_sys_menu` VALUES (1462709329521020928,'2026-07-25 19:08:12','2026-07-25 19:08:12','报警配置','\/alert\/alertConf','setting','.\/AlertConf',4,'[]',1465652495161233408,0,'\/1465652495161233408\/1462709329521020928','alertConf');
 INSERT INTO `t_sys_menu` VALUES (1465165133809455104,'2026-07-25 19:08:12','2026-07-25 19:08:12','报警组管理','\/alert\/alertGroup','team','.\/AlertGroup',4,'[]',1465652495161233408,0,'\/1465652495161233408\/1465165133809455104','alertGroup');
 INSERT INTO `t_sys_menu` VALUES (1465561401698291712,'2026-07-25 19:08:12','2026-07-25 19:08:12','报警通道','\/alert\/alertChannel','notification','.\/AlertChannel',5,'[]',1465652495161233408,0,'\/1465652495161233408\/1465561401698291712','alertChannel');
-INSERT INTO `t_sys_menu` VALUES (1465652495161233408,'2026-07-25 19:08:12','2026-07-27 14:24:29','报警管理','\/alert','smile','',50,'[]',0,0,'\/1465652495161233408','alert');
+INSERT INTO `t_sys_menu` VALUES (1465652495161233408,'2026-07-25 19:08:12','2026-07-31 16:38:04','基础配置','\/alert','smile','',50,'[]',0,0,'\/1465652495161233408','alert');
 INSERT INTO `t_sys_menu` VALUES (1472888326758338560,'2026-07-25 19:08:12','2026-07-27 19:40:43','异常事件','\/monitor\/taskEvent','alert','.\/MonitorTaskEvent',4,'[]',1332302770434215926,0,'\/1332302770434215926\/1472888326758338560','monitorTaskEvent');
 INSERT INTO `t_sys_menu` VALUES (1500000000000000001,'2026-07-25 19:08:12','2026-07-25 19:08:12','监控分组','\/monitor\/group','apartment','.\/MonitorGroup',5,'[]',1332302770434215926,0,'\/1332302770434215926\/1500000000000000001','monitorGroup');
+INSERT INTO `t_sys_menu` VALUES (2083117661041987686,'2026-07-31 17:08:48','2026-07-31 17:41:00','波动日管理','\/alert\/volatilityDay','notification','.\/MonitorVolatilityDay',33,'',1465652495161233408,0,'\/1465652495161233408\/2083117661041987686','monitorVolatilityDay');
 
 -- ----------------------------
 -- Table structure for t_sys_menu_option
@@ -314,24 +349,24 @@ CREATE TABLE `t_sys_menu_option` (
 
 INSERT INTO `t_sys_menu_option` VALUES (1447759564626726912,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'菜单查看','sys:menu:query','GET','\/api\/sys\/menu','caa126a343b0e1cef0774b637c246af3',1332302770434215920);
 INSERT INTO `t_sys_menu_option` VALUES (1448238719118086145,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'菜单新增','sys:menu:create','POST','\/api\/sys\/menu','79102b6efd1174afdf1732d9e7e80629',1332302770434215920);
-INSERT INTO `t_sys_menu_option` VALUES (1449574882915389440,'2026-07-25 19:08:12','2026-07-26 19:01:20',0,'数据源查询','monitor:database:query','GET','\/api\/monitor\/database','e9fdf345326fce9103dffe4b62c648f3',1332302770434215928);
-INSERT INTO `t_sys_menu_option` VALUES (1449574882915389441,'2026-07-25 19:08:12','2026-07-26 19:01:20',0,'数据源创建','monitor:database:create','POST','\/api\/monitor\/database','534eab021f3a2451281fff1d1767a0cc',1332302770434215928);
-INSERT INTO `t_sys_menu_option` VALUES (1449574882915389442,'2026-07-25 19:08:12','2026-07-26 19:01:20',0,'数据源更新','monitor:database:modify','PUT','\/api\/monitor\/database','b4708d30ae76818d5d3f7ea355e51f65',1332302770434215928);
-INSERT INTO `t_sys_menu_option` VALUES (1449718480839380992,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'任务查询','monitor:task:query','GET','\/api\/monitor\/task','b122c53237e751115ce1ecc913ec6865',1332302770434215930);
-INSERT INTO `t_sys_menu_option` VALUES (1449718480839380993,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'任务更新','monitor:task:modify','PUT','\/api\/monitor\/task','a9837ad678785aaf1a5f8d806a0304bb',1332302770434215930);
-INSERT INTO `t_sys_menu_option` VALUES (1449718480839380994,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'任务创建','monitor:task:create','POST','\/api\/monitor\/task','1284964e9851ff3d3393c804c76100df',1332302770434215930);
-INSERT INTO `t_sys_menu_option` VALUES (1449747431762694147,'2026-07-25 19:08:12','2026-07-26 19:01:20',0,'全部数据源','monitor:database:queryAll','GET','\/api\/monitor\/database\/all','92690787f68af00a309627e5bdadf55f',1332302770434215928);
-INSERT INTO `t_sys_menu_option` VALUES (1452577297956605955,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'任务状态修改','monitor:task:modifyTaskStatus','PUT','\/api\/monitor\/task\/taskStatus\/:id\/:status','540164c1917f24d11d7359973d6d67e0',1332302770434215930);
-INSERT INTO `t_sys_menu_option` VALUES (1452577297956605956,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'报警状态修改','monitor:task:modifyAlertStatus','PUT','\/api\/monitor\/task\/alertStatus\/:id\/:status','f76e02a14e173e00e633f43797e321e5',1332302770434215930);
-INSERT INTO `t_sys_menu_option` VALUES (1453201790357999616,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板查询','monitor:dashboard:query','GET','\/api\/monitor\/dashboard','510ac77819b00cd71805f27509d7eb6e',1452284009022230528);
-INSERT INTO `t_sys_menu_option` VALUES (1453201790357999617,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板创建','monitor:dashboard:create','POST','\/api\/monitor\/dashboard','d15f34654e3b6541a097230f41650071',1452284009022230528);
-INSERT INTO `t_sys_menu_option` VALUES (1453201790357999618,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板更新','monitor:dashboard:modify','PUT','\/api\/monitor\/dashboard','acd15a7fc886a223f8afb15ee779587e',1452284009022230528);
-INSERT INTO `t_sys_menu_option` VALUES (1453201790357999619,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板全部','monitor:dashboard:queryAll','GET','\/api\/monitor\/dashboard\/all','32914b427951e2a2e88d2a35a5c5891f',1452284009022230528);
-INSERT INTO `t_sys_menu_option` VALUES (1453286781452554244,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板任务','monitor:dashboard:task','GET','\/api\/monitor\/dashboard\/task\/:id','0095c870578fdf68dbae73e02c85e95e',1452284009022230528);
-INSERT INTO `t_sys_menu_option` VALUES (1453349603091943429,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'任务排序','monitor:dashboard:sort','PUT','\/api\/monitor\/dashboard\/taskSort','ef422a4fd11cdbb1f416c72567da10a6',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1449574882915389440,'2026-07-25 19:08:12','2026-07-31 16:39:20',0,'数据源查询','monitor:database:query','GET','\/api\/monitor\/database','e9fdf345326fce9103dffe4b62c648f3',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (1449574882915389441,'2026-07-25 19:08:12','2026-07-31 16:39:20',0,'数据源创建','monitor:database:create','POST','\/api\/monitor\/database','534eab021f3a2451281fff1d1767a0cc',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (1449574882915389442,'2026-07-25 19:08:12','2026-07-31 16:39:20',0,'数据源更新','monitor:database:modify','PUT','\/api\/monitor\/database','b4708d30ae76818d5d3f7ea355e51f65',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (1449718480839380992,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'任务查询','monitor:task:query','GET','\/api\/monitor\/task','b122c53237e751115ce1ecc913ec6865',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1449718480839380993,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'任务更新','monitor:task:modify','PUT','\/api\/monitor\/task','a9837ad678785aaf1a5f8d806a0304bb',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1449718480839380994,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'任务创建','monitor:task:create','POST','\/api\/monitor\/task','1284964e9851ff3d3393c804c76100df',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1449747431762694147,'2026-07-25 19:08:12','2026-07-31 16:39:20',0,'全部数据源','monitor:database:queryAll','GET','\/api\/monitor\/database\/all','92690787f68af00a309627e5bdadf55f',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (1452577297956605955,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'任务状态修改','monitor:task:modifyTaskStatus','PUT','\/api\/monitor\/task\/taskStatus\/:id\/:status','540164c1917f24d11d7359973d6d67e0',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1452577297956605956,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'报警状态修改','monitor:task:modifyAlertStatus','PUT','\/api\/monitor\/task\/alertStatus\/:id\/:status','f76e02a14e173e00e633f43797e321e5',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1453201790357999616,'2026-07-25 19:08:12','2026-07-31 17:04:53',0,'面板查询','monitor:dashboard:query','GET','\/api\/monitor\/dashboard','510ac77819b00cd71805f27509d7eb6e',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1453201790357999617,'2026-07-25 19:08:12','2026-07-31 17:04:53',0,'面板创建','monitor:dashboard:create','POST','\/api\/monitor\/dashboard','d15f34654e3b6541a097230f41650071',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1453201790357999618,'2026-07-25 19:08:12','2026-07-31 17:04:53',0,'面板更新','monitor:dashboard:modify','PUT','\/api\/monitor\/dashboard','acd15a7fc886a223f8afb15ee779587e',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1453201790357999619,'2026-07-25 19:08:12','2026-07-31 17:04:53',0,'面板全部','monitor:dashboard:queryAll','GET','\/api\/monitor\/dashboard\/all','32914b427951e2a2e88d2a35a5c5891f',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1453286781452554244,'2026-07-25 19:08:12','2026-07-31 17:04:54',1,'面板任务','monitor:dashboard:task','GET','\/api\/monitor\/dashboard\/task\/:id','0095c870578fdf68dbae73e02c85e95e',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (1453349603091943429,'2026-07-25 19:08:12','2026-07-31 17:04:53',0,'任务排序','monitor:dashboard:sort','PUT','\/api\/monitor\/dashboard\/taskSort','ef422a4fd11cdbb1f416c72567da10a6',1452284009022230528);
 INSERT INTO `t_sys_menu_option` VALUES (1462721145227710464,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'读取配置','alert:conf:query','GET','\/api\/alert\/conf','8457f70f619ae309571253e7f81213ef',1462709329521020928);
 INSERT INTO `t_sys_menu_option` VALUES (1462721145227710465,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'修改配置','alert:conf:modify','PUT','\/api\/alert\/conf','052a70165846e9a96c726d82a71d683e',1462709329521020928);
-INSERT INTO `t_sys_menu_option` VALUES (1463448357279109125,'2026-07-25 19:08:12','2026-07-25 22:30:35',0,'样本展示修改','monitor:task:modifySampled','PUT','\/api\/monitor\/task\/sampled\/:id\/:status','517025152bd9ec4062976bc681923418',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (1463448357279109125,'2026-07-25 19:08:12','2026-07-28 17:14:26',0,'样本展示修改','monitor:task:modifySampled','PUT','\/api\/monitor\/task\/sampled\/:id\/:status','517025152bd9ec4062976bc681923418',1332302770434215930);
 INSERT INTO `t_sys_menu_option` VALUES (1463883940220637184,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'用户查询','sys:user:query','GET','\/api\/sys\/user','0924d00bac6e4d1b9e10040e095a980f',1332302770434215922);
 INSERT INTO `t_sys_menu_option` VALUES (1463883940220637185,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'用户修改','sys:user:modify','PUT','\/api\/sys\/user','e75e13959a8f6577fee78e1bc61d3e10',1332302770434215922);
 INSERT INTO `t_sys_menu_option` VALUES (1463883940220637186,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'用户创建','sys:user:create','POST','\/api\/sys\/user','80b0eae883b924868c44df5295b8ee33',1332302770434215922);
@@ -362,8 +397,18 @@ INSERT INTO `t_sys_menu_option` VALUES (1500000000000000010,'2026-07-25 19:08:12
 INSERT INTO `t_sys_menu_option` VALUES (1500000000000000011,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'分组创建','monitor:group:create','POST','\/api\/monitor\/group','mgroupcreate00000000000000000001',1500000000000000001);
 INSERT INTO `t_sys_menu_option` VALUES (1500000000000000012,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'分组修改','monitor:group:modify','PUT','\/api\/monitor\/group','mgroupmodify00000000000000000001',1500000000000000001);
 INSERT INTO `t_sys_menu_option` VALUES (1500000000000000013,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'分组全部','monitor:group:queryAll','GET','\/api\/monitor\/group\/all','mgroupall00000000000000000000001',1500000000000000001);
-INSERT INTO `t_sys_menu_option` VALUES (2081024319395205127,'2026-07-25 22:30:36','2026-07-25 22:30:36',0,'任务详情','monitor:task:detail','GET','\/api\/monitor\/task\/:id','9ad5a3972994d0228d30609a0f0217d1',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (2081024319395205127,'2026-07-25 22:30:36','2026-07-28 17:14:26',0,'任务详情','monitor:task:detail','GET','\/api\/monitor\/task\/:id','9ad5a3972994d0228d30609a0f0217d1',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (2081333317172465684,'2026-07-25 19:08:12','2026-07-31 16:39:20',1,'数据源查询','alert:database:query','GET','\/api\/monitor\/database','a8c4fd85c607901e9ea6f6e142c3c1f7',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (2081333317172465685,'2026-07-25 19:08:12','2026-07-31 16:39:20',1,'数据源创建','alert:database:create','POST','\/api\/monitor\/database','84f1aaea96fc6e2f5fded4a1fbf4cab8',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (2081333317172465686,'2026-07-25 19:08:12','2026-07-31 16:39:20',1,'数据源更新','alert:database:modify','PUT','\/api\/monitor\/database','560981bbb4741b540f2d9daef9c7d585',1332302770434215928);
+INSERT INTO `t_sys_menu_option` VALUES (2081333317172465687,'2026-07-25 19:08:12','2026-07-31 16:39:20',1,'全部数据源','alert:database:queryAll','GET','\/api\/monitor\/database\/all','31f4aedd2150c358113764f59ea8b806',1332302770434215928);
 INSERT INTO `t_sys_menu_option` VALUES (2081706344011797211,'2026-07-27 19:40:43','2026-07-27 19:40:43',0,'事件忽略','monitor:taskEvent:ignore','POST','\/api\/monitor\/task\/event\/ignore\/:id','5ce0faddf6911ef61beb83448b0a995d',1472888326758338560);
+INSERT INTO `t_sys_menu_option` VALUES (2082031918223727000,'2026-07-28 17:14:26','2026-07-28 17:14:26',0,'聚合预览','monitor:task:previewAggregate','POST','\/api\/monitor\/task\/previewAggregate','7ad1f6f3ae564a09b257c6dcd8ba5a66',1332302770434215930);
+INSERT INTO `t_sys_menu_option` VALUES (2083116681172881488,'2026-07-25 19:08:12','2026-07-25 19:08:12',0,'面板任务','monitor:dashboard:task','GET','\/api\/monitor\/dashboard\/task\/:id','c0f69c0080603f415be46b609ce16dba',1452284009022230528);
+INSERT INTO `t_sys_menu_option` VALUES (2083118385175990390,'2026-07-31 17:11:40','2026-07-31 17:41:00',0,'获取全部','monitor:volatilityDay:all','GET','\/api\/monitor\/volatilityDay','b6ed6f20e43ac88bb8c907f07583dad9',2083117661041987686);
+INSERT INTO `t_sys_menu_option` VALUES (2083118385175990391,'2026-07-31 17:11:40','2026-07-31 17:41:00',0,'批量新增','monitor:volatilityDay:batch','POST','\/api\/monitor\/volatilityDay\/batch','d03d468a57ea19895e8c5eb9f90ee196',2083117661041987686);
+INSERT INTO `t_sys_menu_option` VALUES (2083118385175990392,'2026-07-31 17:11:40','2026-07-31 17:41:00',0,'更新规则','monitor:volatilityDay:update','PUT','\/api\/monitor\/volatilityDay\/:id','239680a5c0250e059f4210a4edeb96cb',2083117661041987686);
+INSERT INTO `t_sys_menu_option` VALUES (2083118385175990393,'2026-07-31 17:11:40','2026-07-31 17:41:00',0,'删除规则','monitor:volatilityDay:delete','DELETE','\/api\/monitor\/volatilityDay\/:id','cba54b0d5f773bd1f4588740fcd2fcd3',2083117661041987686);
 
 -- ----------------------------
 -- Table structure for t_sys_permission
@@ -383,81 +428,160 @@ CREATE TABLE `t_sys_permission` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统权限';
 
-INSERT INTO `t_sys_permission` VALUES (1473138135784230912,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215922,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230913,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215920,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230914,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215924,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230915,'2026-07-25 19:08:12','2026-07-27 19:40:53',1452284009022230528,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230916,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215928,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230917,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215930,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230918,'2026-07-25 19:08:12','2026-07-27 19:40:53',1465561401698291712,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230919,'2026-07-25 19:08:12','2026-07-27 19:40:53',1465165133809455104,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230920,'2026-07-25 19:08:12','2026-07-27 19:40:53',1462709329521020928,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230921,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215918,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230922,'2026-07-25 19:08:12','2026-07-27 19:40:53',1465652495161233408,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230923,'2026-07-25 19:08:12','2026-07-27 19:40:53',1472888326758338560,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230924,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215926,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230925,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230926,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230927,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230928,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230929,'2026-07-25 19:08:12','2026-07-27 19:40:53',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230930,'2026-07-25 19:08:12','2026-07-27 19:40:53',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230931,'2026-07-25 19:08:12','2026-07-27 19:40:53',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230932,'2026-07-25 19:08:12','2026-07-27 19:40:53',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230933,'2026-07-25 19:08:12','2026-07-27 19:40:53',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1473138135784230934,'2026-07-25 19:08:12','2026-07-27 19:40:53',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (1500000000000000020,'2026-07-25 19:08:12','2026-07-27 19:40:53',1500000000000000001,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (1500000000000000021,'2026-07-25 19:08:12','2026-07-27 19:40:53',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714120,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215922,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714121,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215920,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714122,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215924,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714123,'2026-07-25 22:30:46','2026-07-27 19:40:53',1500000000000000001,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714124,'2026-07-25 22:30:46','2026-07-27 19:40:53',1472888326758338560,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714125,'2026-07-25 22:30:46','2026-07-27 19:40:53',1452284009022230528,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714126,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215928,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714127,'2026-07-25 22:30:46','2026-07-27 19:40:53',1465561401698291712,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714128,'2026-07-25 22:30:46','2026-07-27 19:40:53',1465165133809455104,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714129,'2026-07-25 22:30:46','2026-07-27 19:40:53',1462709329521020928,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714130,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215918,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714131,'2026-07-25 22:30:46','2026-07-27 19:40:53',1465652495161233408,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714132,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215930,1,'',1,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714133,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215926,1,'',1,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714134,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714135,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714136,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714137,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714138,'2026-07-25 22:30:46','2026-07-27 19:40:53',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714139,'2026-07-25 22:30:46','2026-07-27 19:40:53',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714140,'2026-07-25 22:30:46','2026-07-27 19:40:53',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714141,'2026-07-25 22:30:46','2026-07-27 19:40:53',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714142,'2026-07-25 22:30:46','2026-07-27 19:40:53',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714143,'2026-07-25 22:30:46','2026-07-27 19:40:53',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081024361434714144,'2026-07-25 22:30:46','2026-07-27 19:40:53',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210652,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215922,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210653,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215920,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210654,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215924,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210655,'2026-07-27 19:40:53','2026-07-27 19:40:53',1500000000000000001,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210656,'2026-07-27 19:40:53','2026-07-27 19:40:53',1452284009022230528,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210657,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215930,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210658,'2026-07-27 19:40:53','2026-07-27 19:40:53',1465561401698291712,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210659,'2026-07-27 19:40:53','2026-07-27 19:40:53',1465165133809455104,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210660,'2026-07-27 19:40:53','2026-07-27 19:40:53',1462709329521020928,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210661,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215928,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210662,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215918,1,'',0,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210663,'2026-07-27 19:40:53','2026-07-27 19:40:53',1465652495161233408,1,'',0,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210664,'2026-07-27 19:40:53','2026-07-27 19:40:53',1472888326758338560,1,'',0,1,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210665,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215926,1,'',0,1,0,1);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210666,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210667,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210668,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210669,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210670,'2026-07-27 19:40:53','2026-07-27 19:40:53',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210671,'2026-07-27 19:40:53','2026-07-27 19:40:53',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210672,'2026-07-27 19:40:53','2026-07-27 19:40:53',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210673,'2026-07-27 19:40:53','2026-07-27 19:40:53',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210674,'2026-07-27 19:40:53','2026-07-27 19:40:53',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210675,'2026-07-27 19:40:53','2026-07-27 19:40:53',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586,2081706344011797211',0,0,0,0);
-INSERT INTO `t_sys_permission` VALUES (2081706386416210676,'2026-07-27 19:40:53','2026-07-27 19:40:53',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230912,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215922,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230913,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215920,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230914,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215924,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230915,'2026-07-25 19:08:12','2026-07-31 17:12:49',1452284009022230528,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230916,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230917,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215930,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230918,'2026-07-25 19:08:12','2026-07-31 17:12:49',1465561401698291712,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230919,'2026-07-25 19:08:12','2026-07-31 17:12:49',1465165133809455104,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230920,'2026-07-25 19:08:12','2026-07-31 17:12:49',1462709329521020928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230921,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215918,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230922,'2026-07-25 19:08:12','2026-07-31 17:12:49',1465652495161233408,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230923,'2026-07-25 19:08:12','2026-07-31 17:12:49',1472888326758338560,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230924,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215926,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230925,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230926,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230927,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230928,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230929,'2026-07-25 19:08:12','2026-07-31 17:12:49',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230930,'2026-07-25 19:08:12','2026-07-31 17:12:49',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230931,'2026-07-25 19:08:12','2026-07-31 17:12:49',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230932,'2026-07-25 19:08:12','2026-07-31 17:12:49',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230933,'2026-07-25 19:08:12','2026-07-31 17:12:49',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1473138135784230934,'2026-07-25 19:08:12','2026-07-31 17:12:49',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (1500000000000000020,'2026-07-25 19:08:12','2026-07-31 17:12:49',1500000000000000001,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (1500000000000000021,'2026-07-25 19:08:12','2026-07-31 17:12:49',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714120,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215922,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714121,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215920,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714122,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215924,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714123,'2026-07-25 22:30:46','2026-07-31 17:12:49',1500000000000000001,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714124,'2026-07-25 22:30:46','2026-07-31 17:12:49',1472888326758338560,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714125,'2026-07-25 22:30:46','2026-07-31 17:12:49',1452284009022230528,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714126,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714127,'2026-07-25 22:30:46','2026-07-31 17:12:49',1465561401698291712,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714128,'2026-07-25 22:30:46','2026-07-31 17:12:49',1465165133809455104,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714129,'2026-07-25 22:30:46','2026-07-31 17:12:49',1462709329521020928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714130,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215918,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714131,'2026-07-25 22:30:46','2026-07-31 17:12:49',1465652495161233408,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714132,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215930,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714133,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215926,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714134,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714135,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714136,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714137,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714138,'2026-07-25 22:30:46','2026-07-31 17:12:49',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714139,'2026-07-25 22:30:46','2026-07-31 17:12:49',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714140,'2026-07-25 22:30:46','2026-07-31 17:12:49',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714141,'2026-07-25 22:30:46','2026-07-31 17:12:49',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714142,'2026-07-25 22:30:46','2026-07-31 17:12:49',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714143,'2026-07-25 22:30:46','2026-07-31 17:12:49',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081024361434714144,'2026-07-25 22:30:46','2026-07-31 17:12:49',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210652,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215922,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210653,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215920,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210654,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215924,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210655,'2026-07-27 19:40:53','2026-07-31 17:12:49',1500000000000000001,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210656,'2026-07-27 19:40:53','2026-07-31 17:12:49',1452284009022230528,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210657,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215930,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210658,'2026-07-27 19:40:53','2026-07-31 17:12:49',1465561401698291712,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210659,'2026-07-27 19:40:53','2026-07-31 17:12:49',1465165133809455104,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210660,'2026-07-27 19:40:53','2026-07-31 17:12:49',1462709329521020928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210661,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210662,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215918,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210663,'2026-07-27 19:40:53','2026-07-31 17:12:49',1465652495161233408,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210664,'2026-07-27 19:40:53','2026-07-31 17:12:49',1472888326758338560,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210665,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215926,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210666,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210667,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210668,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210669,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210670,'2026-07-27 19:40:53','2026-07-31 17:12:49',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210671,'2026-07-27 19:40:53','2026-07-31 17:12:49',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210672,'2026-07-27 19:40:53','2026-07-31 17:12:49',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210673,'2026-07-27 19:40:53','2026-07-31 17:12:49',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210674,'2026-07-27 19:40:53','2026-07-31 17:12:49',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210675,'2026-07-27 19:40:53','2026-07-31 17:12:49',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586,2081706344011797211',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2081706386416210676,'2026-07-27 19:40:53','2026-07-31 17:12:49',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672985,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215922,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672986,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215920,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672987,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215924,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672988,'2026-07-28 17:14:35','2026-07-31 17:12:49',1500000000000000001,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672989,'2026-07-28 17:14:35','2026-07-31 17:12:49',1472888326758338560,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672990,'2026-07-28 17:14:35','2026-07-31 17:12:49',1452284009022230528,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672991,'2026-07-28 17:14:35','2026-07-31 17:12:49',1465561401698291712,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672992,'2026-07-28 17:14:35','2026-07-31 17:12:49',1465165133809455104,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672993,'2026-07-28 17:14:35','2026-07-31 17:12:49',1462709329521020928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672994,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672995,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215918,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672996,'2026-07-28 17:14:35','2026-07-31 17:12:49',1465652495161233408,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672997,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215930,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672998,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215926,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2082031953019672999,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673000,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673001,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673002,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127,2082031918223727000',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673003,'2026-07-28 17:14:35','2026-07-31 17:12:49',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453286781452554244,1453349603091943429',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673004,'2026-07-28 17:14:35','2026-07-31 17:12:49',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673005,'2026-07-28 17:14:35','2026-07-31 17:12:49',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673006,'2026-07-28 17:14:35','2026-07-31 17:12:49',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673007,'2026-07-28 17:14:35','2026-07-31 17:12:49',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673008,'2026-07-28 17:14:35','2026-07-31 17:12:49',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586,2081706344011797211',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2082031953019673009,'2026-07-28 17:14:35','2026-07-31 17:12:49',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728186,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215922,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728187,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215920,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728188,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215924,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728189,'2026-07-31 17:11:55','2026-07-31 17:12:49',1500000000000000001,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728190,'2026-07-31 17:11:55','2026-07-31 17:12:49',1472888326758338560,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728191,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215930,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728192,'2026-07-31 17:11:55','2026-07-31 17:12:49',1465561401698291712,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728193,'2026-07-31 17:11:55','2026-07-31 17:12:49',1465165133809455104,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728194,'2026-07-31 17:11:55','2026-07-31 17:12:49',1462709329521020928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728195,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215928,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728196,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215918,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728197,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215926,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728198,'2026-07-31 17:11:55','2026-07-31 17:12:49',2083117661041987686,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728199,'2026-07-31 17:11:55','2026-07-31 17:12:49',1452284009022230528,1,'',1,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728200,'2026-07-31 17:11:55','2026-07-31 17:12:49',1465652495161233408,1,'',1,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728201,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728202,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728203,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728204,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127,2082031918223727000',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728205,'2026-07-31 17:11:55','2026-07-31 17:12:49',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453349603091943429,2083116681172881488',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728206,'2026-07-31 17:11:55','2026-07-31 17:12:49',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728207,'2026-07-31 17:11:55','2026-07-31 17:12:49',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728208,'2026-07-31 17:11:55','2026-07-31 17:12:49',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728209,'2026-07-31 17:11:55','2026-07-31 17:12:49',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728210,'2026-07-31 17:11:55','2026-07-31 17:12:49',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586,2081706344011797211',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728211,'2026-07-31 17:11:55','2026-07-31 17:12:49',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118446928728212,'2026-07-31 17:11:55','2026-07-31 17:12:49',2083117661041987686,1,'2083118385175990390,2083118385175990391,2083118385175990392,2083118385175990393',1,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577818,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215922,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577819,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215920,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577820,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215924,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577821,'2026-07-31 17:11:55','2026-07-31 17:11:55',1500000000000000001,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577822,'2026-07-31 17:11:55','2026-07-31 17:11:55',1472888326758338560,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577823,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215930,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577824,'2026-07-31 17:11:55','2026-07-31 17:11:55',1465561401698291712,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577825,'2026-07-31 17:11:55','2026-07-31 17:11:55',1465165133809455104,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577826,'2026-07-31 17:11:55','2026-07-31 17:11:55',1462709329521020928,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577827,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215928,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577828,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215918,1,'',0,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577829,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215926,1,'',0,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577830,'2026-07-31 17:11:55','2026-07-31 17:11:55',2083117661041987686,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577831,'2026-07-31 17:11:55','2026-07-31 17:11:55',1452284009022230528,1,'',0,1,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577832,'2026-07-31 17:11:55','2026-07-31 17:11:55',1465652495161233408,1,'',0,1,0,1);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577833,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215920,1,'1447759564626726912,1448238719118086145,1484097160667467832,1484097160667467833,1484097160667467834',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577834,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215924,1,'1484094198515765282,1484094198515765283,1484094198515765284,1484094198515765285,1484094198515765286',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577835,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215928,1,'1449574882915389440,1449574882915389441,1449574882915389442,1449747431762694147',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577836,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215930,1,'1449718480839380992,1449718480839380993,1449718480839380994,1452577297956605955,1452577297956605956,1463448357279109125,2081024319395205127,2082031918223727000',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577837,'2026-07-31 17:11:55','2026-07-31 17:11:55',1452284009022230528,1,'1453201790357999616,1453201790357999617,1453201790357999618,1453201790357999619,1453349603091943429,2083116681172881488',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577838,'2026-07-31 17:11:55','2026-07-31 17:11:55',1462709329521020928,1,'1462721145227710464,1462721145227710465,1465652723025186818',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577839,'2026-07-31 17:11:55','2026-07-31 17:11:55',1332302770434215922,1,'1463883940220637184,1463883940220637185,1463883940220637186,1463883940220637187',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577840,'2026-07-31 17:11:55','2026-07-31 17:11:55',1465165133809455104,1,'1465165133817843712,1465165133817843713,1465165133817843714,1465165133817843715,1465165133817843716',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577841,'2026-07-31 17:11:55','2026-07-31 17:11:55',1465561401698291712,1,'1465561401715068928,1465561401715068929,1465561401715068930,1465561401715068931,1467698655321395204',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577842,'2026-07-31 17:11:55','2026-07-31 17:11:55',1472888326758338560,1,'1472889239543746560,1473138104612163585,1473138104612163586,2081706344011797211',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577843,'2026-07-31 17:11:55','2026-07-31 17:11:55',1500000000000000001,1,'1500000000000000010,1500000000000000011,1500000000000000012,1500000000000000013',0,0,0,0);
+INSERT INTO `t_sys_permission` VALUES (2083118674574577844,'2026-07-31 17:11:55','2026-07-31 17:11:55',2083117661041987686,1,'2083118385175990390,2083118385175990391,2083118385175990392,2083118385175990393',0,0,0,0);
 
 -- ----------------------------
 -- Table structure for t_sys_role
@@ -472,7 +596,7 @@ CREATE TABLE `t_sys_role` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统角色';
 
-INSERT INTO `t_sys_role` VALUES (1,'2026-07-25 19:08:13','2026-07-27 19:40:53','super_admin',0);
+INSERT INTO `t_sys_role` VALUES (1,'2026-07-25 19:08:13','2026-07-31 17:12:49','super_admin',0);
 
 -- ----------------------------
 -- Table structure for t_sys_token
@@ -488,8 +612,7 @@ CREATE TABLE `t_sys_token` (
   `deleted` tinyint(1) NOT NULL DEFAULT '0',
   `expire_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COMMENT='系统令牌';
-
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COMMENT='系统令牌';
 
 -- ----------------------------
 -- Table structure for t_sys_user
@@ -512,7 +635,7 @@ CREATE TABLE `t_sys_user` (
   UNIQUE KEY `uniq_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统用户';
 
-INSERT INTO `t_sys_user` VALUES (1,'2026-07-25 19:08:13','2026-07-26 11:34:32','admin','593d4632a8c70251d0e9be4b1799bcc1','54099a65-a235-158c-d610-74d2ff4c789b',0,'管理员','https:\/\/gw.alipayobjects.com\/zos\/antfincdn\/XAosXuNZyF\/BiazfanxmamNRoxxVxka.png','1','173186915@qq.com','13800000000');
+INSERT INTO `t_sys_user` VALUES (1,'2026-07-25 19:08:13','2026-07-26 11:34:32','admin','593d4632a8c70251d0e9be4b1799bcc1','54099a65-a235-158c-d610-74d2ff4c789b',0,'管理员','https:\/\/gw.alipayobjects.com\/zos\/antfincdn\/XAosXuNZyF\/BiazfanxmamNRoxxVxka.png','1','xx@qq.com','13800000000');
 
 SET UNIQUE_CHECKS = 1;
 SET FOREIGN_KEY_CHECKS = 1;

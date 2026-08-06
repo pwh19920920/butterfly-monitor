@@ -1,6 +1,12 @@
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { ModalForm, PageContainer, ProFormSelect, ProFormText, ProTable } from '@ant-design/pro-components';
+import {
+  ModalForm,
+  PageContainer,
+  ProFormSelect,
+  ProFormText,
+  ProTable,
+} from '@ant-design/pro-components';
 import { Button, message } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -12,7 +18,7 @@ import {
 import { sysUserQueryAll } from '@/services/ant-design-pro/sys.user';
 
 const AlertGroupPage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [modifyVisible, setModifyVisible] = useState(false);
   const [current, setCurrent] = useState<API.AlertGroup>();
@@ -21,7 +27,12 @@ const AlertGroupPage: React.FC = () => {
 
   useEffect(() => {
     sysUserQueryAll().then((res) => {
-      setUsers((res.data || []).map((u) => ({ label: `${u.name}(${u.username})`, value: String(u.id) })));
+      setUsers(
+        (res.data || []).map((u) => ({
+          label: `${u.name}(${u.username})`,
+          value: String(u.id),
+        })),
+      );
     });
   }, []);
 
@@ -36,7 +47,8 @@ const AlertGroupPage: React.FC = () => {
           onClick={async () => {
             setCurrent(record);
             try {
-              const res = await alertGroupUsers(record.id!);
+              if (record.id == null) return;
+              const res = await alertGroupUsers(record.id);
               setSelectedUsers((res.data || []).map(String));
             } catch {
               setSelectedUsers([]);
@@ -58,7 +70,11 @@ const AlertGroupPage: React.FC = () => {
         rowKey="id"
         columns={columns}
         toolBarRender={() => [
-          <Button type="primary" key="add" onClick={() => setCreateVisible(true)}>
+          <Button
+            type="primary"
+            key="add"
+            onClick={() => setCreateVisible(true)}
+          >
             <PlusOutlined /> 新建
           </Button>,
         ]}
@@ -70,10 +86,16 @@ const AlertGroupPage: React.FC = () => {
       <ModalForm
         title="新建报警组"
         open={createVisible}
-        modalProps={{ destroyOnClose: true, onCancel: () => setCreateVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setCreateVisible(false),
+        }}
         onFinish={async (values) => {
           try {
-            await alertGroupCreate({ name: values.name, userIds: values.userIds || [] });
+            await alertGroupCreate({
+              name: values.name,
+              userIds: values.userIds || [],
+            });
             message.success('创建成功');
             setCreateVisible(false);
             actionRef.current?.reload();
@@ -85,16 +107,30 @@ const AlertGroupPage: React.FC = () => {
         }}
       >
         <ProFormText name="name" label="名称" rules={[{ required: true }]} />
-        <ProFormSelect name="userIds" label="成员" mode="multiple" options={users} rules={[{ required: true }]} />
+        <ProFormSelect
+          name="userIds"
+          label="成员"
+          mode="multiple"
+          options={users}
+          rules={[{ required: true }]}
+        />
       </ModalForm>
       <ModalForm
         title="编辑报警组"
         open={modifyVisible}
         initialValues={{ name: current?.name, userIds: selectedUsers }}
-        modalProps={{ destroyOnClose: true, onCancel: () => setModifyVisible(false) }}
+        modalProps={{
+          destroyOnClose: true,
+          onCancel: () => setModifyVisible(false),
+        }}
         onFinish={async (values) => {
           try {
-            await alertGroupUpdate({ id: current!.id!, name: values.name, userIds: values.userIds || [] });
+            await alertGroupUpdate({
+              // biome-ignore lint/style/noNonNullAssertion: current always set before modal opens
+              id: current!.id!,
+              name: values.name,
+              userIds: values.userIds || [],
+            });
             message.success('更新成功');
             setModifyVisible(false);
             actionRef.current?.reload();
@@ -106,7 +142,13 @@ const AlertGroupPage: React.FC = () => {
         }}
       >
         <ProFormText name="name" label="名称" rules={[{ required: true }]} />
-        <ProFormSelect name="userIds" label="成员" mode="multiple" options={users} rules={[{ required: true }]} />
+        <ProFormSelect
+          name="userIds"
+          label="成员"
+          mode="multiple"
+          options={users}
+          rules={[{ required: true }]}
+        />
       </ModalForm>
     </PageContainer>
   );

@@ -8,6 +8,8 @@ import (
 
 	"dragonfly-monitor/internal/domain/entity"
 	domainHandler "dragonfly-monitor/internal/domain/handler"
+
+	"gorm.io/gorm"
 )
 
 // ConnProvider 数据源连接提供者
@@ -64,10 +66,15 @@ func (h *CommandDataBaseHandler) ExecuteCommand(ctx context.Context, task entity
 	}
 
 	val, err := exec.ExecuteQuery(ctx, conn, task)
-	if err != nil && params.DefaultValue != nil {
+	if err == nil {
+		return val, nil
+	}
+	// 查询成功但无数据（handler 以 gorm.ErrRecordNotFound 哨兵表示）：回落默认值（创建/修改已强制必填）
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return *params.DefaultValue, nil
 	}
-	return val, err
+	// 真实错误（连接/超时/SQL 异常等）：透传，由采集层 recordCollectError 留痕且不推进 PreExecuteTime
+	return 0, err
 }
 
 // ExecuteMultiRows 聚合任务多行取数：分发到具体数据源 handler 的 ExecuteQueryMultiRows。

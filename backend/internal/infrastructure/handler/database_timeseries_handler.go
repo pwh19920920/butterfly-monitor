@@ -101,18 +101,12 @@ func (h *DatabaseTimeseriesHandler) ExecuteCommand(ctx context.Context, task ent
 
 	switch len(series) {
 	case 0:
-		// 点位不存在：返回默认值（前端配 0/100，默认 0），不报错
-		if params.DefaultValue != nil {
-			return *params.DefaultValue, nil
-		}
-		return 0, nil
+		// 点位不存在：返回默认值（前端配 0/100），不报错
+		return *params.DefaultValue, nil
 	case 1:
 		vals := series[0].Values
 		if len(vals) == 0 {
-			if params.DefaultValue != nil {
-				return *params.DefaultValue, nil
-			}
-			return 0, nil
+			return *params.DefaultValue, nil
 		}
 		return vals[len(vals)-1], nil
 	default:

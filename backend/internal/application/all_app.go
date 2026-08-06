@@ -15,21 +15,22 @@ import (
 
 // Application 应用聚合：对外只暴露各业务 App，装配细节收敛在 NewApplication
 type Application struct {
-	Login            LoginApplication
-	SysMenu          SysMenuApplication
-	SysUser          SysUserApplication
-	SysRole          SysRoleApplication
-	SysPermission    SysPermissionApplication
-	CommonMap        *CommonMapApplication
-	MonitorDatabase  MonitorDatabaseApplication
-	MonitorTask      MonitorTaskApplication
-	MonitorDashboard MonitorDashboardApplication
-	MonitorGroup     MonitorGroupApplication
-	AlertConf        AlertConfApplication
-	AlertGroup       AlertGroupApplication
-	AlertChannel     AlertChannelApplication
-	MonitorTaskEvent MonitorTaskEventApplication
-	System           SystemApplication
+	Login                LoginApplication
+	SysMenu              SysMenuApplication
+	SysUser              SysUserApplication
+	SysRole              SysRoleApplication
+	SysPermission        SysPermissionApplication
+	CommonMap            *CommonMapApplication
+	MonitorDatabase      MonitorDatabaseApplication
+	MonitorTask          MonitorTaskApplication
+	MonitorDashboard     MonitorDashboardApplication
+	MonitorGroup         MonitorGroupApplication
+	MonitorTaskEvent     MonitorTaskEventApplication
+	MonitorVolatilityDay MonitorVolatilityDayApplication
+	AlertConf            AlertConfApplication
+	AlertGroup           AlertGroupApplication
+	AlertChannel         AlertChannelApplication
+	System               SystemApplication
 }
 
 // NewApplication 装配全部应用服务
@@ -58,11 +59,12 @@ func NewApplication(
 		CommonMap: commonMap,
 
 		// 监控
-		MonitorDatabase:  NewMonitorDatabaseApplication(seq, repository, commonMap),
-		MonitorTask:      NewMonitorTaskApplication(seq, repository, grafanaHandler, commonMap),
-		MonitorDashboard: NewMonitorDashboardApplication(seq, repository, grafanaHandler, cfg.Grafana),
-		MonitorGroup:     NewMonitorGroupApplication(seq, repository),
-		MonitorTaskEvent: NewMonitorTaskEventApplication(seq, repository, &alertConf),
+		MonitorDatabase:      NewMonitorDatabaseApplication(seq, repository, commonMap),
+		MonitorTask:          NewMonitorTaskApplication(seq, repository, grafanaHandler, commonMap),
+		MonitorDashboard:     NewMonitorDashboardApplication(seq, repository, grafanaHandler, cfg.Grafana),
+		MonitorGroup:         NewMonitorGroupApplication(seq, repository),
+		MonitorTaskEvent:     NewMonitorTaskEventApplication(seq, repository, &alertConf),
+		MonitorVolatilityDay: NewMonitorVolatilityDayApplication(seq, repository),
 
 		// 告警
 		AlertConf:    alertConf,
@@ -76,7 +78,6 @@ func NewApplication(
 
 // HomeCount 首页统计聚合：并发查询各业务计数，降低串行 RT
 func (app *Application) HomeCount(ctx context.Context) (*types.MonitorHomeCountResponse, error) {
-	// 并发跑所有独立计数查询，任一失败即整体返回
 	var (
 		taskCount       int64
 		eventCount      int64
@@ -103,7 +104,6 @@ func (app *Application) HomeCount(ctx context.Context) (*types.MonitorHomeCountR
 		return nil, err
 	}
 
-	// 收集 taskId 批量查任务名
 	taskIds := make([]int64, 0)
 	taskIdSet := make(map[int64]bool)
 	for _, ev := range recentEvents {

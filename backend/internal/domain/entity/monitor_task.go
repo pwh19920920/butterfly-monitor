@@ -9,11 +9,12 @@ type MonitorTaskStatus int32
 type MonitorAlertStatus int32
 type MonitorSampledStatus int32
 type MonitorTaskDataType int32
+type MonitorPromoSensitive int32
 
 const (
 	// TaskTypeDrilldown 系统下钻：数据源为时序库(VM)，从依赖的聚合任务结果中按标签过滤取数。
-	// 值为 0 是特殊标记，与正常任务(1/2/3)互斥，必须在 executeCollect 中显式 ==0 判断。
-	TaskTypeDrilldown MonitorTaskType = 0
+	// 值为 4 是特殊标记，与正常任务(1/2/3)互斥，必须在 executeCollect 中显式 ==4 判断。
+	TaskTypeDrilldown MonitorTaskType = 4
 	TaskTypeDatabase  MonitorTaskType = 1
 	TaskTypeURL       MonitorTaskType = 2
 	TaskTypePush      MonitorTaskType = 3
@@ -31,6 +32,11 @@ const (
 
 	MonitorSampledStatusOpen  MonitorSampledStatus = 1
 	MonitorSampledStatusClose MonitorSampledStatus = 0
+
+	// PromoSensitiveOff 不敏感（默认）；PromoSensitiveOn 流量型敏感
+	// 不用 0/1，避免 GORM Updates 把关敏感的 0 当零值跳过
+	PromoSensitiveOff MonitorPromoSensitive = 1
+	PromoSensitiveOn  MonitorPromoSensitive = 2
 )
 
 // MonitorTask 监控任务
@@ -52,9 +58,11 @@ type MonitorTask struct {
 	AlertStatus    MonitorAlertStatus   `json:"alertStatus" gorm:"column:alert_status"`        // 告警开关
 	Sampled        MonitorSampledStatus `json:"sampled" gorm:"column:sampled"`                 // 样本展示开关(仅 Grafana)
 	MonitorGroup   string               `json:"monitorGroup" gorm:"column:monitor_group"`      // 依赖分组
-	Labels         string               `json:"labels" gorm:"column:labels"`                   // 标签 JSON
+	Labels         string               `json:"labels" gorm:"column:labels"`                   // 标签 JSON（预留扩展，当前运行链路不消费）
 	DataType       MonitorTaskDataType  `json:"dataType" gorm:"column:data_type"`              // 采集数据类型：1单值 2聚合
 	RelatedTaskIds string               `json:"relatedTaskIds" gorm:"column:related_task_ids"` // 关联任务 ID（逗号分隔），叠加实时/样本曲线到本面板
+	// PromoSensitive 大促敏感：1否 2是。仅敏感任务在特殊日做原料剔除/冻结基线/告警比例
+	PromoSensitive MonitorPromoSensitive `json:"promoSensitive" gorm:"column:promo_sensitive"`
 }
 
 func (MonitorTask) TableName() string {

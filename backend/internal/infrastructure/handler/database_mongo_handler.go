@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"gorm.io/gorm"
 )
 
 // mongoConn 封装 mongo 客户端与目标数据库名
@@ -67,7 +68,8 @@ func (h *DatabaseMongoHandler) ExecuteQuery(ctx context.Context, db interface{},
 		return 0, err
 	}
 	if len(docs) == 0 {
-		return 0, errors.New("mongo aggregation returned empty result")
+		// 查询成功但无文档：以 gorm.ErrRecordNotFound 哨兵表示"无数据"，由上层回落默认值
+		return 0, gorm.ErrRecordNotFound
 	}
 	return extractFirstNumeric(docs[0])
 }

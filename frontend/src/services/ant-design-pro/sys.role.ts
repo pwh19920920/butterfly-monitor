@@ -22,7 +22,7 @@ export async function sysRoleQueryAll() {
 export async function sysRoleCreate(data: API.SysRole) {
   return request<API.Resp<API.SysRole[]>>('/api/sys/role', {
     method: 'POST',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }
 
@@ -30,19 +30,19 @@ export async function sysRoleCreate(data: API.SysRole) {
 export async function sysRoleUpdate(data: API.SysRole) {
   return request<API.Resp<API.SysRole[]>>('/api/sys/role', {
     method: 'PUT',
-    data: { ...data } || {},
+    data: data ?? {},
   });
 }
 
 /** 删除 DELETE /api/sys/role/:id */
-export async function sysRoleDelete(id: number | string) {
+export async function sysRoleDelete(id: string) {
   return request<API.Resp<string>>(`/api/sys/role/${id}`, {
     method: 'DELETE',
   });
 }
 
 // 获取角色对应的权限串
-export async function sysRolePermissionQuery(id: number | string) {
+export async function sysRolePermissionQuery(id: string) {
   return request<API.Resp<API.SysRolePermission[]>>(`/api/sys/role/permission/${id}`, {
     method: 'GET',
   });

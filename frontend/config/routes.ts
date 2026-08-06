@@ -76,18 +76,6 @@ export default [
         component: './MonitorTask',
       },
       {
-        name: 'monitorDatabase',
-        path: '/monitor/database',
-        access: 'routeAccess',
-        component: './MonitorDatabase',
-      },
-      {
-        name: 'monitorDashboard',
-        path: '/monitor/dashboard',
-        access: 'routeAccess',
-        component: './MonitorDashboard',
-      },
-      {
         name: 'monitorTaskEvent',
         path: '/monitor/taskEvent',
         access: 'routeAccess',
@@ -128,6 +116,24 @@ export default [
         path: '/alert/alertChannel',
         access: 'routeAccess',
         component: './AlertChannel',
+      },
+      {
+        name: 'monitorVolatilityDay',
+        path: '/alert/volatilityDay',
+        access: 'routeAccess',
+        component: './MonitorVolatilityDay',
+      },
+      {
+        name: 'monitorDatabase',
+        path: '/alert/database',
+        access: 'routeAccess',
+        component: './MonitorDatabase',
+      },
+      {
+        name: 'monitorDashboard',
+        path: '/alert/dashboard',
+        access: 'routeAccess',
+        component: './MonitorDashboard',
       },
     ],
   },

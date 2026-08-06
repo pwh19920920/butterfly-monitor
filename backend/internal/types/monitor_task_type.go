@@ -2,6 +2,7 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 
@@ -18,11 +19,12 @@ var taskKeyRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 type MonitorTaskQueryRequest struct {
 	response.RequestPaging
-	TaskName    string                     `form:"taskName"`
-	TaskKey     string                     `form:"taskKey"`
-	TaskType    *entity.MonitorTaskType    `form:"taskType"`
-	TaskStatus  *entity.MonitorTaskStatus  `form:"taskStatus"`
-	AlertStatus *entity.MonitorAlertStatus `form:"alertStatus"`
+	TaskName    string                      `form:"taskName"`
+	TaskKey     string                      `form:"taskKey"`
+	TaskType    *entity.MonitorTaskType     `form:"taskType"`
+	TaskStatus  *entity.MonitorTaskStatus   `form:"taskStatus"`
+	AlertStatus *entity.MonitorAlertStatus  `form:"alertStatus"`
+	DataType    *entity.MonitorTaskDataType `form:"dataType"`
 }
 
 type MonitorTaskExecParams struct {
@@ -90,30 +92,30 @@ func (req MonitorTaskAlertCreateRequest) hasCompleteCheckConfig(needAlertGroups 
 // 若填了任意一侧，则另一侧也必须完整填写（对称校验）
 // needAlertGroups：所选通道是否需要报警分组（非 Webhook 需要）
 func (req MonitorTaskAlertCreateRequest) ValidateOptional(needAlertGroups bool) error {
+	// needAlertGroups 仅决定"是否要求报警分组"，由此区分两类文案
+	requireGroupWord := "（通道/分组/间隔/持续时间）"
+	completeGroupHint := "报警通道、报警分组、检查间隔、持续时间"
+	if !needAlertGroups {
+		requireGroupWord = "（通道/间隔/持续时间）"
+		completeGroupHint = "报警通道、检查间隔、持续时间（Webhook 无需分组）"
+	}
+
 	hasAnyCheckConfig := req.hasAnyCheckConfig()
 	hasCheckParams := len(req.CheckParams) > 0
 
-	// 两侧都空：允许（纯采集任务）
-	if !hasAnyCheckConfig && !hasCheckParams {
+	switch {
+	case !hasAnyCheckConfig && !hasCheckParams:
+		// 两侧都空：允许（纯采集任务）
 		return nil
-	}
-	// 只填了报警检查配置
-	if hasAnyCheckConfig && !hasCheckParams {
+	case hasAnyCheckConfig && !hasCheckParams:
+		// 只填了报警检查配置
 		return errors.New("已填写报警检查配置，必须补充异常检测规则")
-	}
-	// 只填了异常检测规则
-	if hasCheckParams && !hasAnyCheckConfig {
-		if needAlertGroups {
-			return errors.New("已填写异常检测规则，必须补充报警检查配置（通道/分组/间隔/持续时间）")
-		}
-		return errors.New("已填写异常检测规则，必须补充报警检查配置（通道/间隔/持续时间）")
-	}
-	// 两侧都有内容：报警检查配置必须齐全
-	if !req.hasCompleteCheckConfig(needAlertGroups) {
-		if needAlertGroups {
-			return errors.New("报警检查配置需完整填写：报警通道、报警分组、检查间隔、持续时间")
-		}
-		return errors.New("报警检查配置需完整填写：报警通道、检查间隔、持续时间（Webhook 无需分组）")
+	case !hasAnyCheckConfig:
+		// 只填了异常检测规则
+		return errors.New("已填写异常检测规则，必须补充报警检查配置" + requireGroupWord)
+	case !req.hasCompleteCheckConfig(needAlertGroups):
+		// 两侧都有内容，但报警检查配置不齐全
+		return errors.New("报警检查配置需完整填写：" + completeGroupHint)
 	}
 	// 每组规则至少一条
 	for _, cp := range req.CheckParams {
@@ -135,19 +137,16 @@ type MonitorTaskCreateRequest struct {
 // TaskAlertStatus：无告警配置时固定为 1(正常)；有配置时取 t_monitor_task_alert.alert_status
 type MonitorTaskListItem struct {
 	entity.MonitorTask
-	// TaskAlertStatus 规则运行态：1正常 2异常(Pending) 3告警(Firing)；无配置视为 1
-	TaskAlertStatus entity.MonitorTaskAlertStatus `json:"taskAlertStatus"`
-	// FirstFlagTime 首次出现异常的时间（first_flag_time）；从未异常为 nil
-	FirstFlagTime *common.LocalTime `json:"firstFlagTime,omitempty"`
+	TaskAlertStatus entity.MonitorTaskAlertStatus `json:"taskAlertStatus"`         // TaskAlertStatus 规则运行态：1正常 2异常(Pending) 3告警(Firing)；无配置视为 1
+	FirstFlagTime   *common.LocalTime             `json:"firstFlagTime,omitempty"` // FirstFlagTime 首次出现异常的时间（first_flag_time）；从未异常为 nil
 }
 
 type MonitorTaskQueryResponse struct {
 	entity.MonitorTask
-	TaskExecParams MonitorTaskExecParams         `json:"taskExecParams"`
-	Dashboards     []string                      `json:"dashboards"`
-	TaskAlert      MonitorTaskAlertCreateRequest `json:"taskAlert"`
-	// TaskAlertStatus 规则运行态（详情页同样返回，语义同列表）
-	TaskAlertStatus entity.MonitorTaskAlertStatus `json:"taskAlertStatus"`
+	TaskExecParams  MonitorTaskExecParams         `json:"taskExecParams"`
+	Dashboards      []string                      `json:"dashboards"`
+	TaskAlert       MonitorTaskAlertCreateRequest `json:"taskAlert"`
+	TaskAlertStatus entity.MonitorTaskAlertStatus `json:"taskAlertStatus"` // TaskAlertStatus 规则运行态（详情页同样返回，语义同列表）
 }
 
 func (req MonitorTaskCreateRequest) GetDashboardIds() ([]int64, error) {
@@ -169,7 +168,7 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 		(*req.TaskType == entity.TaskTypePush || *req.TaskType == entity.TaskTypeDrilldown) {
 		cmdRule = []validation.Rule{validation.Length(0, 2000)}
 	}
-	return validation.ValidateStruct(&req,
+	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.TaskKey, validation.Required,
 			validation.Length(1, 255),
 			validation.Match(taskKeyRe).Error("TaskKey 必须以字母或下划线开头，且仅允许字母、数字、下划线"),
@@ -178,7 +177,58 @@ func (req MonitorTaskCreateRequest) ValidateForCreate() error {
 		validation.Field(&req.TimeSpan, validation.Required, validation.Min(1)),
 		validation.Field(&req.StepSpan, validation.Required, validation.Min(1)),
 		validation.Field(&req.Command, cmdRule...),
-	)
+	); err != nil {
+		return err
+	}
+	// 按任务形态做结构化字段校验（引用存在性在 application 层校验）
+	return req.ValidateTypedParams()
+}
+
+// ValidateTypedParams 按 DataType / TaskType 校验 ExecParams 结构完整性。
+// 不访问数据库；源任务是否存在、是否为聚合，由 application 层补齐。
+func (req MonitorTaskCreateRequest) ValidateTypedParams() error {
+	if req.DataType == entity.DataTypeAggregate {
+		if len(req.TaskExecParams.LabelColumns) == 0 {
+			return errors.New("聚合任务必须配置 labelColumns（分组维度）")
+		}
+		if len(req.TaskExecParams.ValueColumns) == 0 {
+			return errors.New("聚合任务必须配置 valueColumns（指标列）")
+		}
+		// 聚合不支持下钻类型混用
+		if req.TaskType != nil && *req.TaskType == entity.TaskTypeDrilldown {
+			return errors.New("聚合任务不能同时为系统下钻类型")
+		}
+		if req.TaskType != nil && *req.TaskType == entity.TaskTypePush {
+			return errors.New("聚合任务不支持 Push 类型")
+		}
+		return nil
+	}
+
+	// Push 任务由外部推送数据，无采集执行，不依赖默认值
+	if req.TaskType != nil && *req.TaskType == entity.TaskTypePush {
+		return nil
+	}
+
+	// 单值任务（Database/URL/mongo/下钻）：无结果默认值必填，供采集无数据时回落
+	if req.TaskExecParams.DefaultValue == nil {
+		return errors.New("无结果默认值（defaultValue）不能为空")
+	}
+
+	if req.TaskType != nil && *req.TaskType == entity.TaskTypeDrilldown {
+		if req.TaskExecParams.SourceTaskId == nil || *req.TaskExecParams.SourceTaskId == 0 {
+			return errors.New("下钻任务必须指定 sourceTaskId（依赖的聚合任务）")
+		}
+		// filters 允许为空（源只有单 series 时），但 fieldName 若填了不能为空串
+		for i, f := range req.TaskExecParams.Filters {
+			if f.FieldName == "" {
+				return fmt.Errorf("下钻 filters[%d].fieldName 不能为空", i)
+			}
+			if f.Value == "" {
+				return fmt.Errorf("下钻 filters[%d].value 不能为空（维度需全填以命中唯一 series）", i)
+			}
+		}
+	}
+	return nil
 }
 
 type MonitorTaskExecForRangeRequest struct {
@@ -189,7 +239,7 @@ type MonitorTaskExecForRangeRequest struct {
 // MonitorTaskPreviewRequest 聚合预览请求：临时执行多行查询，返回结果列名，供前端勾选 label/value 维度
 type MonitorTaskPreviewRequest struct {
 	TaskType   *entity.MonitorTaskType `json:"taskType"`   // 数据源类型（Database/URL）
-	DataSource *entity.DataSourceType  `json:"dataSource"` // Database 任务的数据源类型（Mongo/Mysql）
+	DataSource *entity.DataSourceType  `json:"dataSource"` // Database 任务数据源类型（含 Mysql 协议族/Mongo/PG/ClickHouse/Prometheus/OpenSearch/ES）
 	DatabaseId *int64                  `json:"databaseId,string"`
 	Command    string                  `json:"command"`
 	ExecParams MonitorTaskExecParams   `json:"execParams"`

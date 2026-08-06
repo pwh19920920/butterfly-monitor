@@ -127,6 +127,15 @@ func (app *MonitorDashboardApplication) TaskSort(ctx context.Context, req *types
 	if req == nil || len(req.Items) == 0 {
 		return errors.New("排序项不能为空")
 	}
+	// 用第一条关联反查面板（排序请求为单面板，前端保证 items 同属一面板）
+	first, err := app.repository.MonitorDashboardTaskRepository.GetById(req.Items[0].Id)
+	if err != nil {
+		return err
+	}
+	if first == nil {
+		return errors.New("排序项不存在")
+	}
+
 	sortItems := make([]entity.MonitorDashboardTask, 0, len(req.Items))
 	for _, item := range req.Items {
 		sortItems = append(sortItems, entity.MonitorDashboardTask{
@@ -138,46 +147,51 @@ func (app *MonitorDashboardApplication) TaskSort(ctx context.Context, req *types
 		return err
 	}
 
-	// 同步 Grafana：取第一个关联的 dashboard 重排
+	// 同步 Grafana 重排：库已更新，重排失败返回 error 便于前端提示重试（幂等可重复提交）
 	if app.grafanaHandler != nil {
-		// 尝试用 id 反查 dashboard 关联
-		firstId := req.Items[0].Id
-		// 从全部关联里找
-		all, err := app.repository.MonitorDashboardTaskRepository.SelectAll()
-		if err == nil {
-			var dashboardId int64
-			taskIds := make([]int64, 0)
-			for _, item := range all {
-				if item.Id == firstId {
-					dashboardId = item.DashboardId
-					break
-				}
-			}
-			if dashboardId != 0 {
-				related, _ := app.repository.MonitorDashboardTaskRepository.FindByDashboardId(dashboardId)
-				for _, r := range related {
-					taskIds = append(taskIds, r.TaskId)
-				}
-				// 按 sort 已更新后的顺序
-				tasks, _ := app.repository.MonitorTaskRepository.SelectByIds(taskIds)
-				taskKeyMap := make(map[int64]string)
-				for _, t := range tasks {
-					taskKeyMap[t.Id] = t.TaskKey
-				}
-				taskKeys := make([]string, 0)
-				for _, r := range related {
-					if k, ok := taskKeyMap[r.TaskId]; ok {
-						taskKeys = append(taskKeys, k)
-					}
-				}
-				d, _ := app.repository.MonitorDashboardRepository.GetById(dashboardId)
-				if d != nil {
-					_ = app.grafanaHandler.ReSortDashboard(d.Uid, taskKeys)
-				}
-			}
+		if err := app.syncDashboardSort(ctx, first.DashboardId); err != nil {
+			return fmt.Errorf("同步 Grafana 面板排序失败: %w", err)
 		}
 	}
 	return nil
+}
+
+// syncDashboardSort 按面板当前 sort 顺序取任务 key，让 Grafana 按序重排 panel。
+// FindByDashboardId 已按 sort desc 返回，顺序即期望展示顺序。
+func (app *MonitorDashboardApplication) syncDashboardSort(ctx context.Context, dashboardId int64) error {
+	related, err := app.repository.MonitorDashboardTaskRepository.FindByDashboardId(dashboardId)
+	if err != nil {
+		return err
+	}
+	if len(related) == 0 {
+		return nil
+	}
+	taskIds := make([]int64, 0, len(related))
+	for _, r := range related {
+		taskIds = append(taskIds, r.TaskId)
+	}
+	tasks, err := app.repository.MonitorTaskRepository.SelectByIds(taskIds)
+	if err != nil {
+		return err
+	}
+	taskKeyMap := make(map[int64]string, len(tasks))
+	for _, t := range tasks {
+		taskKeyMap[t.Id] = t.TaskKey
+	}
+	taskKeys := make([]string, 0, len(related))
+	for _, r := range related {
+		if k, ok := taskKeyMap[r.TaskId]; ok {
+			taskKeys = append(taskKeys, k)
+		}
+	}
+	d, err := app.repository.MonitorDashboardRepository.GetById(dashboardId)
+	if err != nil {
+		return err
+	}
+	if d == nil || d.Uid == "" {
+		return nil
+	}
+	return app.grafanaHandler.ReSortDashboard(d.Uid, taskKeys)
 }
 
 // Count 统计

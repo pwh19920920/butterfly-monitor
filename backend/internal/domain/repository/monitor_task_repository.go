@@ -20,6 +20,8 @@ type MonitorTaskRepository interface {
 	SelectByIdsWithMap(ids []int64) (map[int64]entity.MonitorTask, error)
 	SelectByIds(ids []int64) ([]entity.MonitorTask, error)
 	SelectByTaskKey(taskKey string) (*entity.MonitorTask, error)
+	// CountDrilldownBySourceTaskId 统计仍依赖指定聚合任务的下钻任务数（onlyOpen=true 只统计开启的下钻）
+	CountDrilldownBySourceTaskId(sourceTaskId int64, onlyOpen bool) (int64, error)
 	Count() (*int64, error)
 	SelectAll() ([]entity.MonitorTask, error)
 }

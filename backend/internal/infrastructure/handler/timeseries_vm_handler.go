@@ -217,9 +217,17 @@ func (h *TimeSeriesVmHandler) buildTagFilteredExpr(metric string, tagFilters map
 	return b.String()
 }
 
-// QueryMean 查询区间均值 avg(metric)
+// QueryMean 查询区间均值 avg_over_time(metric[窗口])，与 TDengine 的 AVG(val) 窗口语义对齐。
+// 窗口为 [start, end] 时长；window<=0 时退化为瞬时值 avg(metric)。
 func (h *TimeSeriesVmHandler) QueryMean(ctx context.Context, metric string, start, end time.Time) (*float64, error) {
-	query := fmt.Sprintf("avg(%s)", escapePromMetric(metric))
+	window := end.Sub(start)
+	if window <= 0 {
+		query := fmt.Sprintf("avg(%s)", escapePromMetric(metric))
+		return h.queryInstant(ctx, query, end)
+	}
+	// 窗口均值：avg_over_time 对窗口内各 series 求均值，外层 avg 跨 series 平均；
+	// 单 series 场景与 TDengine 的 AVG(val) 完全一致
+	query := fmt.Sprintf("avg(avg_over_time(%s[%ds]))", escapePromMetric(metric), int(window.Seconds()))
 	return h.queryInstant(ctx, query, end)
 }
 
