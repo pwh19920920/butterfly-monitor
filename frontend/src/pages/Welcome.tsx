@@ -113,7 +113,7 @@ const Welcome: React.FC = () => {
       {/* 平台介绍 */}
       <Card style={{ marginBottom: 16 }}>
         <Typography.Title level={3}>
-          dragonfly-monitor 监控告警平台
+          butterfly业务监控告警平台
         </Typography.Title>
         <Typography.Paragraph>
           指标采集 → 样本基线 → 规则检测 → 事件通知。请从左侧菜单进入业务模块。

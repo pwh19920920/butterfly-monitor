@@ -155,7 +155,7 @@ const Login: React.FC = () => {
         <LoginForm
           contentStyle={{ minWidth: 280, maxWidth: '75vw' }}
           logo={<img alt="logo" src="/logo.svg" />}
-          title="butterfly管理系统"
+          title="butterfly监控与告警管理后台"
           subTitle={intl.formatMessage({
             id: 'pages.layouts.userLayout.title',
             defaultMessage: 'Butterfly 监控与告警管理后台',

@@ -114,7 +114,7 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: 'butterfly管理系统',
+  title: 'butterfly业务监控管理系统',
   layout: {
     locale: true,
     ...defaultSettings,

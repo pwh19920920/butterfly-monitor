@@ -4,6 +4,32 @@
 
 核心思路：**不是设一个死阈值、超了就报**，而是基于历史基线做相对偏离检测——业务本身有周期性波动（昼夜峰谷、周末效应），固定阈值要么误报频繁、要么漏报。平台通过样本平滑算法把周期性"消化"进基线，只在偏离正常趋势时才触发，从而显著降低误报、让告警真正可信。
 
+## 界面预览
+
+| 首页概览 | 监控任务 |
+|:---:|:---:|
+| ![首页](docs/images/首页.png) | ![任务](docs/images/task.png) |
+
+| 告警事件 | 监控分组 |
+|:---:|:---:|
+| ![事件](docs/images/event.png) | ![监控分组](docs/images/monitorGroup.png) |
+
+| 数据源管理 | 监控面板 |
+|:---:|:---:|
+| ![数据源](docs/images/datasource.png) | ![监控面板](docs/images/monitorDashboard.png) |
+
+| 告警通道 | 告警分组 |
+|:---:|:---:|
+| ![告警通道](docs/images/alertChannel.png) | ![告警分组](docs/images/alertGroup.png) |
+
+| 波动日配置 | 通用配置 |
+|:---:|:---:|
+| ![波动日](docs/images/波动日.png) | ![通用配置](docs/images/通用配置.png) |
+
+| Grafana 看板 |
+|:---:|
+| ![Grafana](docs/images/grafana.png) |
+
 ## 解决什么问题
 
 | 问题 | 传统方式 | 本平台 |
@@ -449,3 +475,747 @@ Grafana 面板上实时曲线 + 样本基线对比线自动叠加，一眼看出
 - [`docs/数据源添加说明.md`](docs/数据源添加说明.md) — 各数据源连接字段、Command 示例与注意项
 - [`backend/CLAUDE.md`](backend/CLAUDE.md) — 后端工程约定（分层、命名、运行方式）
 - [`backend/README.md`](backend/README.md) / [`frontend/README.md`](frontend/README.md) — 源自 butterfly-admin 模板说明（界面预览截图等），工程细节以本文与 `docs/` 为准
+
+## 部署说明
+
+### 环境要求
+
+| 组件 | 版本要求 |
+|------|----------|
+| Go | ≥ 1.22 |
+| Node.js | ≥ 18 |
+| MySQL | ≥ 5.7 |
+| VictoriaMetrics / TDengine | 二选一，作为时序存储 |
+| Grafana | ≥ 9.0 |
+| XXL-JOB | ≥ 2.3 |
+
+### 部署架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        负载均衡 / Nginx                          │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+              ┌───────────────────┼───────────────────┐
+              ▼                   ▼                   ▼
+        ┌─────────┐         ┌─────────┐         ┌─────────┐
+        │ backend │         │ backend │         │ frontend│
+        │  :8088  │         │  :8088  │         │  :8000  │
+        └─────────┘         └─────────┘         └─────────┘
+              │                   │
+              └─────────┬─────────┘
+                        ▼
+              ┌─────────────────┐
+              │     MySQL       │
+              │    :3306        │
+              └─────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+  ┌──────────┐   ┌─────────────┐   ┌──────────┐
+  │ Victoria │   │  TDengine   │   │  Grafana │
+  │ Metrics  │   │   :6041     │   │  :3000   │
+  │  :8428   │   └─────────────┘   └──────────┘
+  └──────────┘
+                        │
+                  ┌─────┴─────┐
+                  ▼           ▼
+            ┌──────────┐ ┌──────────┐
+            │ XXL-JOB  │ │ 企业微信  │
+            │  Admin   │ │  / 邮件  │
+            └──────────┘ └──────────┘
+```
+
+### 基础组件部署
+
+以下组件需先于后端部署完成。
+
+#### 1. VictoriaMetrics 部署
+
+VictoriaMetrics 是默认的时序存储后端，用于存储监控指标数据。
+
+**二进制部署**：
+
+```bash
+# 下载（以 v1.96.0 为例）
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.96.0/victoria-metrics-linux-amd64-v1.96.0.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.96.0.tar.gz
+
+# 创建数据目录
+mkdir -p /data/victoria-metrics
+
+# 启动（单节点模式）
+./victoria-metrics-prod \
+  -storageDataPath=/data/victoria-metrics \
+  -retentionPeriod=365d \
+  -httpListenAddr=:8428
+
+# 后台运行
+nohup ./victoria-metrics-prod -storageDataPath=/data/victoria-metrics -retentionPeriod=365d -httpListenAddr=:8428 > /var/log/vm.log 2>&1 &
+```
+
+**Systemd 服务** `/etc/systemd/system/victoria-metrics.service`：
+
+```ini
+[Unit]
+Description=VictoriaMetrics
+After=network.target
+
+[Service]
+Type=simple
+User=vm
+ExecStart=/usr/local/bin/victoria-metrics-prod \
+  -storageDataPath=/data/victoria-metrics \
+  -retentionPeriod=365d \
+  -httpListenAddr=:8428
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**关键参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `-storageDataPath` | 数据存储路径 |
+| `-retentionPeriod` | 数据保留时间（如 `365d`、`1y`） |
+| `-httpListenAddr` | HTTP 监听地址 |
+| `-memory.allowedPercent` | 内存使用上限（默认 60%） |
+| `-search.maxQueryDuration` | 查询超时（默认 30s） |
+
+**验证**：
+
+```bash
+# 健康检查
+curl http://localhost:8428/health
+
+# 写入测试
+curl -d 'test_metric{job="test"} 1' http://localhost:8428/api/v1/import/prometheus
+
+# 查询测试
+curl 'http://localhost:8428/api/v1/query?query=test_metric'
+```
+
+#### 2. Grafana 部署
+
+Grafana 用于可视化监控数据，后端通过 API 自动创建 Dashboard 和 Panel。
+
+**YUM/RPM 安装（CentOS/RHEL）**：
+
+```bash
+# 添加 Grafana 仓库
+cat <<EOF | sudo tee /etc/yum.repos.d/grafana.repo
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+
+# 安装
+sudo yum install grafana -y
+
+# 启动
+sudo systemctl daemon-reload
+sudo systemctl enable grafana-server
+sudo systemctl start grafana-server
+```
+
+**二进制/压缩包部署**：
+
+```bash
+# 下载（以 10.2.0 为例）
+wget https://dl.grafana.com/oss/release/grafana-10.2.0.linux-amd64.tar.gz
+tar -xzf grafana-10.2.0.linux-amd64.tar.gz
+cd grafana-10.2.0
+
+# 配置（修改 conf/defaults.ini 或 conf/custom.ini）
+[server]
+http_addr = 0.0.0.0
+http_port = 3000
+
+[security]
+admin_user = admin
+admin_password = admin123
+
+# 启动
+./bin/grafana-server web
+```
+
+**创建 API Token**：
+
+1. 访问 `http://<grafana-host>:3000`，登录（默认 admin/admin）
+2. 左侧菜单 → Administration → Service Accounts → Add service account
+3. 填写名称，Role 选择 `Admin` 或 `Editor`
+4. 点击 Add service account token，生成 Token 并保存
+5. 将 Token 填入后端配置 `grafana.token`
+
+**添加 VictoriaMetrics 数据源**：
+
+在 Grafana 中手动添加：
+
+1. Configuration → Data sources → Add data source
+2. 选择 Prometheus 类型
+3. URL 填入 `http://<vm-host>:8428`
+4. Save & Test
+
+或通过 API：
+
+```bash
+curl -X POST http://admin:admin@localhost:3000/api/datasources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "VictoriaMetrics",
+    "type": "prometheus",
+    "url": "http://localhost:8428",
+    "access": "proxy",
+    "isDefault": true
+  }'
+```
+
+#### 3. XXL-JOB 部署
+
+XXL-JOB 是分布式任务调度平台，用于调度 dataCollect、dataSampling、alertCheck、eventCheck 四个定时任务。
+
+**前置条件**：MySQL 已安装（XXL-JOB 需要 MySQL 存储 job 配置和日志）
+
+**下载部署**：
+
+```bash
+# 下载源码
+git clone https://github.com/xuxueli/xxl-job.git
+cd xxl-job
+
+# 导入数据库（会创建 xxl_job 库和表）
+mysql -uroot -p < doc/db/tables_xxl_job.sql
+```
+
+**修改配置** `xxl-job-admin/src/main/resources/application.properties`：
+
+```properties
+# 数据库连接
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
+spring.datasource.username=root
+spring.datasource.password=your_password
+
+# 发送告警邮件的 SMTP（可选）
+spring.mail.host=smtp.example.com
+spring.mail.username=noreply@example.com
+spring.mail.password=smtp_password
+
+# XXL-JOB 配置
+server.port=8080
+xxl.job.admin.addresses=http://localhost:8080/xxl-job-admin
+xxl.job.accessToken=your_access_token
+```
+
+**编译运行**：
+
+```bash
+cd xxl-job-admin
+mvn clean package -DskipTests
+
+# 运行
+java -jar target/xxl-job-admin-2.4.0.jar
+```
+
+**Systemd 服务** `/etc/systemd/system/xxl-job-admin.service`：
+
+```ini
+[Unit]
+Description=XXL-JOB Admin
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=xxljob
+WorkingDirectory=/opt/xxl-job
+ExecStart=/usr/bin/java -jar /opt/xxl-job/xxl-job-admin.jar
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**配置执行器**：
+
+后端作为执行器，在 XXL-JOB Admin 中配置：
+
+1. 访问 `http://<xxl-job-host>:8080/xxl-job-admin`（默认账号 admin/123456）
+2. 执行器管理 → 新增执行器
+   - AppName：`dragonfly-monitor-executor`（与后端配置 `xxl.executor.appname` 一致）
+   - 名称：Dragonfly Monitor Executor
+   - 注册方式：自动注册
+3. 任务管理 → 新增任务（4 个任务）：
+
+| 任务名称 | JobHandler | Cron | 说明 |
+|----------|------------|------|------|
+| 数据采集 | `dataCollect` | `0/30 * * * * ?` | 每 30 秒执行一次，与任务 TimeSpan 对应 |
+| 样本生成 | `dataSampling` | `0/30 * * * * ?` | 每 30 秒执行一次 |
+| 规则检测 | `alertCheck` | `0/30 * * * * ?` | 每 30 秒执行一次 |
+| 事件通知 | `eventCheck` | `0/30 * * * * ?` | 每 30 秒执行一次 |
+
+**运行模式**：
+- 运行模式：BEAN
+- 路由策略：第一个 / 轮询
+- 阻塞处理策略：单机串行
+
+**验证**：
+
+1. 后端启动后，在执行器管理页面查看是否注册成功（OnLine 机器地址列表非空）
+2. 在任务管理页面手动触发一次任务，查看调度日志是否成功
+
+#### 4. TDengine 部署（可选）
+
+如需使用 TDengine 作为时序存储，替代 VictoriaMetrics：
+
+```bash
+# 下载（以 3.1.0 为例）
+wget https://www.taosdata.com/assets-download/TDengine-server-3.1.0-Linux-x64.tar.gz
+tar -xzf TDengine-server-3.1.0-Linux-x64.tar.gz
+cd TDengine-server-3.1.0
+
+# 安装
+./install.sh
+
+# 启动
+systemctl start taosd
+systemctl enable taosd
+
+# 创建数据库
+taos -s "create database dragonfly keep 365d"
+```
+
+**配置 taosAdapter**（REST 接口）：
+
+TDengine 3.x 内置 taosAdapter，默认监听 6041 端口。确保 `taosAdapter` 服务已启动：
+
+```bash
+systemctl start taosadapter
+systemctl enable taosadapter
+```
+
+后端配置：
+
+```yaml
+timeseries:
+  backend: tdengine
+
+tdEngine:
+  host: 127.0.0.1
+  port: 6041    # REST 端口
+  database: dragonfly
+  username: root
+  password: taosdata
+```
+
+### 后端部署
+
+#### 1. 编译
+
+```bash
+cd backend
+go mod tidy
+go build -o dragonfly-monitor ./cmd
+```
+
+或使用 Makefile：
+
+```bash
+make build        # 编译
+make run          # 编译并运行
+```
+
+#### 2. 配置文件
+
+复制并修改配置：
+
+```bash
+cp configs/config.yml configs/config-release.yml
+# 编辑 config-release.yml，填入生产环境配置
+```
+
+关键配置项：
+
+```yaml
+# 数据库
+db:
+  host: 127.0.0.1
+  port: 3306
+  database: dragonfly_monitor
+  username: root
+  password: your_password
+
+# 时序库选择（victoriaMetrics 或 tdengine）
+timeseries:
+  backend: victoriaMetrics
+
+# VictoriaMetrics 配置
+victoriaMetrics:
+  addr: http://127.0.0.1:8428
+
+# TDengine 配置（如使用）
+tdEngine:
+  host: 127.0.0.1
+  port: 6041
+  database: dragonfly
+
+# Grafana
+grafana:
+  addr: http://127.0.0.1:3000
+  token: your_grafana_api_token
+
+# XXL-JOB
+xxl:
+  admin:
+    addresses: http://127.0.0.1:8080/xxl-job-admin
+  executor:
+    appname: dragonfly-monitor-executor
+    port: 9999
+```
+
+#### 3. 启动
+
+```bash
+# 前台运行
+./dragonfly-monitor
+
+# 后台运行（Linux）
+nohup ./dragonfly-monitor > logs/app.log 2>&1 &
+
+# 指定配置文件
+./dragonfly-monitor --configFilePath=configs/config-prod.yml
+```
+
+#### 4. Systemd 服务（推荐）
+
+创建 `/etc/systemd/system/dragonfly-monitor.service`：
+
+```ini
+[Unit]
+Description=Dragonfly Monitor Backend
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/opt/dragonfly-monitor/backend
+ExecStart=/opt/dragonfly-monitor/backend/dragonfly-monitor
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用服务：
+
+```bash
+systemctl daemon-reload
+systemctl enable dragonfly-monitor
+systemctl start dragonfly-monitor
+```
+
+### 前端部署
+
+#### 1. 安装依赖
+
+```bash
+cd frontend
+npm install
+```
+
+#### 2. 配置环境变量
+
+修改 `config/config.ts` 中的后端 API 地址：
+
+```typescript
+export default {
+  define: {
+    API_URL: '"http://your-backend-host:8088"',
+  },
+  // ...
+};
+```
+
+#### 3. 构建
+
+```bash
+npm run build
+```
+
+产物输出到 `dist/` 目录。
+
+#### 4. Nginx 配置
+
+```nginx
+server {
+    listen 80;
+    server_name monitor.example.com;
+
+    # 前端静态资源
+    location / {
+        root /opt/dragonfly-monitor/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API 代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:8088/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Docker 部署
+
+#### 1. 构建镜像
+
+**后端 Dockerfile**（`backend/Dockerfile`）：
+
+```dockerfile
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN go build -o dragonfly-monitor ./cmd
+
+FROM alpine:latest
+WORKDIR /app
+RUN apk --no-cache add ca-certificates tzdata
+COPY --from=builder /app/dragonfly-monitor .
+COPY --from=builder /app/configs ./configs
+EXPOSE 8088
+CMD ["./dragonfly-monitor"]
+```
+
+**前端 Dockerfile**（`frontend/Dockerfile`）：
+
+```dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+#### 2. Docker Compose
+
+`docker-compose.yml`：
+
+```yaml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: dragonfly_monitor
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/migrations/dragonfly_monitor.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:latest
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-retentionPeriod=365d"
+    volumes:
+      - vm_data:/victoria-metrics-data
+    ports:
+      - "8428:8428"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.0
+    environment:
+      PARAMS: "--spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai --spring.datasource.username=root --spring.datasource.password=root123"
+    depends_on:
+      - mysql
+    ports:
+      - "8080:8080"
+
+  backend:
+    build: ./backend
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./backend/configs:/app/configs
+    depends_on:
+      - mysql
+      - victoria-metrics
+      - grafana
+      - xxl-job-admin
+    ports:
+      - "8088:8088"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  vm_data:
+  grafana_data:
+```
+
+启动：
+
+```bash
+docker-compose up -d
+```
+
+### Kubernetes 部署（简要）
+
+#### 1. ConfigMap（后端配置）
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dragonfly-monitor-config
+data:
+  config.yml: |
+    db:
+      host: mysql-service
+      port: 3306
+      # ...
+```
+
+#### 2. Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dragonfly-monitor-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dragonfly-monitor-backend
+  template:
+    metadata:
+      labels:
+        app: dragonfly-monitor-backend
+    spec:
+      containers:
+      - name: backend
+        image: your-registry/dragonfly-monitor-backend:latest
+        ports:
+        - containerPort: 8088
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+      volumes:
+      - name: config
+        configMap:
+          name: dragonfly-monitor-config
+```
+
+#### 3. Service / Ingress
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: dragonfly-monitor-backend
+spec:
+  selector:
+    app: dragonfly-monitor-backend
+  ports:
+  - port: 8088
+    targetPort: 8088
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dragonfly-monitor
+spec:
+  rules:
+  - host: monitor.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: dragonfly-monitor-backend
+            port:
+              number: 8088
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dragonfly-monitor-frontend
+            port:
+              number: 80
+```
+
+### 健康检查
+
+- **后端**：`GET /api/health` 返回 `{"status": "ok"}`
+- **前端**：访问首页返回 HTML
+
+### 常见问题
+
+#### 1. 连接 MySQL 失败
+
+- 检查 MySQL 是否启动、防火墙是否开放 3306
+- 确认配置中 `db.host` / `db.port` / `db.username` / `db.password` 正确
+- MySQL 8.0+ 需确认认证插件（`mysql_native_password`）
+
+#### 2. 时序库连接失败
+
+- VictoriaMetrics：确认 `victoriaMetrics.addr` 格式为 `http://host:port`
+- TDengine：确认 REST 接口端口（默认 6041，非 6030）
+
+#### 3. Grafana Panel 未自动创建
+
+- 检查 `grafana.addr` / `grafana.token` 配置
+- Token 需有 `Editor` 或 `Admin` 权限
+- 确认任务已关联 Dashboard
+
+#### 4. XXL-JOB 任务未执行
+
+- 检查执行器是否在 Admin 注册成功
+- 确认 `xxl.executor.appname` 与 Admin 中配置一致
+- 查看后端日志是否有调度错误
+
+### 监控与日志
+
+- **后端日志**：`backend/logs/` 目录（可配置 logrotate）
+- **业务指标**：VictoriaMetrics 中 `dragonfly_*` 前缀指标
+- **系统监控**：建议接入 Prometheus + Grafana 监控后端进程
