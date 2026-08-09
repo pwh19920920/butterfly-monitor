@@ -46,7 +46,7 @@ const Welcome: React.FC = () => {
 
   const barConfig = {
     data: alertLevelData,
-    title: '告警级别分布',
+    title: '告警级别分布（近一月）',
     xField: 'level',
     yField: 'value',
     color: ['#52c41a', '#faad14', '#ff4d4f'],
@@ -113,10 +113,10 @@ const Welcome: React.FC = () => {
       {/* 平台介绍 */}
       <Card style={{ marginBottom: 16 }}>
         <Typography.Title level={3}>
-          butterfly业务监控告警平台
+          系统工作流程
         </Typography.Title>
         <Typography.Paragraph>
-          指标采集 → 样本基线 → 规则检测 → 事件通知。请从左侧菜单进入业务模块。
+          指标采集 → 样本基线 → 规则检测 → 事件通知， 请从左侧菜单进入业务模块。
         </Typography.Paragraph>
       </Card>
 
@@ -129,7 +129,7 @@ const Welcome: React.FC = () => {
         </Col>
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
           <StatisticCard
-            statistic={{ title: '告警事件', value: count.eventCount || 0 }}
+            statistic={{ title: '告警事件（近一月）', value: count.eventCount || 0 }}
           />
         </Col>
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
@@ -158,14 +158,14 @@ const Welcome: React.FC = () => {
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
           <StatisticCard
             statistic={{
-              title: '待处理-需关注',
+              title: '待处理（近一月）',
               value: count.pendingEvents || 0,
             }}
           />
         </Col>
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
           <StatisticCard
-            statistic={{ title: '处理中', value: count.processingEvents || 0 }}
+            statistic={{ title: '处理中（近一月）', value: count.processingEvents || 0 }}
           />
         </Col>
       </Row>
@@ -173,7 +173,7 @@ const Welcome: React.FC = () => {
       {/* ── 图表行：告警级别分布 + 最近告警事件 ── */}
       <Row gutter={16}>
         <Col xs={24} md={12}>
-          <Card title="告警级别分布" styles={{ body: { height: 304 } }}>
+          <Card title="告警级别分布（近一月）" styles={{ body: { height: 304 } }}>
             {alertLevelData.length > 0 ? (
               <Column {...barConfig} height={260} />
             ) : (
