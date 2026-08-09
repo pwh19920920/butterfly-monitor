@@ -283,7 +283,7 @@ func (repo *MonitorTaskEventRepositoryImpl) CountByStatus() (map[entity.MonitorT
 	return m, nil
 }
 
-// CountByLevel 按告警级别统计事件数
+// CountByLevel 按告警级别统计事件数（近一个月）
 func (repo *MonitorTaskEventRepositoryImpl) CountByLevel() (map[int32]int64, error) {
 	type levelCount struct {
 		EventLevel int32
@@ -294,6 +294,7 @@ func (repo *MonitorTaskEventRepositoryImpl) CountByLevel() (map[int32]int64, err
 	if err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Not(notCase).
+		Where("created_at >= ?", time.Now().AddDate(0, 0, -30)).
 		Select("event_level, COUNT(*) as count").
 		Group("event_level").
 		Scan(&results).Error; err != nil {

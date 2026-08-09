@@ -268,7 +268,8 @@ CREATE TABLE `t_monitor_task_event` (
   KEY `idx_alert_id` (`alert_id`),
   KEY `idx_task_id` (`task_id`),
   KEY `idx_next_alert` (`deal_status`,`next_alert_time`),
-  KEY `idx_created_at` (`created_at`)
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_event_level` (`event_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报警事件';
 
 
