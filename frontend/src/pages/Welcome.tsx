@@ -129,11 +129,6 @@ const Welcome: React.FC = () => {
         </Col>
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
           <StatisticCard
-            statistic={{ title: '告警事件（近一月）', value: count.eventCount || 0 }}
-          />
-        </Col>
-        <Col xs={12} sm={8} md={6} lg={6} xl={6}>
-          <StatisticCard
             statistic={{ title: '监控面板', value: count.dashboardCount || 0 }}
           />
         </Col>
@@ -153,6 +148,11 @@ const Welcome: React.FC = () => {
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
           <StatisticCard
             statistic={{ title: '告警分组', value: count.alertGroupCount || 0 }}
+          />
+        </Col>
+        <Col xs={12} sm={8} md={6} lg={6} xl={6}>
+          <StatisticCard
+            statistic={{ title: '告警事件（近一月）', value: count.eventCount || 0 }}
           />
         </Col>
         <Col xs={12} sm={8} md={6} lg={6} xl={6}>
