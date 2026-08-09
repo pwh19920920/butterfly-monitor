@@ -1,7 +1,7 @@
 package types
 
 import (
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 import "github.com/go-ozzo/ozzo-validation/v4"
 

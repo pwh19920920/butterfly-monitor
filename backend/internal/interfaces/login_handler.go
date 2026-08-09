@@ -1,10 +1,10 @@
 package interfaces
 
 import (
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/common/constant"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/common/constant"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/types"
 	"errors"
 	"fmt"
 

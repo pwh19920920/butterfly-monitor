@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strconv"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pwh19920920/butterfly/pkg/response"

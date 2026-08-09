@@ -8,8 +8,8 @@ Go 语言后台管理系统，基于 Gin 框架和 GORM ORM，采用 DDD（领�
 | 项目 | 说明 | 地址 |
 |------|------|------|
 | butterfly | 基础框架库（Gin 封装） | https://github.com/pwh19920920/butterfly |
-| dragonfly-monitor | 后端 API 服务（本仓库） | https://dragonfly-monitor |
-| dragonfly-monitor-web | 前端管理界面 | https://dragonfly-monitor-web |
+| butterfly-monitor | 后端 API 服务（本仓库） | https://butterfly-monitor |
+| butterfly-monitor-web | 前端管理界面 | https://butterfly-monitor-web |
 
 ## 界面预览
 
@@ -53,7 +53,7 @@ Go 语言后台管理系统，基于 Gin 框架和 GORM ORM，采用 DDD（领�
 ## 项目结构
 
 ```
-dragonfly-monitor/
+butterfly-monitor/
 ├── cmd/                         # 程序入口
 │   └── main.go
 ├── internal/                    # 私有代码（internal 强制封装，禁止外部模块引用）
@@ -109,8 +109,8 @@ go run ./cmd
 ### 构建后运行
 
 ```bash
-make build                     # 产出 bin/dragonfly-monitor
-./bin/dragonfly-monitor          # 仍须在项目根目录执行
+make build                     # 产出 bin/butterfly-monitor
+./bin/butterfly-monitor          # 仍须在项目根目录执行
 ```
 
 ### 指定配置文件
@@ -169,7 +169,7 @@ mysql -u root -p butterfly_admin < migrations/butterfly_admin.sql
 
 ```bash
 make docker
-docker run -p 8088:8088 dragonfly-monitor
+docker run -p 8088:8088 butterfly-monitor
 ```
 
 镜像内 `WORKDIR /app`，`configs/` 已打入 `/app/configs/`，默认即可命中配置文件；日志写入 `/app/logs`。

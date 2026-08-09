@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/types"
 )
 
 type MonitorTaskEventRepository interface {
@@ -26,4 +26,3 @@ type MonitorTaskEventRepository interface {
 	// SelectRecent 查询最近 N 条事件（按创建时间倒序）
 	SelectRecent(limit int) ([]entity.MonitorTaskEvent, error)
 }
-

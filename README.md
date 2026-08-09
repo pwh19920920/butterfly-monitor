@@ -1,4 +1,4 @@
-# 🐉 Dragonfly Monitor
+# 🐉 Butterfly Monitor
 
 > **云原生时代的智能可观测中枢** — 蜻蜓之眼，洞察系统每一次脉动
 
@@ -6,9 +6,9 @@
 
 ## 项目简介
 
-**Dragonfly Monitor** 是一款面向云原生架构的**企业级统一可观测性平台**，基于 [butterfly-admin](https://github.com/pwh19920920/butterfly-admin) 深度构建。平台以领域驱动设计（DDD）为架构底座，深度融合时序存储、自学习基线引擎与多通道告警体系，为分布式系统提供从指标采集、趋势分析、异常检测到告警触达的**全链路监控闭环**。
+**Butterfly Monitor** 是一款面向云原生架构的**企业级统一可观测性平台**，基于 [butterfly-admin](https://github.com/pwh19920920/butterfly-admin) 深度构建。平台以领域驱动设计（DDD）为架构底座，深度融合时序存储、自学习基线引擎与多通道告警体系，为分布式系统提供从指标采集、趋势分析、异常检测到告警触达的**全链路监控闭环**。
 
-在微服务架构盛行的今天，系统复杂度呈指数级增长，运维团队面对异构数据源割裂、告警风暴、固定阈值误报三大困局。Dragonfly Monitor 以**"静态阈值之外的第二双眼"**破局——通过历史同时刻数据构建自学习基线，将昼夜峰谷、周末效应等周期性波动消化进模型，只在偏离正常趋势时才触发告警。**告警不是为了告警，而是为了可信；监控不是为了看数，而是为了决策。**
+在微服务架构盛行的今天，系统复杂度呈指数级增长，运维团队面对异构数据源割裂、告警风暴、固定阈值误报三大困局。Butterfly Monitor 以**"静态阈值之外的第二双眼"**破局——通过历史同时刻数据构建自学习基线，将昼夜峰谷、周末效应等周期性波动消化进模型，只在偏离正常趋势时才触发告警。**告警不是为了告警，而是为了可信；监控不是为了看数，而是为了决策。**
 
 ---
 
@@ -112,7 +112,7 @@
 ## 目录结构
 
 ```
-dragonfly-monitor/
+butterfly-monitor/
 ├── backend/     # 后端 API + Job（DDD 分层）
 │   ├── cmd/                     # 入口
 │   ├── configs/                 # 配置文件（config.yml）
@@ -150,8 +150,8 @@ cmd → starter → {interfaces, application, infrastructure, job, config}
 ### 1. 数据库
 
 ```bash
-mysql -uroot -p -e "CREATE DATABASE IF NOT EXISTS dragonfly_monitor DEFAULT CHARSET utf8mb4;"
-mysql -uroot -p dragonfly_monitor < backend/migrations/dragonfly_monitor.sql
+mysql -uroot -p -e "CREATE DATABASE IF NOT EXISTS butterfly_monitor DEFAULT CHARSET utf8mb4;"
+mysql -uroot -p butterfly_monitor < backend/migrations/butterfly_monitor.sql
 ```
 
 默认账号：`admin` / `123456`
@@ -768,8 +768,8 @@ WantedBy=multi-user.target
 
 1. 访问 `http://<xxl-job-host>:8080/xxl-job-admin`（默认账号 admin/123456）
 2. 执行器管理 → 新增执行器
-   - AppName：`dragonfly-monitor-executor`（与后端配置 `xxl.executor.appname` 一致）
-   - 名称：Dragonfly Monitor Executor
+   - AppName：`butterfly-monitor-executor`（与后端配置 `xxl.executor.appname` 一致）
+   - 名称：Butterfly Monitor Executor
    - 注册方式：自动注册
 3. 任务管理 → 新增任务（4 个任务）：
 
@@ -808,7 +808,7 @@ systemctl start taosd
 systemctl enable taosd
 
 # 创建数据库
-taos -s "create database dragonfly keep 365d"
+taos -s "create database butterfly keep 365d"
 ```
 
 **配置 taosAdapter**（REST 接口）：
@@ -829,7 +829,7 @@ timeseries:
 tdEngine:
   host: 127.0.0.1
   port: 6041    # REST 端口
-  database: dragonfly
+  database: butterfly
   username: root
   password: taosdata
 ```
@@ -841,7 +841,7 @@ tdEngine:
 ```bash
 cd backend
 go mod tidy
-go build -o dragonfly-monitor ./cmd
+go build -o butterfly-monitor ./cmd
 ```
 
 或使用 Makefile：
@@ -867,7 +867,7 @@ cp configs/config.yml configs/config-release.yml
 db:
   host: 127.0.0.1
   port: 3306
-  database: dragonfly_monitor
+  database: butterfly_monitor
   username: root
   password: your_password
 
@@ -883,7 +883,7 @@ victoriaMetrics:
 tdEngine:
   host: 127.0.0.1
   port: 6041
-  database: dragonfly
+  database: butterfly
 
 # Grafana
 grafana:
@@ -895,7 +895,7 @@ xxl:
   admin:
     addresses: http://127.0.0.1:8080/xxl-job-admin
   executor:
-    appname: dragonfly-monitor-executor
+    appname: butterfly-monitor-executor
     port: 9999
 ```
 
@@ -903,29 +903,29 @@ xxl:
 
 ```bash
 # 前台运行
-./dragonfly-monitor
+./butterfly-monitor
 
 # 后台运行（Linux）
-nohup ./dragonfly-monitor > logs/app.log 2>&1 &
+nohup ./butterfly-monitor > logs/app.log 2>&1 &
 
 # 指定配置文件
-./dragonfly-monitor --configFilePath=configs/config-prod.yml
+./butterfly-monitor --configFilePath=configs/config-prod.yml
 ```
 
 #### 4. Systemd 服务（推荐）
 
-创建 `/etc/systemd/system/dragonfly-monitor.service`：
+创建 `/etc/systemd/system/butterfly-monitor.service`：
 
 ```ini
 [Unit]
-Description=Dragonfly Monitor Backend
+Description=Butterfly Monitor Backend
 After=network.target mysql.service
 
 [Service]
 Type=simple
 User=deploy
-WorkingDirectory=/opt/dragonfly-monitor/backend
-ExecStart=/opt/dragonfly-monitor/backend/dragonfly-monitor
+WorkingDirectory=/opt/butterfly-monitor/backend
+ExecStart=/opt/butterfly-monitor/backend/butterfly-monitor
 Restart=always
 RestartSec=5
 
@@ -937,8 +937,8 @@ WantedBy=multi-user.target
 
 ```bash
 systemctl daemon-reload
-systemctl enable dragonfly-monitor
-systemctl start dragonfly-monitor
+systemctl enable butterfly-monitor
+systemctl start butterfly-monitor
 ```
 
 ### 前端部署
@@ -980,7 +980,7 @@ server {
 
     # 前端静态资源
     location / {
-        root /opt/dragonfly-monitor/frontend/dist;
+        root /opt/butterfly-monitor/frontend/dist;
         try_files $uri $uri/ /index.html;
     }
 
@@ -1007,15 +1007,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o dragonfly-monitor ./cmd
+RUN go build -o butterfly-monitor ./cmd
 
 FROM alpine:latest
 WORKDIR /app
 RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /app/dragonfly-monitor .
+COPY --from=builder /app/butterfly-monitor .
 COPY --from=builder /app/configs ./configs
 EXPOSE 8088
-CMD ["./dragonfly-monitor"]
+CMD ["./butterfly-monitor"]
 ```
 
 **前端 Dockerfile**（`frontend/Dockerfile`）：
@@ -1047,10 +1047,10 @@ services:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: dragonfly_monitor
+      MYSQL_DATABASE: butterfly_monitor
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/migrations/dragonfly_monitor.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/migrations/butterfly_monitor.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "3306:3306"
 
@@ -1123,7 +1123,7 @@ docker-compose up -d
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: dragonfly-monitor-config
+  name: butterfly-monitor-config
 data:
   config.yml: |
     db:
@@ -1138,20 +1138,20 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dragonfly-monitor-backend
+  name: butterfly-monitor-backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: dragonfly-monitor-backend
+      app: butterfly-monitor-backend
   template:
     metadata:
       labels:
-        app: dragonfly-monitor-backend
+        app: butterfly-monitor-backend
     spec:
       containers:
       - name: backend
-        image: your-registry/dragonfly-monitor-backend:latest
+        image: your-registry/butterfly-monitor-backend:latest
         ports:
         - containerPort: 8088
         volumeMounts:
@@ -1160,7 +1160,7 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: dragonfly-monitor-config
+          name: butterfly-monitor-config
 ```
 
 #### 3. Service / Ingress
@@ -1169,10 +1169,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: dragonfly-monitor-backend
+  name: butterfly-monitor-backend
 spec:
   selector:
-    app: dragonfly-monitor-backend
+    app: butterfly-monitor-backend
   ports:
   - port: 8088
     targetPort: 8088
@@ -1180,7 +1180,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dragonfly-monitor
+  name: butterfly-monitor
 spec:
   rules:
   - host: monitor.example.com
@@ -1190,14 +1190,14 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: dragonfly-monitor-backend
+            name: butterfly-monitor-backend
             port:
               number: 8088
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: dragonfly-monitor-frontend
+            name: butterfly-monitor-frontend
             port:
               number: 80
 ```
@@ -1235,5 +1235,5 @@ spec:
 ### 监控与日志
 
 - **后端日志**：`backend/logs/` 目录（可配置 logrotate）
-- **业务指标**：VictoriaMetrics 中 `dragonfly_*` 前缀指标
+- **业务指标**：VictoriaMetrics 中 `butterfly_*` 前缀指标
 - **系统监控**：建议接入 Prometheus + Grafana 监控后端进程

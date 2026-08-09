@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // ChannelWechatHandler 企业微信 webhook
@@ -23,7 +23,7 @@ func (h *ChannelWechatHandler) GetClassName() string { return "ChannelWechatHand
 
 func (h *ChannelWechatHandler) TestDispatchMessage(channel entity.AlertChannel, _ string, message string) error {
 	if strings.TrimSpace(message) == "" {
-		message = "dragonfly-monitor 通道测试消息"
+		message = "butterfly-monitor 通道测试消息"
 	}
 	return h.DispatchMessage(channel, nil, message)
 }

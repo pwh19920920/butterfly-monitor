@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/config/tdengine"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/config/tdengine"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 )
 
 // 超级表：统一存 value，metric/day 作 TAG，便于按指标查询与 Grafana SQL 面板

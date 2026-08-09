@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"dragonfly-monitor/internal/domain/entity"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/domain/entity"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 
 	"gorm.io/gorm"
 )

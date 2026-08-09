@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/domain/entity"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 )
 
 // DatabaseTimeseriesHandler 系统下钻任务的数据源：从时序库(VM)按标签过滤取数。

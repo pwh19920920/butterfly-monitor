@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"dragonfly-monitor/internal/common"
+	"butterfly-monitor/internal/common"
 	"encoding/json"
 )
 

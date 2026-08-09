@@ -3,10 +3,10 @@ package interfaces
 import (
 	"strconv"
 
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/job"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/job"
+	"butterfly-monitor/internal/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/pkg/logger"

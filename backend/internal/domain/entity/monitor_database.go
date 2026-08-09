@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"dragonfly-monitor/internal/common"
+	"butterfly-monitor/internal/common"
 )
 
 type DataSourceType int32

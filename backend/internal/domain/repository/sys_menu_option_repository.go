@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 type SysMenuOptionRepository interface {

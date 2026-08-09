@@ -1,8 +1,8 @@
 package persistence
 
 import (
-	"dragonfly-monitor/internal/config"
-	"dragonfly-monitor/internal/domain/repository"
+	"butterfly-monitor/internal/config"
+	"butterfly-monitor/internal/domain/repository"
 )
 
 type Repository struct {

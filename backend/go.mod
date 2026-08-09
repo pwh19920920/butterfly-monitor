@@ -1,4 +1,4 @@
-module dragonfly-monitor
+module butterfly-monitor
 
 go 1.26.3
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/common/constant"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/common/constant"
 
 	"github.com/gin-gonic/gin"
 )

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/common/constant"
-	"dragonfly-monitor/internal/domain/entity"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/common/constant"
+	"butterfly-monitor/internal/domain/entity"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/clickhouse"

@@ -1,8 +1,8 @@
 package interfaces
 
 import (
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/pkg/response"

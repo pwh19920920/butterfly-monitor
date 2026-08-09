@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
-	"dragonfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
+	domainHandler "butterfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/infrastructure/persistence"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 	"github.com/pwh19920920/snowflake"

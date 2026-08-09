@@ -1,21 +1,21 @@
 package starter
 
 import (
+	"butterfly-monitor/internal/common"
 	"context"
-	"dragonfly-monitor/internal/common"
 	"time"
 
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/config"
-	"dragonfly-monitor/internal/config/xxljob"
-	"dragonfly-monitor/internal/domain/entity"
-	infraHandler "dragonfly-monitor/internal/infrastructure/handler"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/infrastructure/security"
-	"dragonfly-monitor/internal/infrastructure/system"
-	"dragonfly-monitor/internal/interfaces"
-	"dragonfly-monitor/internal/interfaces/middleware"
-	"dragonfly-monitor/internal/job"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/config"
+	"butterfly-monitor/internal/config/xxljob"
+	"butterfly-monitor/internal/domain/entity"
+	infraHandler "butterfly-monitor/internal/infrastructure/handler"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/infrastructure/security"
+	"butterfly-monitor/internal/infrastructure/system"
+	"butterfly-monitor/internal/interfaces"
+	"butterfly-monitor/internal/interfaces/middleware"
+	"butterfly-monitor/internal/job"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pwh19920920/butterfly/pkg/logger"

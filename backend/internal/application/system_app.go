@@ -1,7 +1,7 @@
 package application
 
 import (
-	"dragonfly-monitor/internal/infrastructure/system"
+	"butterfly-monitor/internal/infrastructure/system"
 )
 
 // SystemApplication 系统指标应用服务：包装 Collector，对外提供快照查询

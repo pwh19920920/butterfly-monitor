@@ -1,7 +1,7 @@
 package types
 
 import (
-	"dragonfly-monitor/internal/common"
+	"butterfly-monitor/internal/common"
 
 	"github.com/pwh19920920/butterfly/pkg/response"
 )

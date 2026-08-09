@@ -1,6 +1,6 @@
 package handler
 
-import "dragonfly-monitor/internal/domain/entity"
+import "butterfly-monitor/internal/domain/entity"
 
 // ChannelHandler 告警通道发送抽象
 type ChannelHandler interface {

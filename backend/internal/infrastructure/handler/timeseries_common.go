@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 )
 
 // MetricNamer 指标命名：实时/样本原料/平滑基线。

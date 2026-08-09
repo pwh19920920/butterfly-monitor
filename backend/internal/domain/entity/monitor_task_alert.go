@@ -1,6 +1,6 @@
 package entity
 
-import "dragonfly-monitor/internal/common"
+import "butterfly-monitor/internal/common"
 
 type MonitorTaskAlertStatus int32
 type MonitorTaskAlertDealStatus int32

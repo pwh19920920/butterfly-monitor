@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"dragonfly-monitor/internal/config/grafana"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/config/grafana"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 )

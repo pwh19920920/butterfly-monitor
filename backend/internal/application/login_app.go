@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/config/auth"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/domain/security"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/config/auth"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/security"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/types"
 
 	"github.com/google/uuid"
 	"github.com/pwh19920920/butterfly/pkg/helper"

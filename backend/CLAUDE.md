@@ -1,4 +1,4 @@
-# Dragonfly Monitor
+# Butterfly Monitor
 
 Go 监控告警后台，基于 butterfly-admin DDD 架构二开。
 
@@ -37,7 +37,7 @@ go run ./cmd
 ```
 
 配置：`configs/config.yml`  
-迁移：`migrations/dragonfly_monitor.sql`
+迁移：`migrations/butterfly_monitor.sql`
 
 ## 约定
 

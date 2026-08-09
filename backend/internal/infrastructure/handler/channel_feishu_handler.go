@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // ChannelFeishuHandler 飞书机器人 webhook
@@ -29,7 +29,7 @@ func (h *ChannelFeishuHandler) GetClassName() string { return "ChannelFeishuHand
 
 func (h *ChannelFeishuHandler) TestDispatchMessage(channel entity.AlertChannel, _ string, message string) error {
 	if strings.TrimSpace(message) == "" {
-		message = "dragonfly-monitor 通道测试消息"
+		message = "butterfly-monitor 通道测试消息"
 	}
 	return h.DispatchMessage(channel, nil, message)
 }

@@ -1,6 +1,6 @@
 package entity
 
-import "dragonfly-monitor/internal/common"
+import "butterfly-monitor/internal/common"
 
 // MonitorGroup 树形依赖分组
 type MonitorGroup struct {

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/types"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 	"github.com/pwh19920920/snowflake"

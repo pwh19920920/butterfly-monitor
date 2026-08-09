@@ -1,6 +1,6 @@
 package entity
 
-import "dragonfly-monitor/internal/common"
+import "butterfly-monitor/internal/common"
 
 // MonitorDashboardTask 面板-任务关联
 type MonitorDashboardTask struct {

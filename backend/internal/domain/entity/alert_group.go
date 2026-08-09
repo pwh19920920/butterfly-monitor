@@ -1,6 +1,6 @@
 package entity
 
-import "dragonfly-monitor/internal/common"
+import "butterfly-monitor/internal/common"
 
 // AlertGroup 告警接收人分组
 type AlertGroup struct {

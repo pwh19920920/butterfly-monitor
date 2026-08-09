@@ -3,7 +3,7 @@ package repository
 import (
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 type MonitorTaskAlertRepository interface {

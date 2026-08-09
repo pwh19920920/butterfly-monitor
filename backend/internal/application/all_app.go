@@ -1,14 +1,14 @@
 package application
 
 import (
+	"butterfly-monitor/internal/config"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/security"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/infrastructure/support"
+	"butterfly-monitor/internal/infrastructure/system"
+	"butterfly-monitor/internal/types"
 	"context"
-	"dragonfly-monitor/internal/config"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/domain/security"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/infrastructure/support"
-	"dragonfly-monitor/internal/infrastructure/system"
-	"dragonfly-monitor/internal/types"
 
 	"golang.org/x/sync/errgroup"
 )

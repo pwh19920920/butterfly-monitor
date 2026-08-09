@@ -1,9 +1,9 @@
 package job
 
 import (
-	"dragonfly-monitor/internal/application"
-	"dragonfly-monitor/internal/config"
-	"dragonfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/application"
+	"butterfly-monitor/internal/config"
+	"butterfly-monitor/internal/infrastructure/persistence"
 )
 
 // Job 定时任务聚合

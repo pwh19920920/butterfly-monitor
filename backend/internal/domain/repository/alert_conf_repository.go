@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/types"
 )
 
 type AlertConfRepository interface {

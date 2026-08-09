@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/config/victoriametrics"
-	domainHandler "dragonfly-monitor/internal/domain/handler"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/config/victoriametrics"
+	domainHandler "butterfly-monitor/internal/domain/handler"
 )
 
 // TimeSeriesVmHandler VictoriaMetrics 实现：TimeSeriesStore + MetricQueryDialect

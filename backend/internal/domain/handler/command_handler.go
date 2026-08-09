@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // RowResult 多行查询的单行结果：列名 → 值。

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // MonitorHomeCountResponse 首页统计

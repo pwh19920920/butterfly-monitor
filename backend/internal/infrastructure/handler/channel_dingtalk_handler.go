@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // ChannelDingtalkHandler 钉钉机器人 webhook
@@ -30,7 +30,7 @@ func (h *ChannelDingtalkHandler) GetClassName() string { return "ChannelDingtalk
 
 func (h *ChannelDingtalkHandler) TestDispatchMessage(channel entity.AlertChannel, _ string, message string) error {
 	if strings.TrimSpace(message) == "" {
-		message = "dragonfly-monitor 通道测试消息"
+		message = "butterfly-monitor 通道测试消息"
 	}
 	return h.DispatchMessage(channel, nil, message)
 }

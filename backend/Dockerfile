@@ -12,7 +12,7 @@ COPY vendor/ ./vendor/
 COPY . .
 
 # 静态构建，使用 vendor
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /out/dragonfly-monitor ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /out/butterfly-monitor ./cmd
 
 # ===== Stage 2: runtime =====
 FROM alpine:latest
@@ -23,7 +23,7 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates tzdata
 
 # 拷贝二进制
-COPY --from=builder /out/dragonfly-monitor ./
+COPY --from=builder /out/butterfly-monitor ./
 
 # 关键：configs 与二进制同目录层级，框架默认读取 configs/config.yml（相对 CWD=/app）
 COPY configs/ ./configs/
@@ -33,4 +33,4 @@ RUN mkdir -p /app/logs
 
 EXPOSE 8088
 
-ENTRYPOINT ["./dragonfly-monitor"]
+ENTRYPOINT ["./butterfly-monitor"]

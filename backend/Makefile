@@ -1,4 +1,4 @@
-APP := dragonfly-monitor
+APP := butterfly-monitor
 CMD_DIR := ./cmd
 BIN_DIR := bin
 

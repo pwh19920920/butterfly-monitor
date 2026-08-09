@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 )
 
 // ChannelEmailHandler 邮件通道（HTML 正文）
@@ -35,7 +35,7 @@ func (h *ChannelEmailHandler) TestDispatchMessage(channel entity.AlertChannel, t
 		return err
 	}
 	if strings.TrimSpace(message) == "" {
-		message = "<p>dragonfly-monitor 通道测试消息</p>"
+		message = "<p>butterfly-monitor 通道测试消息</p>"
 	}
 	return h.DispatchMessage(channel, []entity.SysUser{{Email: testTarget}}, message)
 }

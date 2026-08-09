@@ -1,6 +1,6 @@
 package repository
 
-import "dragonfly-monitor/internal/domain/entity"
+import "butterfly-monitor/internal/domain/entity"
 
 type MonitorVolatilityDayRepository interface {
 	SelectAll() ([]entity.MonitorVolatilityDay, error)

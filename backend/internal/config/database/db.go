@@ -1,7 +1,7 @@
 package database
 
 import (
-	"dragonfly-monitor/internal/common"
+	"butterfly-monitor/internal/common"
 	"time"
 
 	"github.com/pwh19920920/butterfly/pkg/config"

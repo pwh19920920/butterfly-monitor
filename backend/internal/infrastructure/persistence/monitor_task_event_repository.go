@@ -4,9 +4,9 @@ import (
 	"errors"
 	"time"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/types"
 
 	"gorm.io/gorm"
 )

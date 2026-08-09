@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"dragonfly-monitor/internal/common"
+	"butterfly-monitor/internal/common"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 	"github.com/shirou/gopsutil/v3/cpu"

@@ -1,11 +1,11 @@
 server:
-  serverName: 'dragonfly-monitor'
+  serverName: 'butterfly-monitor'
   engineMode: 'debug'
   serverAddr: :8088
   methodOverride: true
 
 db:
-  dsn: 'root:root@tcp(127.0.0.1:3306)/dragonfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
+  dsn: 'root:root@tcp(127.0.0.1:3306)/butterfly_monitor?charset=utf8mb4&parseTime=True&loc=Local'
   maxIdleConnect: 10
   maxOpenConnect: 100
   connMaxLifeTimeSecond: 3600

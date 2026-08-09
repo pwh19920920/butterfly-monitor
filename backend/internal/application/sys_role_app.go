@@ -1,12 +1,12 @@
 package application
 
 import (
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/config/sequence"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/types"
 	"context"
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/config/sequence"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/types"
 	"strings"
 
 	"github.com/pwh19920920/butterfly/pkg/logger"

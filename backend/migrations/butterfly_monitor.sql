@@ -5,7 +5,7 @@
  Source Server Type    : mysql
  Source Server Version : 5.7.44
  Source Host           : localhost:3306
- Source DBName         : dragonfly_monitor
+ Source DBName         : butterfly_monitor
 
  File Encoding         : UTF-8
 
@@ -17,8 +17,8 @@ SET UNIQUE_CHECKS = 0;
 SET FOREIGN_KEY_CHECKS = 0;
 
 
-CREATE DATABASE `dragonfly_monitor` CHARACTER SET utf8mb4;
-USE `dragonfly_monitor`;
+CREATE DATABASE `butterfly_monitor` CHARACTER SET utf8mb4;
+USE `butterfly_monitor`;
 
 -- ----------------------------
 -- Table structure for t_alert_channel
@@ -164,7 +164,7 @@ CREATE TABLE `t_monitor_database` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='监控数据源';
 
-INSERT INTO `t_monitor_database` VALUES (2081217690952798209,'2026-07-26 11:18:59','2026-08-04 15:15:29',0,'dragonfly_monitor','dragonfly_monitor','root','o6i8N8an1S8=','a55648d8','127.0.0.1:3306',2,'',1,'2026-08-04 15:15:29',' ',0);
+INSERT INTO `t_monitor_database` VALUES (2081217690952798209,'2026-07-26 11:18:59','2026-08-04 15:15:29',0,'butterfly_monitor','butterfly_monitor','root','o6i8N8an1S8=','a55648d8','127.0.0.1:3306',2,'',1,'2026-08-04 15:15:29',' ',0);
 
 -- ----------------------------
 -- Table structure for t_monitor_group

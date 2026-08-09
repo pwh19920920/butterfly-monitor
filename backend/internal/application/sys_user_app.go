@@ -1,12 +1,12 @@
 package application
 
 import (
+	"butterfly-monitor/internal/config/auth"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/security"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/types"
 	"context"
-	"dragonfly-monitor/internal/config/auth"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/domain/security"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/types"
 	"strings"
 
 	"github.com/go-basic/uuid"

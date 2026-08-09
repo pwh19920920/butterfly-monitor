@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
 
 	"gorm.io/gorm"
 )

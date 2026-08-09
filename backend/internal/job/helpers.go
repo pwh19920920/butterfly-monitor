@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"dragonfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/domain/entity"
 
 	"github.com/sirupsen/logrus"
 )

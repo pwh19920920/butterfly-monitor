@@ -7,10 +7,10 @@ import (
 
 	"github.com/pwh19920920/butterfly/pkg/logger"
 
-	"dragonfly-monitor/internal/common"
-	"dragonfly-monitor/internal/domain/entity"
-	"dragonfly-monitor/internal/infrastructure/persistence"
-	"dragonfly-monitor/internal/types"
+	"butterfly-monitor/internal/common"
+	"butterfly-monitor/internal/domain/entity"
+	"butterfly-monitor/internal/infrastructure/persistence"
+	"butterfly-monitor/internal/types"
 	"github.com/pwh19920920/snowflake"
 )
 
@@ -119,7 +119,7 @@ func (app *AlertChannelApplication) buildTestMessage(ctx context.Context, channe
 	tpl := conf.ResolveTemplate(channel.Template, channel.Handler)
 	if tpl == "" {
 		// 无模板时直接发固定文案
-		return "dragonfly-monitor 通道测试消息", nil
+		return "butterfly-monitor 通道测试消息", nil
 	}
 	// 假参数：模拟一次真实告警，便于预览模板效果
 	msg, err := common.RenderAlertTemplate(

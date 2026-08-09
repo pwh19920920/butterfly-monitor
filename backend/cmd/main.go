@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dragonfly-monitor/internal/starter"
+	"butterfly-monitor/internal/starter"
 
 	"github.com/pwh19920920/butterfly/pkg/server"
 )
