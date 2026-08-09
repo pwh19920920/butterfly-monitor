@@ -251,17 +251,18 @@ func (repo *MonitorTaskEventRepositoryImpl) IgnoreEvent(eventId int64, req *type
 	})
 }
 
-// Count 统计总数
+// Count 统计总数（近一个月）
 func (repo *MonitorTaskEventRepositoryImpl) Count() (*int64, error) {
 	var count int64
 	err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Where("created_at >= ?", time.Now().AddDate(0, 0, -30)).
 		Count(&count).Error
 	return &count, err
 }
 
-// CountByStatus 按处理状态统计事件数
+// CountByStatus 按处理状态统计事件数（近一个月）
 func (repo *MonitorTaskEventRepositoryImpl) CountByStatus() (map[entity.MonitorTaskEventDealStatus]int64, error) {
 	type statusCount struct {
 		DealStatus entity.MonitorTaskEventDealStatus
@@ -271,6 +272,7 @@ func (repo *MonitorTaskEventRepositoryImpl) CountByStatus() (map[entity.MonitorT
 	if err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
+		Where("created_at >= ?", time.Now().AddDate(0, 0, -30)).
 		Select("deal_status, COUNT(*) as count").
 		Group("deal_status").
 		Scan(&results).Error; err != nil {
