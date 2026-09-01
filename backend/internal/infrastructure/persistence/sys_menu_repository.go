@@ -67,13 +67,8 @@ func (s *SysMenuRepositoryImpl) UpdateEntityAndChildRouteById(id int64, oldRoute
 		}
 
 		// insert into on duplicate key update
-		if options != nil && len(*options) > 0 {
-			// insert into on duplicate key update
-			if err = tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
-				DoUpdates: clause.AssignmentColumns([]string{"deleted"}),
-			}).Create(options).Error; err != nil {
-				return err
-			}
+		if err = s.upsertMenuOptions(tx, options); err != nil {
+			return err
 		}
 
 		// UPDATE `config` SET `value`=REPLACE(`value`,'8080','8989') WHERE `value` LIKE '%8080%'
@@ -130,6 +125,16 @@ func (s *SysMenuRepositoryImpl) Delete(id int64) error {
 			Updates(&entity.SysMenuOption{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).Error
 	})
 
+}
+
+// upsertMenuOptions 选项 insert-on-duplicate-update，UpdateEntityAndChildRouteById 和 UpdateById 共用。
+func (s *SysMenuRepositoryImpl) upsertMenuOptions(tx *gorm.DB, options *[]entity.SysMenuOption) error {
+	if options == nil || len(*options) == 0 {
+		return nil
+	}
+	return tx.Model(&entity.SysMenuOption{}).Clauses(clause.OnConflict{
+		DoUpdates: clause.AssignmentColumns([]string{"deleted"}),
+	}).Create(options).Error
 }
 
 // Select 查询分页

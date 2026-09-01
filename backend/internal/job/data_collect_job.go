@@ -233,12 +233,8 @@ func (job *MonitorDataCollectJob) executeCollect(ctx context.Context, task entit
 	// 点时间戳用 now：即使 PreExecuteTime 已落后很久，也只落当前点，不补历史空窗
 	now := time.Now()
 	points := job.buildCollectPoints(task.TaskKey, val, now, sampleRawDays)
-	if job.timeSeries != nil {
-		if err := job.timeSeries.BatchWrite(ctx, points, int(batchWriteChunkSize)); err != nil {
-			// 写失败不推进 PreExecuteTime，下一轮可重试同一（当前）窗口，避免丢点却显示采集成功
-			job.recordCollectError(ctx, task, fmt.Errorf("timeseries write fail: %w", err))
-			return
-		}
+	if !job.tryBatchWrite(ctx, task, points, batchWriteChunkSize, "timeseries write fail") {
+		return
 	}
 	// 成功：PreExecuteTime 直接跳到 now，历史缺口不再追
 	job.updateCollectTime(ctx, task.Id, task.TaskKey, now)
@@ -284,12 +280,8 @@ func (job *MonitorDataCollectJob) collectAggregate(ctx context.Context, task ent
 	}
 
 	points := job.buildAggregatePoints(ctx, task, params, rows, now)
-	if len(points) > 0 && job.timeSeries != nil {
-		if err := job.timeSeries.BatchWrite(ctx, points, int(batchWriteChunkSize)); err != nil {
-			// 写失败不推进 PreExecuteTime，下一轮可重试同一窗口
-			job.recordCollectError(ctx, task, fmt.Errorf("aggregate timeseries write fail: %w", err))
-			return
-		}
+	if !job.tryBatchWrite(ctx, task, points, batchWriteChunkSize, "aggregate timeseries write fail") {
+		return
 	}
 	job.updateCollectTime(ctx, task.Id, task.TaskKey, now)
 }
@@ -357,6 +349,19 @@ func (job *MonitorDataCollectJob) recordCollectError(ctx context.Context, task e
 	if uErr := job.repository.MonitorTaskRepository.UpdateById(task.Id, &entity.MonitorTask{CollectErrMsg: err.Error()}); uErr != nil {
 		logger.ErrorFormat(ctx, "record collect error fail task=%s: collectErr=%v updateErr=%v", task.TaskKey, err, uErr)
 	}
+}
+
+// tryBatchWrite 时序写入与错误记录，executeCollect 和 collectAggregate 共用。
+// 写入成功返回 true，失败返回 false（调用方跳过 updateCollectTime 以保留重试机会）。
+func (job *MonitorDataCollectJob) tryBatchWrite(ctx context.Context, task entity.MonitorTask, points []domainHandler.TimeSeriesPoint, chunkSize int64, errMsg string) bool {
+	if len(points) == 0 || job.timeSeries == nil {
+		return true
+	}
+	if err := job.timeSeries.BatchWrite(ctx, points, int(chunkSize)); err != nil {
+		job.recordCollectError(ctx, task, fmt.Errorf("%s: %w", errMsg, err))
+		return false
+	}
+	return true
 }
 
 // updateCollectTime 回写 PreExecuteTime 并清空 CollectErrMsg。

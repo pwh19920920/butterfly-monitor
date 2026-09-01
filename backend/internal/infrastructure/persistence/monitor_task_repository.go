@@ -188,16 +188,19 @@ func (repo *MonitorTaskRepositoryImpl) UpdateAlertStatusById(id int64, status en
 
 // UpdateTaskStatusById 更新任务开关
 func (repo *MonitorTaskRepositoryImpl) UpdateTaskStatusById(id int64, status entity.MonitorTaskStatus) error {
-	return repo.db.Model(&entity.MonitorTask{}).
-		Where("id = ?", id).
-		UpdateColumn("task_status", status).Error
+	return repo.updateColumnById(id, "task_status", status)
 }
 
 // UpdateSampledById 更新采样展示开关
 func (repo *MonitorTaskRepositoryImpl) UpdateSampledById(id int64, status entity.MonitorSampledStatus) error {
+	return repo.updateColumnById(id, "sampled", status)
+}
+
+// updateColumnById 按 id 更新单列
+func (repo *MonitorTaskRepositoryImpl) updateColumnById(id int64, column string, value interface{}) error {
 	return repo.db.Model(&entity.MonitorTask{}).
 		Where("id = ?", id).
-		UpdateColumn("sampled", status).Error
+		UpdateColumn(column, value).Error
 }
 
 // Delete 软删除

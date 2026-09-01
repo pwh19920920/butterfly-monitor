@@ -120,16 +120,7 @@ func (application *SysMenuApplication) Create(ctx context.Context, request *type
 	}
 
 	// 对requestOption重新赋值, 程序是先删除, 后insert into on duplicate update
-	if request.Options != nil {
-		for index, option := range request.Options {
-			option.MenuId = menu.Id
-			codeKey := fmt.Sprintf("%v-%v-%v-%v", option.MenuId, option.Value, option.Method, option.Path)
-			option.Id = sequence.GetSequence().Generate().Int64()
-			option.Code = fmt.Sprintf("%x", md5.Sum([]byte(codeKey)))
-			option.Deleted = common.DeletedFalse
-			request.Options[index] = option
-		}
-	}
+	application.fillMenuOptionCodes(request.Options, menu.Id)
 
 	menu.Route = route
 
@@ -140,6 +131,20 @@ func (application *SysMenuApplication) Create(ctx context.Context, request *type
 		logger.Error(ctx, "SysMenuRepository.Save() happen error", err)
 	}
 	return err
+}
+
+// fillMenuOptionCodes 为菜单选项生成 code 标识，Save 和 Modify 共用。
+func (application *SysMenuApplication) fillMenuOptionCodes(options []entity.SysMenuOption, menuId int64) {
+	if options == nil {
+		return
+	}
+	for i := range options {
+		options[i].MenuId = menuId
+		codeKey := fmt.Sprintf("%v-%v-%v-%v", options[i].MenuId, options[i].Value, options[i].Method, options[i].Path)
+		options[i].Id = sequence.GetSequence().Generate().Int64()
+		options[i].Code = fmt.Sprintf("%x", md5.Sum([]byte(codeKey)))
+		options[i].Deleted = common.DeletedFalse
+	}
 }
 
 func (application *SysMenuApplication) getRoutePath(currentId, parentId int64) (string, error) {
@@ -165,16 +170,7 @@ func (application *SysMenuApplication) Modify(ctx context.Context, request *type
 	}
 
 	// 对requestOption重新赋值, 程序是先删除, 后insert into on duplicate update
-	if request.Options != nil {
-		for index, option := range request.Options {
-			option.MenuId = request.Id
-			codeKey := fmt.Sprintf("%v-%v-%v-%v", option.MenuId, option.Value, option.Method, option.Path)
-			option.Id = sequence.GetSequence().Generate().Int64()
-			option.Code = fmt.Sprintf("%x", md5.Sum([]byte(codeKey)))
-			option.Deleted = common.DeletedFalse
-			request.Options[index] = option
-		}
-	}
+	application.fillMenuOptionCodes(request.Options, request.Id)
 
 	newRoute, err := application.getRoutePath(request.Id, *request.Parent)
 	if err != nil {

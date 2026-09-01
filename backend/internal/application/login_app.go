@@ -232,16 +232,7 @@ func (application *LoginApplication) GetUserMenuPermission(ctx context.Context, 
 		}
 
 		if permission.Option != "" {
-			for _, opStrId := range strings.Split(permission.Option, ",") {
-				opId, err := strconv.ParseInt(opStrId, 10, 64)
-				if err == nil {
-					_, ok := opIdMap[opId]
-					if !ok {
-						opIdMap[opId] = ""
-						opIds = append(opIds, opId)
-					}
-				}
-			}
+			application.parsePermissionOptions(permission.Option, opIdMap, &opIds)
 		}
 	}
 
@@ -331,16 +322,7 @@ func (application *LoginApplication) GetUserSysMenuOption(ctx context.Context, u
 	opIds := make([]int64, 0)
 	for _, permission := range sysPermissions {
 		if permission.Option != "" {
-			for _, opStrId := range strings.Split(permission.Option, ",") {
-				opId, err := strconv.ParseInt(opStrId, 10, 64)
-				if err == nil {
-					_, ok := opIdMap[opId]
-					if !ok {
-						opIdMap[opId] = ""
-						opIds = append(opIds, opId)
-					}
-				}
-			}
+			application.parsePermissionOptions(permission.Option, opIdMap, &opIds)
 		}
 	}
 	// 获取操作组成树
@@ -371,6 +353,20 @@ func (application *LoginApplication) GetUserSysPermission(ctx context.Context, u
 
 	// 角色id列表到permission表中查询
 	return application.repository.SysPermissionRepository.SelectByRoleIds(roleIds)
+}
+
+// parsePermissionOptions 解析权限 CSV 选项字符串，去重追加到 opIds，GetUserMenuPermission 和 GetUserSysMenuOption 共用。
+func (application *LoginApplication) parsePermissionOptions(option string, opIdMap map[int64]string, opIds *[]int64) {
+	for _, opStrId := range strings.Split(option, ",") {
+		opId, err := strconv.ParseInt(opStrId, 10, 64)
+		if err != nil {
+			continue
+		}
+		if _, ok := opIdMap[opId]; !ok {
+			opIdMap[opId] = ""
+			*opIds = append(*opIds, opId)
+		}
+	}
 }
 
 func (application *LoginApplication) recursionAssignmentForUserMenu(

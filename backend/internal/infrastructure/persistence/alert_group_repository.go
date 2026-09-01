@@ -55,10 +55,8 @@ func (repo *AlertGroupRepositoryImpl) GetById(id int64) (*entity.AlertGroup, err
 // Save 事务保存分组与用户关联
 func (repo *AlertGroupRepositoryImpl) Save(group *entity.AlertGroup, users []entity.AlertGroupUser) error {
 	return repo.db.Transaction(func(tx *gorm.DB) error {
-		if users != nil && len(users) > 0 {
-			if err := tx.Model(&entity.AlertGroupUser{}).Create(users).Error; err != nil {
-				return err
-			}
+		if err := repo.createAlertGroupUsers(tx, users); err != nil {
+			return err
 		}
 		return tx.Model(&entity.AlertGroup{}).Create(&group).Error
 	})
@@ -75,16 +73,22 @@ func (repo *AlertGroupRepositoryImpl) Modify(id int64, group *entity.AlertGroup,
 		}
 
 		// 创建新关联
-		if users != nil && len(users) > 0 {
-			if err := tx.Model(&entity.AlertGroupUser{}).Create(users).Error; err != nil {
-				return err
-			}
+		if err := repo.createAlertGroupUsers(tx, users); err != nil {
+			return err
 		}
 
 		return tx.Model(&entity.AlertGroup{}).
 			Where(&entity.AlertGroup{BaseEntity: common.BaseEntity{Id: id}}).
 			Updates(&group).Error
 	})
+}
+
+// createAlertGroupUsers 批量创建分组用户关联，Save 和 Modify 共用。
+func (repo *AlertGroupRepositoryImpl) createAlertGroupUsers(tx *gorm.DB, users []entity.AlertGroupUser) error {
+	if len(users) == 0 {
+		return nil
+	}
+	return tx.Model(&entity.AlertGroupUser{}).Create(users).Error
 }
 
 // Count 统计分组总数

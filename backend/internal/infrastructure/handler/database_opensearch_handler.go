@@ -499,15 +499,7 @@ func parseSQLResponse(raw []byte) ([]map[string]interface{}, error) {
 		}
 		out := make([]map[string]interface{}, 0, len(osResp.DataRows))
 		for _, row := range osResp.DataRows {
-			m := make(map[string]interface{}, len(cols))
-			for i, v := range row {
-				name := fmt.Sprintf("col%d", i)
-				if i < len(cols) {
-					name = cols[i]
-				}
-				m[name] = v
-			}
-			out = append(out, m)
+			out = append(out, mapRowToColumns(row, cols))
 		}
 		return out, nil
 	}
@@ -542,6 +534,19 @@ func parseSQLResponse(raw []byte) ([]map[string]interface{}, error) {
 		out = append(out, m)
 	}
 	return out, nil
+}
+
+// mapRowToColumns 将行数据按列名映射为 map，OpenSearch 和 ES SQL 响应共用。
+func mapRowToColumns(row []interface{}, cols []string) map[string]interface{} {
+	m := make(map[string]interface{}, len(cols))
+	for i, v := range row {
+		name := fmt.Sprintf("col%d", i)
+		if i < len(cols) {
+			name = cols[i]
+		}
+		m[name] = v
+	}
+	return m
 }
 
 func anyToFloat64(v interface{}) (float64, bool) {
