@@ -17,7 +17,7 @@
 | 维度 | 说明 |
 |------|------|
 | 🔮 **异构纳管** | 一套平台统一接入 MySQL / PostgreSQL / ClickHouse / MongoDB / Prometheus / VictoriaMetrics / TDengine / OpenSearch / Elasticsearch 等十余种数据源，打破数据孤岛，全域可观测 |
-| ⚡ **时序引擎** | VictoriaMetrics / TDengine 可插拔双后端，自研批量写入与分片策略，毫秒级写入、秒级查询，无缝对接 Grafana |
+| ⚡ **时序引擎** | VictoriaMetrics / TDengine / Prometheus remote_write 可插拔后端，自研批量写入与分片策略，毫秒级写入、秒级查询，无缝对接 Grafana 与云端 |
 | 🧠 **自学习基线** | MAD 稳健聚合 + 中位数平滑，无需人工调参，运行数天自动建立"这个时刻该是多少"的参照系 |
 | 🔔 **精准告警** | 规则组灵活编排，相对偏离检测替代死阈值；告警生命周期完整闭环（Pending → Firing → Processing → Complete），多通道触达（企业微信 / 钉钉 / 飞书 / 邮件） |
 | 📊 **即建即视** | 创建任务即自动同步 Grafana Dashboard / Panel，实时曲线与基线对比线自动叠加，运维零额外成本 |
@@ -102,7 +102,7 @@
 |----|------|
 | 后端 | Go 1.26 + Gin（[butterfly](https://github.com/pwh19920920/butterfly)）+ GORM + MySQL，DDD 分层 |
 | 前端 | React 19 + Umi Max 4 + Ant Design 6 / Pro Components 3 + Tailwind CSS 4 |
-| 时序 | 可插拔：VictoriaMetrics（默认）/ TDengine |
+| 时序 | 可插拔：VictoriaMetrics（默认）/ TDengine / Prometheus remote_write（推到云端 vmagent / Mimir / Thanos Receive / Grafana Cloud 等兼容端点） |
 | 可视化 | Grafana（自动创建/同步 dashboard 与 panel） |
 | 调度 | XXL-JOB |
 | 通知 | 邮件 / 企业微信 |
@@ -162,7 +162,7 @@ mysql -uroot -p butterfly_monitor < backend/migrations/butterfly_monitor.sql
 
 ```bash
 cd backend
-# 按需修改 configs/config.yml：db / timeseries / victoriaMetrics 或 tdEngine / grafana / xxl
+# 按需修改 configs/config.yml：db / timeseries / victoriaMetrics 或 tdEngine 或 promRemoteWrite / grafana / xxl
 go mod tidy
 go run ./cmd        # 或 make run
 ```
@@ -445,11 +445,47 @@ Grafana 面板上实时曲线 + 样本基线对比线自动叠加，一眼看出
 | 配置段 | 说明 |
 |--------|------|
 | `db` | MySQL 连接（GORM） |
-| `timeseries` | 时序后端选择：`victoriaMetrics`（默认）/ `tdengine`（配置值以代码常量为准，推荐小写 `tdengine`） |
+| `timeseries` | 时序后端选择：`victoriaMetrics`（默认）/ `tdengine`（小写）/ `promRemoteWrite`（推到远端，详见下文） |
 | `victoriaMetrics` | VM 连接（`backend=victoriaMetrics` 时使用） |
 | `tdEngine` | TDengine 连接（YAML 段名 `tdEngine`；`timeseries.backend=tdengine` 时使用） |
+| `promRemoteWrite` | 远端 remote_write 接收端（`backend=promRemoteWrite` 时使用），详见下文 |
 | `grafana` | Grafana API 地址 + Token，用于自动管理 dashboard/panel |
 | `xxl` | XXL-JOB admin 地址 + 执行器配置 |
+
+### 时序后端：Prometheus remote_write
+
+`timeseries.backend=promRemoteWrite` 时，平台把所有指标以 Prometheus 标准的 remote_write 协议（Snappy + Protobuf）推到远端：
+
+- 适合：希望复用云端已有的 Prometheus / Mimir / Thanos Receive / Grafana Cloud / VictoriaMetrics remote_write 接收端做集中存储
+- **注意**：Prometheus 自身不直接接收 remote_write，**必须**经 vmagent / Mimir / Thanos Receive / Cortex 等前置组件中转；裸 Prometheus 2.x 推不进去
+- 写出去的三类 series（`taskKey` 以 `order_count_per_min` 为例）：
+
+  | 来源 | 远端指标名 | 标签 |
+  |------|-----------|------|
+  | 实时值 | `order_count_per_min` | 业务 tags |
+  | 样本原料 | `order_count_per_min_sampling` | `day=1..8`、业务 tags |
+  | 平滑基线 | `order_count_per_min_sample` | 业务 tags |
+
+  命名规则由 `MetricNamer` 统一（`backend/internal/infrastructure/handler/timeseries_common.go`），与 VictoriaMetrics 后端完全一致——这样前端 Grafana 的 PromQL 表达式（`avg_over_time(...[$interval])`）无需改动即可在远端运行。
+- 配置项（`backend/configs/config.yml` 的 `promRemoteWrite` 段）：
+
+  | Key | 默认 | 说明 |
+  |-----|------|------|
+  | `url` | `http://127.0.0.1:8429/api/v1/write` | remote_write 端点（vmagent 默认 8429） |
+  | `queryBase` | 空（自动推导） | 查询端点 base；未配置时从 `url` 剥 `/api/v1/write` 推导。Grafana Cloud 等非标准路径（write=`/api/prom/push`）必须显式配置 |
+  | `bearerToken` | 空 | 非空时优先于 BasicAuth（如 Grafana Cloud） |
+  | `username` / `password` | 空 | BasicAuth，与 `bearerToken` 二选一 |
+  | `tenantId` | 空 | Mimir / Cortex 多租户 `X-Scope-OrgID` |
+  | `requestTimeout` | `30` | 单次 HTTP 超时（秒） |
+  | `maxRetries` | `2` | 失败重试次数（不含首次），指数退避 1s→2s→4s… 上限 30s；4xx（除 408/429）不重试 |
+  | `externalLabels` | 空 | 每条 series 头部附加的标签，例如 `{cluster=prod, region=cn-east}` |
+
+- **查询**：写读都走远端——remote_write 接收端通常同时暴露 Prometheus HTTP API（`/api/v1/query` / `/api/v1/query_range`），平台的 `QueryMean` / `QueryRangeValues` / `QueryRangeWithTags`（采样、告警检测、聚合下钻都依赖）直接打远端，与 VM 后端同语义，**无需部署本地 VM**。三种 backend 互不隐式依赖：TDengine 打 TDengine、VM 打 VM、remote_write 打远端。PromQL 拼接逻辑（`buildPromTagFilteredExpr`）与 VM 后端共享同一实现。
+- **注意**：
+  - 远端必须是「write + query 双能力」端点（vmagent / Mimir / VM receiver / Grafana Cloud 均满足；纯接收端如部分 Thanos Receive 部署形态会导致读路径失败）
+  - Grafana Cloud 的 remote_write 路径（`/api/prom/push`）非标准，需显式配置 `queryBase`
+  - **数据可靠性**：远端不可达时写入失败仅记日志、不缓冲不重放，断网期间的数据会丢失（与本地 VM 后端行为一致）；对数据完整性敏感的场景建议远端前置 vmagent（其自带磁盘缓冲）
+  - taskKey 命名已由前端正则校验（`^[a-zA-Z_][a-zA-Z0-9_]*$`），非法字符在保存时即被拒；存量数据若含非法字符，远端严格接收端会整批拒收，需先清洗
 
 告警配置（全局 KV，在管理端「告警配置」页维护；代码默认值见 `backend/internal/types/alert_conf_type.go`）：
 
@@ -503,7 +539,7 @@ Grafana 面板上实时曲线 + 样本基线对比线自动叠加，一眼看出
 | Go | ≥ 1.22 |
 | Node.js | ≥ 18 |
 | MySQL | ≥ 5.7 |
-| VictoriaMetrics / TDengine | 二选一，作为时序存储 |
+| VictoriaMetrics / TDengine / 远端 remote_write 接收端 | 三选一，作为时序存储；选 promRemoteWrite 时云端需有 vmagent / Mimir / Thanos Receive / Grafana Cloud 等兼容端点 |
 | Grafana | ≥ 9.0 |
 | XXL-JOB | ≥ 2.3 |
 

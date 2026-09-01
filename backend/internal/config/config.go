@@ -6,6 +6,7 @@ import (
 	"butterfly-monitor/internal/config/auth"
 	"butterfly-monitor/internal/config/database"
 	"butterfly-monitor/internal/config/grafana"
+	"butterfly-monitor/internal/config/promremotewrite"
 	"butterfly-monitor/internal/config/sequence"
 	"butterfly-monitor/internal/config/tdengine"
 	"butterfly-monitor/internal/config/timeseries"
@@ -56,12 +57,20 @@ func newTimeSeriesStack(tsCfg timeseries.Config) (domainHandler.TimeSeriesStore,
 	case timeseries.BackendTDengine:
 		td := infraHandler.NewTimeSeriesTDengineHandler(tdengine.Load())
 		return td, td
+	case timeseries.BackendPromRemoteWrite:
+		// remote_write 是出站写入协议，不带本地查询能力。
+		// Dialect 仍沿用 VictoriaMetrics 的 PromQL 方言——指标命名 (taskKey / _sampling / _sample)
+		// 与 VM 完全一致，远端任何兼容 PromQL 的存储都能用同一套 Grafana 表达式。
+		rw := infraHandler.NewTimeSeriesPromRemoteWriteHandler(promremotewrite.Load())
+		vmDialect := infraHandler.NewTimeSeriesVmHandler(victoriametrics.Load())
+		return rw, vmDialect
 	default:
 		panic(fmt.Sprintf(
-			"unknown timeseries.backend=%q, supported: %s, %s",
+			"unknown timeseries.backend=%q, supported: %s, %s, %s",
 			tsCfg.Backend,
 			timeseries.BackendVictoriaMetrics,
 			timeseries.BackendTDengine,
+			timeseries.BackendPromRemoteWrite,
 		))
 	}
 }

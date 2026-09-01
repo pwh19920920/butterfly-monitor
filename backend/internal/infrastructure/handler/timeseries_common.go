@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	domainHandler "butterfly-monitor/internal/domain/handler"
@@ -31,10 +33,7 @@ func batchWriteChunked(ctx context.Context, points []domainHandler.TimeSeriesPoi
 		chunkSize = 3000
 	}
 	for i := 0; i < len(points); i += chunkSize {
-		end := i + chunkSize
-		if end > len(points) {
-			end = len(points)
-		}
+		end := min(i+chunkSize, len(points))
 		if err := writeFn(ctx, points[i:end]); err != nil {
 			return err
 		}
@@ -47,4 +46,49 @@ func batchWriteChunked(ctx context.Context, points []domainHandler.TimeSeriesPoi
 		}
 	}
 	return nil
+}
+
+// buildPromTagFilteredExpr 构造带标签过滤器的 PromQL 表达式（VM / remote_write 共享）。
+//
+// 语义：
+//   - 空过滤器返回裸 metric 名；
+//   - 单值用精确匹配 k="v"；
+//   - 多值用正则 k=~"v1|v2"。
+//
+// 安全：metric 名与 tag key 经 escapePromMetric / sanitizePromLabelName 清洗，
+// tag value 走 escapePromLabelValue 防注入；多值分支额外对每个值转义正则元字符，
+// 防止 . * + 等被当作正则运算符。
+func buildPromTagFilteredExpr(metric string, tagFilters map[string][]string) string {
+	safeMetric := escapePromMetric(metric)
+	if len(tagFilters) == 0 {
+		return safeMetric
+	}
+	var b strings.Builder
+	b.WriteString(safeMetric)
+	b.WriteByte('{')
+	first := true
+	for k, vals := range tagFilters {
+		if len(vals) == 0 {
+			continue
+		}
+		safeKey := sanitizePromLabelName(k)
+		if safeKey == "" {
+			continue
+		}
+		if !first {
+			b.WriteByte(',')
+		}
+		first = false
+		if len(vals) == 1 {
+			b.WriteString(fmt.Sprintf("%s=\"%s\"", safeKey, escapePromLabelValue(fmt.Sprint(vals[0]))))
+		} else {
+			escaped := make([]string, 0, len(vals))
+			for _, v := range vals {
+				escaped = append(escaped, escapePromLabelValueForRegex(fmt.Sprint(v)))
+			}
+			b.WriteString(fmt.Sprintf("%s=~\"%s\"", safeKey, strings.Join(escaped, "|")))
+		}
+	}
+	b.WriteByte('}')
+	return b.String()
 }

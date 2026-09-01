@@ -28,6 +28,28 @@ tdEngine:
   password: 'taosdata'
   database: 'monitor'
 
+# Prometheus remote_write（backend=promRemoteWrite 时使用）
+# 将平台指标以 Prometheus remote_write 协议（snappy + protobuf）推送到远端：
+#   - 云端 vmagent / Prometheus 2.x remote_write 接收端
+#   - Mimir / Cortex / Thanos Receive（可设置 tenantId 走多租户）
+#   - Grafana Cloud / VictoriaMetrics remote_write receiver / OpenObserve
+# 远端需同时暴露 Prometheus 查询 API（/api/v1/query[_range]），平台的采样/告警/下钻读路径直接打远端。
+# 注意：Prometheus 自身不直接接收 remote_write，需经上述组件中转。
+# 数据可靠性提示：远端不可达时写入失败仅记日志不缓冲，断网期间数据丢失（与本地 VM 后端行为一致）。
+promRemoteWrite:
+  url: 'http://127.0.0.1:8429/api/v1/write'   # vmagent 默认端口 8429
+  # queryBase: ''                              # 查询端点 base；未配置时从 url 剥 /api/v1/write 推导。
+  #                                           # Grafana Cloud 等非标准路径（write=/api/prom/push）必须显式配置
+  # bearerToken: ''                            # 非空时优先于 BasicAuth，例 Grafana Cloud
+  # username: ''                               # BasicAuth；与 bearerToken 二选一
+  # password: ''
+  # tenantId: ''                               # Mimir/Cortex 多租户 X-Scope-OrgID
+  # requestTimeout: 30                         # 单次 POST 超时（秒）
+  # maxRetries: 2                              # 失败重试次数（不含首次），指数退避
+  # externalLabels:                            # 每条 series 头部附加的标签
+  #   cluster: 'prod'
+  #   region: 'cn-east'
+
 # Grafana
 # apiKey: Grafana Service Account Token 或 API Key（需 Editor 权限）
 # datasourceUid: 直接绑定真实数据源 UID；type 由 timeseries.backend 决定

@@ -12,6 +12,12 @@ const (
 	BackendVictoriaMetrics = "victoriaMetrics"
 	// BackendTDengine TDengine（REST SQL）
 	BackendTDengine = "tdengine"
+	// BackendPromRemoteWrite 通过 Prometheus remote_write 协议推送到远端
+	// （云端 Prometheus / vmagent / Mimir / Thanos Receive / Grafana Cloud 等兼容端点）。
+	// 注意：本后端仅负责出站写入，查询仍需由前端 Grafana 直接对接远端，
+	// 因此平台内的 QueryMean/QueryRange 等读路径会落到由 MetricQuery Dialect 提供的实现上
+	// （本后端 Dialect 与 VictoriaMetrics 等价——指标命名一致，PromQL 兼容）。
+	BackendPromRemoteWrite = "promRemoteWrite"
 )
 
 // Config 时序后端选择
