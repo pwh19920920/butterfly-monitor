@@ -102,7 +102,7 @@ func (application *SysMenuApplication) recursionAssignment(withOption bool, menu
 		rootMenus[index] = item
 
 		// 判断退出条件
-		if menus != nil && len(menus) != 0 {
+		if len(menus) != 0 {
 			// 继续赋值
 			application.recursionAssignment(withOption, menusOptionMap, menus, menuMap)
 		}

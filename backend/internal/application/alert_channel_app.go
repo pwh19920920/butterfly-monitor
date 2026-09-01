@@ -74,14 +74,8 @@ func (app *AlertChannelApplication) Create(ctx context.Context, channel *entity.
 		return errors.New("处理器不存在")
 	}
 	// 若已注入真实 handler，尝试测试发送
-	if h, ok := app.commonMap.GetChannelHandler(ctx, channel.Handler); ok {
-		msg, err := app.buildTestMessage(ctx, channel)
-		if err != nil {
-			return err
-		}
-		if err := h.TestDispatchMessage(*channel, testParams.Email, msg); err != nil {
-			return err
-		}
+	if err := app.tryTestDispatch(ctx, channel, testParams); err != nil {
+		return err
 	}
 	channel.Id = app.sequence.Generate().Int64()
 	return app.repository.AlertChannelRepository.Save(channel)
@@ -108,6 +102,20 @@ func (app *AlertChannelApplication) Modify(ctx context.Context, channel *entity.
 		}
 	}
 	return app.repository.AlertChannelRepository.Modify(channel.Id, channel)
+}
+
+// tryTestDispatch 尝试发送测试消息，Create 和 Modify 共用。
+func (app *AlertChannelApplication) tryTestDispatch(ctx context.Context, channel *entity.AlertChannel, testParams types.AlertChannelTestParams) error {
+	if h, ok := app.commonMap.GetChannelHandler(ctx, channel.Handler); ok {
+		msg, err := app.buildTestMessage(ctx, channel)
+		if err != nil {
+			return err
+		}
+		if err := h.TestDispatchMessage(*channel, testParams.Email, msg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // buildTestMessage 用通道模板（或 handler 默认模板）+ 假参数渲染测试消息

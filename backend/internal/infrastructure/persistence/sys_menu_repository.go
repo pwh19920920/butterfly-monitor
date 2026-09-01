@@ -46,7 +46,7 @@ func (s *SysMenuRepositoryImpl) GetById(id int64) (*entity.SysMenu, error) {
 // SelectByIds 批量获取
 func (s *SysMenuRepositoryImpl) SelectByIds(ids []int64) ([]entity.SysMenu, error) {
 	var data = make([]entity.SysMenu, 0)
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return data, nil
 	}
 	err := s.db.Model(&entity.SysMenu{}).

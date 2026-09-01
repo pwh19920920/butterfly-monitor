@@ -95,7 +95,7 @@ func (h *DatabasePostgresHandler) Close(db interface{}) error {
 func buildPostgresDSN(database entity.MonitorDatabase) (string, error) {
 	plain, err := database.GetDecodePassword()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("%s - %s db connect open failure: %s", database.GetUrl(), database.Database, err.Error()))
+		return "", fmt.Errorf("%s - %s db connect open failure: %s", database.GetUrl(), database.Database, err.Error())
 	}
 
 	hostPort := strings.TrimSpace(database.GetUrl())

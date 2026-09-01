@@ -37,7 +37,7 @@ func (repo *SysMenuOptionRepositoryImpl) SelectAll() ([]entity.SysMenuOption, er
 // SelectByIds 批量查询
 func (repo *SysMenuOptionRepositoryImpl) SelectByIds(ids []int64) ([]entity.SysMenuOption, error) {
 	var data = make([]entity.SysMenuOption, 0)
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return data, nil
 	}
 	err := repo.db.Model(&entity.SysMenuOption{}).

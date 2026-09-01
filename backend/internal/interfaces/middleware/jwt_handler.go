@@ -23,7 +23,7 @@ func JwtAuth(app *application.Application, routeFor401 gin.HandlerFunc, routeFor
 
 		// 先判断前缀过滤
 		ignorePaths, ignorePrefixPaths, commonPathMap := app.Login.GetAuthConfigPaths(reqCtx)
-		if ignorePrefixPaths != nil && len(ignorePrefixPaths) > 0 {
+		if len(ignorePrefixPaths) > 0 {
 			for _, path := range ignorePrefixPaths {
 				if strings.HasPrefix(urlFullKey, path) {
 					context.Next()

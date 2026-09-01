@@ -128,12 +128,20 @@ func desEncrypt(plain, salt string) (string, error) {
 		return "", err
 	}
 	src := pkcs5Padding([]byte(plain), block.BlockSize())
-	dst := make([]byte, len(src))
-	// CBC with zero IV for simplicity and compatibility
+	// 随机 IV，前置到密文中：version(1) + iv(8) + ciphertext
 	iv := make([]byte, block.BlockSize())
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
+	dst := make([]byte, len(src))
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(dst, src)
-	return base64.StdEncoding.EncodeToString(dst), nil
+	// 格式：version=0x01 + iv + ciphertext
+	out := make([]byte, 0, 1+len(iv)+len(dst))
+	out = append(out, 0x01)
+	out = append(out, iv...)
+	out = append(out, dst...)
+	return base64.StdEncoding.EncodeToString(out), nil
 }
 
 func desDecrypt(cipherText, salt string) (string, error) {
@@ -145,13 +153,26 @@ func desDecrypt(cipherText, salt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(raw)%block.BlockSize() != 0 {
+	blockSize := block.BlockSize()
+
+	// 兼容旧格式（无版本标记，零 IV）和新格式（version=0x01 + iv + ciphertext）
+	var iv, data []byte
+	if len(raw) > 0 && raw[0] == 0x01 && len(raw) > 1+blockSize {
+		// 新格式：version + iv + ciphertext
+		iv = raw[1 : 1+blockSize]
+		data = raw[1+blockSize:]
+	} else {
+		// 旧格式：零 IV（兼容历史数据）
+		iv = make([]byte, blockSize)
+		data = raw
+	}
+
+	if len(data)%blockSize != 0 {
 		return "", errors.New("cipher length invalid")
 	}
-	iv := make([]byte, block.BlockSize())
 	mode := cipher.NewCBCDecrypter(block, iv)
-	dst := make([]byte, len(raw))
-	mode.CryptBlocks(dst, raw)
+	dst := make([]byte, len(data))
+	mode.CryptBlocks(dst, data)
 	out, err := pkcs5UnPadding(dst)
 	if err != nil {
 		return "", err
@@ -163,7 +184,7 @@ func pkcs5Padding(src []byte, blockSize int) []byte {
 	padding := blockSize - len(src)%blockSize
 	pad := make([]byte, padding)
 	for i := range pad {
-		pad[i] = byte(padding)
+		pad[i] = byte(padding) // #nosec G115 -- PKCS5 padding 值域 1-8
 	}
 	return append(src, pad...)
 }

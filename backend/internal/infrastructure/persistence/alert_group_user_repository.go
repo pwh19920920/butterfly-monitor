@@ -27,7 +27,7 @@ func (repo *AlertGroupUserRepositoryImpl) SelectByGroupId(groupId int64) ([]enti
 
 // SelectUsersByUserIds 按用户 id 列表查询 t_sys_user
 func (repo *AlertGroupUserRepositoryImpl) SelectUsersByUserIds(userIds []int64) ([]entity.SysUser, error) {
-	if userIds == nil || len(userIds) == 0 {
+	if len(userIds) == 0 {
 		return make([]entity.SysUser, 0), nil
 	}
 	var data []entity.SysUser

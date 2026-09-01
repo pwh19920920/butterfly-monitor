@@ -21,21 +21,19 @@ func NewMonitorTaskEventRepositoryImpl(db *gorm.DB) *MonitorTaskEventRepositoryI
 
 // FindEventJob 查询到达下次告警时间的 Pending 事件
 func (repo *MonitorTaskEventRepositoryImpl) FindEventJob() ([]entity.MonitorTaskEvent, error) {
-	var data []entity.MonitorTaskEvent
-	err := repo.db.
-		Model(&entity.MonitorTaskEvent{}).
-		Where("deal_status = ? and now() >= next_alert_time", entity.MonitorTaskEventDealStatusPending).
-		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
-		Find(&data).Error
-	return data, err
+	return repo.findByDealStatus(entity.MonitorTaskEventDealStatusPending, " and now() >= next_alert_time")
 }
 
 // FindPendingEventAll 查询全部 Pending 事件
 func (repo *MonitorTaskEventRepositoryImpl) FindPendingEventAll() ([]entity.MonitorTaskEvent, error) {
+	return repo.findByDealStatus(entity.MonitorTaskEventDealStatusPending, "")
+}
+
+func (repo *MonitorTaskEventRepositoryImpl) findByDealStatus(dealStatus entity.MonitorTaskEventDealStatus, extraWhere string) ([]entity.MonitorTaskEvent, error) {
 	var data []entity.MonitorTaskEvent
 	err := repo.db.
 		Model(&entity.MonitorTaskEvent{}).
-		Where("deal_status = ?", entity.MonitorTaskEventDealStatusPending).
+		Where("deal_status = ?"+extraWhere, dealStatus).
 		Not(&entity.MonitorTaskEvent{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Find(&data).Error
 	return data, err
@@ -62,7 +60,7 @@ func (repo *MonitorTaskEventRepositoryImpl) ModifyByEvent(whereCase *entity.Moni
 
 // BatchModifyByEvents 批量按 id 更新
 func (repo *MonitorTaskEventRepositoryImpl) BatchModifyByEvents(eventIds []int64, monitorTaskEvent *entity.MonitorTaskEvent) error {
-	if eventIds == nil || len(eventIds) == 0 {
+	if len(eventIds) == 0 {
 		return nil
 	}
 	return repo.db.Model(&entity.MonitorTaskEvent{}).

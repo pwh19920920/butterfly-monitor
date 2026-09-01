@@ -107,7 +107,7 @@ func NewCollector() *Collector {
 		goroutine: newRing(historySize),
 		gc:        newRing(historySize),
 		rss:       newRing(historySize),
-		pid:       int32(os.Getpid()),
+		pid:       int32(os.Getpid()), // #nosec G115 -- PID 不会溢出 int32
 	}
 }
 

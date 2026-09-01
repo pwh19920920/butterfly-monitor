@@ -85,7 +85,7 @@ func (h *TimeSeriesVmHandler) BatchWrite(ctx context.Context, points []domainHan
 // QueryRangeWithTags 查询区间内的多 series 数据，并按 tagFilters 过滤标签。
 // tagFilters 为空(map长度为0)表示不过滤，返回该 metric 下所有 series。
 func (h *TimeSeriesVmHandler) QueryRangeWithTags(ctx context.Context, metric string, start, end time.Time, tagFilters map[string][]string) ([]domainHandler.SeriesData, error) {
-	raw, err := h.queryRange(ctx, h.buildTagFilteredExpr(metric, tagFilters), start, end)
+	raw, err := h.queryRange(ctx, buildPromTagFilteredExpr(metric, tagFilters), start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -176,45 +176,6 @@ func (h *TimeSeriesVmHandler) queryRange(ctx context.Context, query string, star
 		series = append(series, vmSeries{Metric: r.Metric, Values: vals})
 	}
 	return series, nil
-}
-
-// buildTagFilteredExpr 构造带标签过滤器的 PromQL 表达式。
-// 空过滤器返回裸 metric 名；单值用精确匹配 k="v"，多值用正则 k=~"v1|v2"。
-// metric 名与 tag key 均经清洗，防止用户可控值注入 PromQL 选择器。
-// 多值分支额外对每个值转义正则元字符，防止 . * + 等被当作正则运算符。
-func (h *TimeSeriesVmHandler) buildTagFilteredExpr(metric string, tagFilters map[string][]string) string {
-	safeMetric := escapePromMetric(metric)
-	if len(tagFilters) == 0 {
-		return safeMetric
-	}
-	var b strings.Builder
-	b.WriteString(safeMetric)
-	b.WriteByte('{')
-	first := true
-	for k, vals := range tagFilters {
-		if len(vals) == 0 {
-			continue
-		}
-		safeKey := sanitizePromLabelName(k)
-		if safeKey == "" {
-			continue
-		}
-		if !first {
-			b.WriteByte(',')
-		}
-		first = false
-		if len(vals) == 1 {
-			b.WriteString(fmt.Sprintf("%s=\"%s\"", safeKey, escapePromLabelValue(fmt.Sprint(vals[0]))))
-		} else {
-			escaped := make([]string, 0, len(vals))
-			for _, v := range vals {
-				escaped = append(escaped, escapePromLabelValueForRegex(fmt.Sprint(v)))
-			}
-			b.WriteString(fmt.Sprintf("%s=~\"%s\"", safeKey, strings.Join(escaped, "|")))
-		}
-	}
-	b.WriteByte('}')
-	return b.String()
 }
 
 // QueryMean 查询区间均值 avg_over_time(metric[窗口])，与 TDengine 的 AVG(val) 窗口语义对齐。

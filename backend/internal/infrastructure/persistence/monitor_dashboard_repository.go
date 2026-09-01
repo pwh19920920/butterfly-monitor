@@ -56,7 +56,7 @@ func (repo *MonitorDashboardRepositoryImpl) GetById(id int64) (*entity.MonitorDa
 // SelectByIds 批量查询
 func (repo *MonitorDashboardRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorDashboard, error) {
 	var data []entity.MonitorDashboard
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return data, nil
 	}
 	err := repo.db.Model(&entity.MonitorDashboard{}).

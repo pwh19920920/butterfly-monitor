@@ -124,24 +124,10 @@ func (h *GrafanaHandler) AddPanel(uid, taskKey, taskName string, sampled bool, r
 	h.ensureIntervalTemplate(board)
 	panels := getPanels(board)
 	// 已存在则改为 update（保留原 panel id）
-	for i, p := range panels {
-		if panelDesc(p) == taskKey {
-			panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
-			if err != nil {
-				return err
-			}
-			panels[i] = panel
-			board["panels"] = sortPanels(panels)
-			return h.saveDashboard(board, meta, true)
-		}
-	}
-	panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
-	if err != nil {
+	if err := h.upsertPanel(board, meta, taskKey, taskName, sampled, related, panels); err != nil {
 		return err
 	}
-	panels = append(panels, panel)
-	board["panels"] = sortPanels(panels)
-	return h.saveDashboard(board, meta, true)
+	return nil
 }
 
 // ModifyDashBoardPanel 对单个 dashboard 做 panel 增/删/改
@@ -194,26 +180,33 @@ func (h *GrafanaHandler) ModifyDashBoardPanel(uid, taskKey, taskName string, sam
 
 	if add {
 		// 已存在则更新
-		for i, p := range panels {
-			if panelDesc(p) == taskKey {
-				panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
-				if err != nil {
-					return err
-				}
-				panels[i] = panel
-				board["panels"] = sortPanels(panels)
-				return h.saveDashboard(board, meta, true)
-			}
-		}
-		panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
-		if err != nil {
+		if err := h.upsertPanel(board, meta, taskKey, taskName, sampled, related, panels); err != nil {
 			return err
 		}
-		panels = append(panels, panel)
-		board["panels"] = sortPanels(panels)
-		return h.saveDashboard(board, meta, true)
 	}
 	return nil
+}
+
+// upsertPanel 在面板列表中查找匹配 taskKey 的 panel，存在则更新，不存在则新增。
+func (h *GrafanaHandler) upsertPanel(board, meta map[string]interface{}, taskKey, taskName string, sampled bool, related []RelatedMetric, panels []map[string]interface{}) error {
+	for i, p := range panels {
+		if panelDesc(p) == taskKey {
+			panel, err := h.buildPanel(taskKey, taskName, sampled, related, panelGridPos(p), panelID(p))
+			if err != nil {
+				return err
+			}
+			panels[i] = panel
+			board["panels"] = sortPanels(panels)
+			return h.saveDashboard(board, meta, true)
+		}
+	}
+	panel, err := h.buildPanel(taskKey, taskName, sampled, related, nil, nextPanelID(panels))
+	if err != nil {
+		return err
+	}
+	panels = append(panels, panel)
+	board["panels"] = sortPanels(panels)
+	return h.saveDashboard(board, meta, true)
 }
 
 // ReSortDashboard 按 taskKeys 顺序重排 panel

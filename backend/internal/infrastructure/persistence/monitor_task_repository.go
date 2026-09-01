@@ -101,7 +101,7 @@ func (repo *MonitorTaskRepositoryImpl) UpdateTaskAndDashboardTaskAndAlertById(id
 			return err
 		}
 
-		if dashboardTasks != nil && len(dashboardTasks) > 0 {
+		if len(dashboardTasks) > 0 {
 			if err := tx.Model(&entity.MonitorDashboardTask{}).Create(&dashboardTasks).Error; err != nil {
 				return err
 			}
@@ -239,7 +239,7 @@ func (repo *MonitorTaskRepositoryImpl) SelectByIdsWithMap(ids []int64) (map[int6
 // SelectByIds 批量查询
 func (repo *MonitorTaskRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorTask, error) {
 	var data []entity.MonitorTask
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return data, nil
 	}
 	err := repo.db.Model(&entity.MonitorTask{}).

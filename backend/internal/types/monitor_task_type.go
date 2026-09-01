@@ -93,10 +93,10 @@ func (req MonitorTaskAlertCreateRequest) hasCompleteCheckConfig(needAlertGroups 
 // needAlertGroups：所选通道是否需要报警分组（非 Webhook 需要）
 func (req MonitorTaskAlertCreateRequest) ValidateOptional(needAlertGroups bool) error {
 	// needAlertGroups 仅决定"是否要求报警分组"，由此区分两类文案
-	requireGroupWord := "（通道/分组/间隔/持续时间）"
+	requireGroupWord := "（通道/分组/间隔/持续时间）" // #nosec G101 -- 中文提示文案，非凭据
 	completeGroupHint := "报警通道、报警分组、检查间隔、持续时间"
 	if !needAlertGroups {
-		requireGroupWord = "（通道/间隔/持续时间）"
+		requireGroupWord = "（通道/间隔/持续时间）" // #nosec G101 -- 中文提示文案，非凭据
 		completeGroupHint = "报警通道、检查间隔、持续时间（Webhook 无需分组）"
 	}
 

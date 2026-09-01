@@ -43,7 +43,7 @@ func (repo *MonitorGroupRepositoryImpl) SelectAll() ([]entity.MonitorGroup, erro
 // SelectByIds 批量查询
 func (repo *MonitorGroupRepositoryImpl) SelectByIds(ids []int64) ([]entity.MonitorGroup, error) {
 	var data []entity.MonitorGroup
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return data, nil
 	}
 	err := repo.db.Model(&entity.MonitorGroup{}).

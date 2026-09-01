@@ -19,20 +19,18 @@ func NewMonitorDashboardTaskRepositoryImpl(db *gorm.DB) *MonitorDashboardTaskRep
 
 // FindByDashboardId 按面板 id 查询关联
 func (repo *MonitorDashboardTaskRepositoryImpl) FindByDashboardId(dashboardId int64) ([]entity.MonitorDashboardTask, error) {
-	var data []entity.MonitorDashboardTask
-	err := repo.db.Model(&entity.MonitorDashboardTask{}).
-		Where("dashboard_id = ?", dashboardId).
-		Not(&entity.MonitorDashboardTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
-		Order("sort desc").
-		Find(&data).Error
-	return data, err
+	return repo.findByColumn("dashboard_id", dashboardId)
 }
 
 // FindByTaskId 按任务 id 查询关联
 func (repo *MonitorDashboardTaskRepositoryImpl) FindByTaskId(taskId int64) ([]entity.MonitorDashboardTask, error) {
+	return repo.findByColumn("task_id", taskId)
+}
+
+func (repo *MonitorDashboardTaskRepositoryImpl) findByColumn(column string, value int64) ([]entity.MonitorDashboardTask, error) {
 	var data []entity.MonitorDashboardTask
 	err := repo.db.Model(&entity.MonitorDashboardTask{}).
-		Where("task_id = ?", taskId).
+		Where(column+" = ?", value).
 		Not(&entity.MonitorDashboardTask{BaseEntity: common.BaseEntity{Deleted: common.DeletedTrue}}).
 		Order("sort desc").
 		Find(&data).Error

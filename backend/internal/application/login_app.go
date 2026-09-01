@@ -90,13 +90,13 @@ func (application *LoginApplication) GetHeaderName(ctx context.Context) string {
 
 // CheckAndGetTicket 检查并获取用户id
 func (application *LoginApplication) CheckAndGetTicket(ctx context.Context, token string) (*entity.SysToken, error) {
-	// 取出票据id
-	token, err := application.parseToken(token)
+	// 取出票据id，并剥离 HeaderType 前缀（如 "Bearer "）
+	rawToken, err := application.parseToken(token)
 	if err != nil {
 		return nil, errors.New("token数据不正确")
 	}
 
-	subject, err := application.tokenService.GetSubjectFromToken(token)
+	subject, err := application.tokenService.GetSubjectFromToken(rawToken)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (application *LoginApplication) CheckAndGetTicket(ctx context.Context, toke
 		return nil, errors.New("token不存在")
 	}
 
-	if !application.tokenService.CheckToken(token, ticket.Secret) {
+	if !application.tokenService.CheckToken(rawToken, ticket.Secret) {
 		return nil, errors.New("令牌校验失败")
 	}
 
@@ -142,9 +142,7 @@ func (application *LoginApplication) GetAuthConfigPaths(ctx context.Context) (ig
 			ignorePathMap[v] = true
 		}
 
-		for _, v := range application.authConfig.IgnorePrefixPath {
-			ignorePrefixPaths = append(ignorePrefixPaths, v)
-		}
+		ignorePrefixPaths = append(ignorePrefixPaths, application.authConfig.IgnorePrefixPath...)
 
 		for _, v := range application.authConfig.CommonPath {
 			commonPathMap[v] = true
@@ -379,7 +377,7 @@ func (application *LoginApplication) recursionAssignmentForUserMenu(
 		rootMenus[index] = item
 
 		// 判断退出条件
-		if menus != nil && len(menus) != 0 {
+		if len(menus) != 0 {
 			// 继续赋值
 			application.recursionAssignmentForUserMenu(menus, menuMap)
 		}

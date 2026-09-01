@@ -38,7 +38,7 @@ func (repo *MonitorTaskAlertRepositoryImpl) FindCheckJob(shardIndex, shardTotal 
 
 // BatchGetByIds 批量按 id 查询（仅处理中状态为 Normal 的规则）
 func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByIds(ids []int64) ([]entity.MonitorTaskAlert, error) {
-	if ids == nil || len(ids) == 0 {
+	if len(ids) == 0 {
 		return make([]entity.MonitorTaskAlert, 0), nil
 	}
 	var data []entity.MonitorTaskAlert
@@ -51,7 +51,7 @@ func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByIds(ids []int64) ([]entity
 
 // BatchGetByTaskIds 按任务 id 批量查询（排除软删除）
 func (repo *MonitorTaskAlertRepositoryImpl) BatchGetByTaskIds(taskIds []int64) ([]entity.MonitorTaskAlert, error) {
-	if taskIds == nil || len(taskIds) == 0 {
+	if len(taskIds) == 0 {
 		return make([]entity.MonitorTaskAlert, 0), nil
 	}
 	var data []entity.MonitorTaskAlert

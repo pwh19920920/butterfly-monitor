@@ -90,7 +90,7 @@ func (h *DatabaseMysqlHandler) Close(db interface{}) error {
 func buildMysqlDSN(database entity.MonitorDatabase) (string, error) {
 	plain, err := database.GetDecodePassword()
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("%s - %s db connect open failure: %s", database.GetUrl(), database.Database, err.Error()))
+		return "", fmt.Errorf("%s - %s db connect open failure: %s", database.GetUrl(), database.Database, err.Error())
 	}
 
 	params := database.GetParams()
