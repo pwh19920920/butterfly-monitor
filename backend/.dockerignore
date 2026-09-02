@@ -17,4 +17,4 @@ CLAUDE.md
 *.md
 !configs/
 
-# 注意：保留 vendor/ 与 configs/（Dockerfile 依赖）
+# 注意：vendor/ 由 Dockerfile 构建阶段自动生成（go mod vendor）

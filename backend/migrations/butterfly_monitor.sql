@@ -17,7 +17,7 @@ SET UNIQUE_CHECKS = 0;
 SET FOREIGN_KEY_CHECKS = 0;
 
 
-CREATE DATABASE `butterfly_monitor` CHARACTER SET utf8mb4;
+CREATE DATABASE IF NOT EXISTS `butterfly_monitor` CHARACTER SET utf8mb4;
 USE `butterfly_monitor`;
 
 -- ----------------------------

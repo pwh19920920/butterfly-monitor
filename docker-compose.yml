@@ -1,0 +1,282 @@
+# =============================================================================
+# Butterfly Monitor — 一键部署配置
+# =============================================================================
+#
+# 快速启动：
+#   docker compose up -d
+#
+# 访问：
+#   前端控制台    http://localhost:8000    （admin / 123456）
+#   Grafana       http://localhost:3000    （admin / admin123）
+#   XXL-JOB       http://localhost:8080/xxl-job-admin （admin / 123456）
+#   VictoriaMetrics http://localhost:8428
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # MySQL — 业务数据存储
+  # ===========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: butterfly-mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: butterfly_monitor
+      TZ: Asia/Shanghai
+    volumes:
+      - ./backend/migrations/butterfly_monitor.sql:/docker-entrypoint-initdb.d/01_butterfly_monitor.sql
+      - mysql-data:/var/lib/mysql
+    ports:
+      - '3306:3306'
+    networks:
+      - butterfly
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ===========================================================================
+  # VictoriaMetrics — 时序数据存储
+  # ===========================================================================
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.96.0
+    container_name: butterfly-vm
+    restart: unless-stopped
+    command:
+      - '-storageDataPath=/victoria-metrics-data'
+      - '-retentionPeriod=365d'
+      - '-httpListenAddr=:8428'
+    volumes:
+      - vm-data:/victoria-metrics-data
+    ports:
+      - '8428:8428'
+    networks:
+      - butterfly
+
+  # ===========================================================================
+  # Grafana — 可视化看板
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: butterfly-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: ''
+      TZ: Asia/Shanghai
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - '3000:3000'
+    networks:
+      - butterfly
+    depends_on:
+      victoria-metrics:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3000/api/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # XXL-JOB Admin — 分布式任务调度
+  # ===========================================================================
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.2
+    platform: linux/amd64
+    container_name: butterfly-xxl-job
+    restart: unless-stopped
+    environment:
+      PARAMS: >-
+        --spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
+        --spring.datasource.username=root
+        --spring.datasource.password=root
+        --server.port=8080
+        --server.servlet.context-path=/xxl-job-admin
+        --spring.mail.host=smtp.example.com
+        --spring.mail.port=25
+        --spring.mail.username=no-reply@example.com
+        --spring.mail.password=
+      TZ: Asia/Shanghai
+    ports:
+      - '8080:8080'
+    networks:
+      - butterfly
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Butterfly Monitor 后端
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: butterfly-backend
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        set -e
+        XXL_URL="http://xxl-job-admin:8080/xxl-job-admin"
+        GRAFANA_URL="http://grafana:3000"
+        GRAFANA_USER="admin"
+        GRAFANA_PASSWORD="admin123"
+        CONFIG_FILE="/app/configs/config-docker.yml"
+
+        # ---- 1. XXL-JOB 表初始化 ----
+        echo "[init] 等待 MySQL 就绪..."
+        until mysql -h mysql -uroot -proot --ssl-verify-server-cert=0 -e "SELECT 1" > /dev/null 2>&1; do sleep 2; done
+        echo "[init] 创建 xxl_job 数据库..."
+        mysql -h mysql -uroot -proot --ssl-verify-server-cert=0 -e "CREATE DATABASE IF NOT EXISTS xxl_job DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        echo "[init] 下载 XXL-JOB 建表 SQL..."
+        curl -sL "https://raw.githubusercontent.com/xuxueli/xxl-job/2.4.2/doc/db/tables_xxl_job.sql" | sed -e 's/CREATE TABLE /CREATE TABLE IF NOT EXISTS /g' -e 's/INSERT INTO /INSERT IGNORE INTO /g' | mysql -h mysql -uroot -proot --ssl-verify-server-cert=0 xxl_job
+        echo "[init] XXL-JOB 表初始化完成"
+
+        # ---- 2. 等待 XXL-JOB Admin 就绪 ----
+        echo "[init] 等待 XXL-JOB Admin 就绪..."
+        until curl -sf "$${XXL_URL}/login" > /dev/null 2>&1; do sleep 2; done
+
+        # ---- 3. XXL-JOB 执行器 + 任务初始化 ----
+        echo "[init] 登录 XXL-JOB..."
+        COOKIE=$$(curl -sf -c - -X POST "$${XXL_URL}/login" \
+          -d "userName=admin&password=123456&ifRemember=on" | grep XXL_JOB_LOGIN_IDENTITY | awk '{print $$NF}')
+        if [ -z "$$COOKIE" ]; then echo "[init] XXL-JOB 登录失败" >&2; exit 1; fi
+
+        echo "[init] 创建执行器..."
+        curl -sf "$${XXL_URL}/jobgroup/save" \
+          -b "XXL_JOB_LOGIN_IDENTITY=$$COOKIE" \
+          -d "appname=butterfly-monitor&title=butterfly&addressType=0" > /dev/null
+        GROUP_ID=$$(mysql -h mysql -uroot -proot --ssl-verify-server-cert=0 -N -e "SELECT id FROM xxl_job.xxl_job_group WHERE app_name='butterfly-monitor' LIMIT 1" 2>/dev/null)
+        if [ -z "$$GROUP_ID" ]; then echo "[init] 获取执行器 ID 失败" >&2; exit 1; fi
+
+        echo "[init] 创建定时任务..."
+        for item in \
+          "数据采集|dataCollect" \
+          "样本生成|dataSampling" \
+          "规则检测|alertCheck" \
+          "事件通知|eventCheck"; do
+          DESC="$${item%%|*}"
+          HANDLER="$${item##*|}"
+          curl -sf "$${XXL_URL}/jobinfo/add" \
+            -b "XXL_JOB_LOGIN_IDENTITY=$$COOKIE" \
+            -d "jobGroup=$$GROUP_ID&jobDesc=$$DESC&author=admin&alarmEmail=&scheduleType=CRON&scheduleConf=0/30 * * * * ?&glueType=BEAN&executorHandler=$$HANDLER&executorParam=&executorRouteStrategy=ROUND&misfireStrategy=DO_NOTHING&executorBlockStrategy=SERIAL_EXECUTION&executorTimeout=0&executorFailRetryCount=0&childJobId=&triggerStatus=1" > /dev/null
+        done
+        echo "[init] XXL-JOB 任务初始化完成"
+
+        # ---- 4. Grafana 配置 ----
+        echo "[init] 等待 Grafana 就绪..."
+        for i in $$(seq 1 60); do
+          if curl -sf "$${GRAFANA_URL}/api/health" > /dev/null 2>&1; then break; fi
+          if [ "$$i" -eq 60 ]; then echo "[init] Grafana 启动超时" >&2; exit 1; fi
+          sleep 2
+        done
+
+        echo "[init] 创建 VictoriaMetrics 数据源..."
+        curl -sf -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"VictoriaMetrics","type":"prometheus","uid":"butterfly-vm","url":"http://victoria-metrics:8428","access":"proxy","isDefault":true,"jsonData":{"timeInterval":"15s"}}' \
+          "$${GRAFANA_URL}/api/datasources" > /dev/null 2>&1 && echo "[init] 数据源已创建" || echo "[init] 数据源已存在"
+
+        echo "[init] 配置 Service Account..."
+        SA_JSON=$$(curl -sf -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" "$${GRAFANA_URL}/api/serviceaccounts/search?query=butterfly-monitor" || echo "")
+        SA_ID=$$(echo "$$SA_JSON" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+        if [ -z "$$SA_ID" ]; then
+          CREATE_JSON=$$(curl -sf -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"butterfly-monitor","role":"Admin"}' \
+            "$${GRAFANA_URL}/api/serviceaccounts" || echo "")
+          SA_ID=$$(echo "$$CREATE_JSON" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+        fi
+        if [ -z "$$SA_ID" ]; then echo "[init] 创建 Service Account 失败" >&2; exit 1; fi
+
+        echo "[init] 创建 Token..."
+        EXISTING_TOKENS=$$(curl -sf -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" "$${GRAFANA_URL}/api/serviceaccounts/$${SA_ID}/tokens" || echo "[]")
+        for tid in $$(echo "$$EXISTING_TOKENS" | grep -o '"id":[0-9]*' | cut -d: -f2); do
+          curl -sf -X DELETE -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" "$${GRAFANA_URL}/api/serviceaccounts/$${SA_ID}/tokens/$$tid" > /dev/null 2>&1 || true
+        done
+        TOKEN_JSON=$$(curl -sf -u "$${GRAFANA_USER}:$${GRAFANA_PASSWORD}" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"butterfly-monitor-token"}' \
+          "$${GRAFANA_URL}/api/serviceaccounts/$${SA_ID}/tokens" || echo "")
+        API_KEY=$$(echo "$$TOKEN_JSON" | grep -o '"key":"[^"]*"' | head -1 | cut -d'"' -f4)
+        if [ -z "$$API_KEY" ]; then echo "[init] 创建 Token 失败" >&2; exit 1; fi
+
+        sed -i "s|# apiKey:.*|apiKey: '$${API_KEY}'|" "$${CONFIG_FILE}"
+        sed -i "s|# datasourceUid:.*|datasourceUid: 'butterfly-vm'|" "$${CONFIG_FILE}"
+        echo "[init] Grafana 配置完成"
+
+        # ---- 5. 启动 ----
+        echo "[init] 启动 Butterfly Monitor..."
+        exec ./butterfly-monitor --configFilePath=configs/config-docker.yml
+    volumes:
+      - backend-logs:/app/logs
+    ports:
+      - '8088:8088'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - butterfly
+    depends_on:
+      mysql:
+        condition: service_healthy
+      victoria-metrics:
+        condition: service_started
+      grafana:
+        condition: service_healthy
+      xxl-job-admin:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'curl', '-o', '/dev/null', '-s', 'http://localhost:8088/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 180s
+
+  # ===========================================================================
+  # Butterfly Monitor 前端
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: butterfly-frontend
+    restart: unless-stopped
+    environment:
+      NGINX_UPSTREAM: backend:8088
+      TZ: Asia/Shanghai
+    ports:
+      - '8000:80'
+    networks:
+      - butterfly
+    depends_on:
+      backend:
+        condition: service_healthy
+
+# =============================================================================
+# 命名卷（持久化存储）
+# =============================================================================
+volumes:
+  mysql-data:
+    name: butterfly-mysql-data
+  vm-data:
+    name: butterfly-vm-data
+  grafana-data:
+    name: butterfly-grafana-data
+  backend-logs:
+    name: butterfly-backend-logs
+
+# =============================================================================
+# 网络
+# =============================================================================
+networks:
+  butterfly:
+    name: butterfly-net
+    driver: bridge
