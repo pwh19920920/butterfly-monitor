@@ -197,6 +197,11 @@ func (app *MonitorTaskApplication) resolveRelatedMetrics(ctx context.Context, re
 	}
 	metrics := make([]support.RelatedMetric, 0, len(tasks))
 	for _, t := range tasks {
+		// 聚合任务无单一实时 panel，不适合作为关联任务叠加曲线，跳过
+		if t.DataType == entity.DataTypeAggregate {
+			logger.WarnFormat(ctx, "resolveRelatedMetrics: 跳过聚合任务 id=%d taskKey=%s", t.Id, t.TaskKey)
+			continue
+		}
 		metrics = append(metrics, support.RelatedMetric{
 			TaskKey:  t.TaskKey,
 			TaskName: t.TaskName,

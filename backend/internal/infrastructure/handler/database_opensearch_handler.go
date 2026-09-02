@@ -497,6 +497,14 @@ func parseSQLResponse(raw []byte) ([]map[string]interface{}, error) {
 				cols[i] = fmt.Sprintf("col%d", i)
 			}
 		}
+		// 无数据行时仍返回列名，供预览接口提取维度（如空表预览）
+		if len(osResp.DataRows) == 0 && len(cols) > 0 {
+			colMap := make(map[string]interface{}, len(cols))
+			for _, col := range cols {
+				colMap[col] = nil
+			}
+			return []map[string]interface{}{colMap}, nil
+		}
 		out := make([]map[string]interface{}, 0, len(osResp.DataRows))
 		for _, row := range osResp.DataRows {
 			out = append(out, mapRowToColumns(row, cols))
@@ -520,6 +528,14 @@ func parseSQLResponse(raw []byte) ([]map[string]interface{}, error) {
 		if cols[i] == "" {
 			cols[i] = fmt.Sprintf("col%d", i)
 		}
+	}
+	// 无数据行时仍返回列名，供预览接口提取维度（如空表预览）
+	if len(esResp.Rows) == 0 && len(cols) > 0 {
+		colMap := make(map[string]interface{}, len(cols))
+		for _, col := range cols {
+			colMap[col] = nil
+		}
+		return []map[string]interface{}{colMap}, nil
 	}
 	out := make([]map[string]interface{}, 0, len(esResp.Rows))
 	for _, row := range esResp.Rows {

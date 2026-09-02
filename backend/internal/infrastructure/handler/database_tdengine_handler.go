@@ -190,6 +190,16 @@ func (h *DatabaseTdEngineHandler) ExecuteQueryMultiRows(ctx context.Context, db 
 			break
 		}
 	}
+
+	// 无数据行时仍返回列名，供预览接口提取维度（如空表预览）
+	if len(results) == 0 && len(colNames) > 0 {
+		colMap := make(map[string]interface{}, len(colNames))
+		for _, name := range colNames {
+			colMap[name] = nil
+		}
+		results = append(results, domainHandler.RowResult{Columns: colMap})
+	}
+
 	return results, nil
 }
 

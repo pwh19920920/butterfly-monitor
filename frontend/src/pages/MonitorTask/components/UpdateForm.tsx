@@ -227,11 +227,11 @@ const CreateOrUpdateForm: React.FC<CreateOrUpdateFormProps> = (props) => {
       })
       .catch(() => {});
 
-    // 关联任务候选：所有任务（排除当前编辑任务自身，避免自关联）
+    // 关联任务候选：排除聚合任务（聚合任务无单一实时 panel，不适合叠加曲线）及自身
     monitorTaskQuery({ pageSize: 1000 } as any)
       .then((resp) => {
         const list = (resp.data || []).filter(
-          (item: any) => String(item.id) !== String(props.taskId),
+          (item: any) => String(item.id) !== String(props.taskId) && item.dataType !== DATA_TYPE_AGGREGATE,
         );
         setRelatedTasks(
           list.map((item: any) => ({

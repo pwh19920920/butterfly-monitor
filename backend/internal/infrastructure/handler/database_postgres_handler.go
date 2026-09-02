@@ -247,6 +247,15 @@ func (h *DatabasePostgresHandler) ExecuteQueryMultiRows(ctx context.Context, db 
 		return nil, err
 	}
 
+	// 无数据行时仍返回列名，供预览接口提取维度（如空表预览）
+	if len(results) == 0 && len(cols) > 0 {
+		colMap := make(map[string]interface{}, len(cols))
+		for _, col := range cols {
+			colMap[col] = nil
+		}
+		results = append(results, domainHandler.RowResult{Columns: colMap})
+	}
+
 	if resetErr := gdb.Exec("SET default_transaction_read_only = off").Error; resetErr != nil && execErr == nil {
 		logrus.Warnf("reset postgres read-write fail: %v", resetErr)
 	}
